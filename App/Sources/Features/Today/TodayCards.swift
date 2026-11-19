@@ -265,6 +265,20 @@ struct TodayTimelineEntryContent: View {
     let entry: JournalEntry
     let showsDivider: Bool
 
+    private var nameText: some View {
+        Text(entry.name)
+            .font(.subheadline)
+            .foregroundStyle(Theme.textPrimary)
+            .lineLimit(1)
+    }
+
+    private var quantityText: some View {
+        Text(quantity)
+            .font(.caption)
+            .foregroundStyle(Theme.textSecondary)
+            .lineLimit(1)
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             if entry.source == .quickAdd {
@@ -272,15 +286,17 @@ struct TodayTimelineEntryContent: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
-            Text(entry.name)
-                .font(.subheadline)
-                .foregroundStyle(Theme.textPrimary)
-                .lineLimit(1)
-                .layoutPriority(1)
-            Text(quantity)
-                .font(.caption)
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(1)
+            // Name and quantity on one line when they fit, otherwise quantity goes below.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    nameText
+                    quantityText
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    nameText
+                    quantityText
+                }
+            }
             Spacer(minLength: 8)
             Text(Formatters.number(entry.nutrients.calories, maxFractionDigits: 0))
                 .font(.subheadline)

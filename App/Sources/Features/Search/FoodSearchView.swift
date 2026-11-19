@@ -199,7 +199,7 @@ struct FoodSearchView: View {
                 SearchShortcutLabel(title: "Mes aliments", systemImage: "person.crop.circle", color: Theme.fiber)
             }
         } footer: {
-            Text("Ajout au \(context.meal.label.lowercased()) · \(Formatters.dayTitle(context.day).lowercased())")
+            Text("Ajout à : \(context.meal.label) · \(Formatters.dayTitle(context.day).lowercased())")
                 .foregroundStyle(Theme.textSecondary)
         }
         .listRowBackground(Theme.card)

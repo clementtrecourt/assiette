@@ -146,7 +146,7 @@ struct FoodDetailView: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background {
-            Theme.background.opacity(0.96).ignoresSafeArea(edges: .bottom)
+            Theme.background.ignoresSafeArea(edges: .bottom)
         }
     }
 

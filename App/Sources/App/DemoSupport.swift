@@ -81,14 +81,15 @@ enum DemoSupport {
         let items: [FoodItem?] = dayPlan.map { FoodDatabase.shared.search($0.query, limit: 1).first?.item }
         let cal = Calendar.current
         let today = Date.now.startOfDay
-        let nowHour = cal.component(.hour, from: .now)
+        // Screenshots must show a few meals even early in the day: pretend it is at least 17:00.
+        let nowMinutes = max(cal.component(.hour, from: .now) * 60 + cal.component(.minute, from: .now), 17 * 60)
 
         for offset in 0..<30 {
             let day = today.adding(days: -offset)
             for (index, plan) in dayPlan.enumerated() {
                 guard let item = items[index] else { continue }
                 // Today: only what has "already been eaten" (dinner left empty for screenshots).
-                if offset == 0 && (plan.meal == .dinner || plan.hour > max(nowHour, 17)) { continue }
+                if offset == 0 && (plan.meal == .dinner || plan.hour * 60 + plan.minute > nowMinutes) { continue }
                 // Some variety across days.
                 if offset % 3 == 1 && plan.meal == .snack { continue }
                 let factor = 1 + Double((offset * 7 + index * 3) % 5 - 2) * 0.08

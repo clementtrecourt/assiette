@@ -198,7 +198,7 @@ struct QuickAddSheet: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background {
-            Theme.background.opacity(0.96).ignoresSafeArea(edges: .bottom)
+            Theme.background.ignoresSafeArea(edges: .bottom)
         }
     }
 
