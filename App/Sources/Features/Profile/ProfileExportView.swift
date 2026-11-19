@@ -68,7 +68,7 @@ struct ProfileExportView: View {
         .navigationTitle("Exporter")
         .navigationBarTitleDisplayMode(.inline)
         .task { generate() }
-        .refreshable { await generate() }
+        .refreshable { generate() }
     }
 
     private func exportRow(title: String, detail: String, systemImage: String) -> some View {

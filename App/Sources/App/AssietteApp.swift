@@ -5,6 +5,10 @@ import SwiftUI
 struct AssietteApp: App {
     @State private var appState = AppState()
 
+    /// Unit tests run inside the app: keep their launches on a throwaway in-memory store.
+    private static let isRunningTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -13,7 +17,7 @@ struct AssietteApp: App {
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
         }
-        .modelContainer(for: AppSchema.models)
+        .modelContainer(for: AppSchema.models, inMemory: Self.isRunningTests)
     }
 }
 
