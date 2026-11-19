@@ -1,0 +1,254 @@
+<title>Assiette — en-têtes macros</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>/* Layout: contact sheet of ten phones; every phone pins calories + macros at the top, log scrolls below. */
+:root{
+  --bg:#f3f4f6; --surface:#fff; --ink:#15171a; --muted:#61666e; --line:#dfe2e6; --accent:#2f6fe4; --accent-soft:#e6eefc;
+  --kc:#3a3d42; --pc:#e5546b; --cc:#3d8fe0; --fc:#f0a92e;
+  --display:"Bricolage Grotesque","Inter",system-ui,sans-serif; --text:"Inter",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace; --ios:-apple-system,"SF Pro Text","Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0e1013;--surface:#16191d;--ink:#e9ebee;--muted:#9aa0a8;--line:#272b31;--accent:#6b9bf2;--accent-soft:#1b2740;--kc:#c9ccd2;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1013;--surface:#16191d;--ink:#e9ebee;--muted:#9aa0a8;--line:#272b31;--accent:#6b9bf2;--accent-soft:#1b2740;--kc:#c9ccd2;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--text);line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:grid;gap:12px;max-width:780px;margin-bottom:36px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,4.6vw,48px);line-height:1.04;margin:0;text-wrap:balance}
+.lede{color:var(--muted);font-size:16px;margin:0;max-width:65ch}
+.shared{display:flex;flex-wrap:wrap;gap:8px}
+.shared span{font-size:12.5px;font-weight:600;padding:4px 10px 4px 22px;border-radius:999px;background:var(--surface);border:1px solid var(--line);position:relative}
+.shared span::before{content:"";position:absolute;left:9px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--dot)}
+.shared .k{--dot:var(--kc)}.shared .p{--dot:var(--pc)}.shared .c{--dot:var(--cc)}.shared .f{--dot:var(--fc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:40px 28px}
+.card{display:grid;gap:12px;align-content:start;min-width:0}
+.cap{display:grid;gap:4px}
+.cap h2{font-family:var(--display);font-size:21px;font-weight:700;margin:0;display:flex;gap:10px;align-items:baseline}
+.cap h2 .n{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.cap p{margin:0;color:var(--muted);font-size:14px}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.meta b{font-size:11.5px;font-weight:600;border:1px solid var(--line);padding:3px 8px;border-radius:6px;background:var(--surface)}
+footer.note{margin-top:56px;max-width:780px;display:grid;gap:10px;color:var(--muted);font-size:14.5px}
+footer.note strong{color:var(--ink)}
+
+/* phone shell (mockup palette is fixed: it depicts the app, not the page) */
+.ph{--bgp:#fff;--fg:#111316;--mut:#8b9098;--ln:#eceef1;--tr:#eef0f3;--k:#3a3d42;--p:#e5546b;--c:#3d8fe0;--f:#f0a92e;
+  width:270px;height:585px;border-radius:40px;overflow:hidden;position:relative;justify-self:center;background:var(--bgp);color:var(--fg);
+  box-shadow:0 0 0 7px #101214,0 0 0 8px #30343a,0 24px 50px -20px rgba(0,0,0,.45);font-family:var(--ios);font-size:11.5px;line-height:1.3;display:flex;flex-direction:column}
+.ph.dk{--bgp:#000;--fg:#f2f3f5;--mut:#8b9098;--ln:#1c1e22;--tr:#1f2226;--k:#e9eaec;--p:#ff6b82;--c:#57a6ff;--f:#ffbe45}
+.ph .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:76px;height:22px;border-radius:12px;background:#000;z-index:5}
+.ph .sb{height:34px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 22px 0 26px;font-weight:600}
+.ph .sb i{width:26px;height:8px;border-radius:3px;background:currentColor;opacity:.8}
+.tn{font-variant-numeric:tabular-nums}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hd{padding:2px 14px 10px;display:grid;gap:7px;border-bottom:1px solid var(--ln);flex:none;background:var(--bgp)}
+.lg{padding:0 14px 90px;overflow:hidden;flex:1}
+.bar{height:6px;border-radius:3px;background:var(--tr);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--col)}
+.k{--col:var(--k)}.p{--col:var(--p)}.c{--col:var(--c)}.f{--col:var(--f)}
+.dayb{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.dayb .chev{color:var(--mut);font-size:16px;padding:0 6px}
+.hb{display:grid;gap:3px}
+.hb .row span:first-child{font-weight:600}
+.hb .row span:last-child{color:var(--mut)}
+.ms{display:flex;justify-content:space-between;padding:9px 0 4px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.ms em{font-style:normal;color:var(--accent-ph,#2f6fe4);text-transform:none;letter-spacing:0}
+.dk .ms em{color:#6b9bf2}
+.en{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--ln)}
+.en time{font-size:10px;color:var(--mut);width:28px;flex:none}
+.en .nm{flex:1;min-width:0;display:grid}
+.en .nm b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.en .nm small{color:var(--mut);font-size:10px}
+.en .kv{display:grid;justify-items:end;gap:2px}
+.mm{display:flex;gap:5px;font-size:9.5px;font-style:normal}
+.mm i{font-style:normal;color:var(--mut);display:flex;align-items:center;gap:2px}
+.mm i::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--col)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:58px;display:flex;justify-content:space-around;padding-top:8px;font-size:9px;background:var(--bgp);border-top:1px solid var(--ln)}
+.tabs span{display:grid;justify-items:center;gap:3px;color:var(--mut)}
+.tabs span.on{color:var(--fg)}
+.tabs span::before{content:"";width:19px;height:17px;background:currentColor;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.t-j{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z' fill='black'/%3E%3C/svg%3E")}
+.t-p{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 18l6-6 4 4 8-9v4l-8 9-4-4-6 6z' fill='black'/%3E%3C/svg%3E")}
+.t-u{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4.5' fill='black'/%3E%3Cpath d='M3 21a9 7 0 0 1 18 0z' fill='black'/%3E%3C/svg%3E")}
+.fab{position:absolute;right:16px;bottom:70px;width:46px;height:46px;border-radius:50%;background:var(--fg);color:var(--bgp);display:grid;place-items:center;font-size:24px;font-weight:300;box-shadow:0 6px 16px -6px rgba(0,0,0,.4)}
+
+/* v2/v3 columns */
+.cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.col{display:grid;gap:3px}
+.col small{color:var(--mut);font-size:9.5px}
+.col b{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.week span{display:grid;justify-items:center;gap:2px;padding:4px 0;border-radius:10px}
+.week span.on{background:var(--tr)}
+.week small{font-size:9px;color:var(--mut)}
+.week b{font-size:11px}
+.week i{width:20px;height:20px;border-radius:50%;background:conic-gradient(var(--k) calc(var(--p)*360deg),var(--tr) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent 68%,#000 70%);mask:radial-gradient(farthest-side,transparent 68%,#000 70%)}
+/* v4/v7 hero */
+.hero{display:grid;gap:4px}
+.hero b{font-size:34px;font-weight:800;letter-spacing:-.03em}
+.hero.sm b{font-size:28px}
+.hero span{color:var(--mut);font-size:12px}
+.hero small{color:var(--mut)}
+.hero .bar{height:8px}
+.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pill{background:var(--tr);border-radius:10px;padding:7px;display:grid;gap:4px}
+.pill b{font-size:14px}
+.pill b small{font-size:9.5px;color:var(--mut);font-weight:500}
+.pill>small{font-size:9.5px;color:var(--mut)}
+.pill .bar{height:4px;background:var(--ln)}
+/* v5 sticky */
+.v5 .hd{padding-top:6px;box-shadow:0 4px 12px -8px rgba(0,0,0,.25)}
+.sticky{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px}
+.sticky span{display:grid;gap:1px;position:relative;padding-bottom:5px}
+.sticky b{font-size:15px;font-weight:700}
+.sticky small{font-size:9px;color:var(--mut)}
+.sticky i{position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--col) var(--w),var(--tr) 0)}
+.v5 .lg::before{content:"Défilé vers le bas ↓";display:block;text-align:center;font-size:9.5px;color:var(--mut);padding-top:6px}
+/* v7 segmented */
+.seg{display:flex;height:12px;border-radius:6px;background:var(--tr);overflow:hidden;gap:2px}
+.seg i{display:block;height:100%;background:var(--col)}
+.leg{display:flex;justify-content:space-between;font-size:10px;color:var(--mut)}
+.leg span{display:flex;align-items:center;gap:3px}
+.leg i{width:7px;height:7px;border-radius:50%;background:var(--col)}
+.leg b{color:var(--fg)}
+/* v8 rings */
+.rings{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rg{position:relative;display:grid;justify-items:center;gap:2px}
+.rg .ring{width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--col) calc(var(--p)*360deg),var(--tr) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent 80%,#000 82%);mask:radial-gradient(farthest-side,transparent 80%,#000 82%)}
+.rg b{position:absolute;top:18px;font-size:13px;font-weight:700}
+.rg small{font-size:9.5px;color:var(--mut)}
+/* v9 table */
+.tb{width:100%;border-collapse:collapse;font-size:11.5px}
+.tb th,.tb td{padding:4px 2px;text-align:right}
+.tb th:first-child{text-align:left}
+.tb tr:first-child th{font-size:9.5px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tb tr+tr{border-top:1px solid var(--ln)}
+.tb tr th{font-weight:600}
+.tb tr:not(:first-child) th::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--col);margin-right:6px}
+.tb td.r{font-weight:800}
+/* v10 menu */
+.menu{position:absolute;right:16px;bottom:124px;background:var(--bgp);border:1px solid var(--ln);border-radius:14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.35);display:grid;font-weight:600;font-size:12px;overflow:hidden}
+.menu span{padding:9px 14px;border-bottom:1px solid var(--ln)}
+.menu span:last-child{border:0}
+@media (prefers-reduced-motion: no-preference){.card .ph{transition:transform .25s ease}.card:hover .ph{transform:translateY(-4px)}}
+</style>
+<div class="wrap">
+<header class="top"><span class="eyebrow">Assiette · v2 · inspiré de MacroFactor</span>
+<h1>Calories et macros en haut : 10 variantes</h1>
+<p class="lede">Sur toutes les maquettes, calories, protéines, glucides et lipides sont tout en haut, et le journal défile en dessous. Le style est épuré, dense en chiffres, avec une couleur par macro. Même journée partout : 1 420 kcal sur 2 200.</p>
+<div class="shared"><span class="k">Calories</span><span class="p">Protéines</span><span class="c">Glucides</span><span class="f">Lipides</span></div></header>
+<div class="grid"><article class="card"><div class="ph mf v1"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="hb k"><div class="row"><span>Calories</span><span class="tn">1 420 / 2 200 kcal</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb p"><div class="row"><span>Protéines</span><span class="tn">98 / 150 g</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb c"><div class="row"><span>Glucides</span><span class="tn">160 / 240 g</span></div><div class="bar"><i style="width:67%"></i></div></div><div class="hb f"><div class="row"><span>Lipides</span><span class="tn">45 / 70 g</span></div><div class="bar"><i style="width:64%"></i></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">01</span>Quatre barres</h2><p>La base MacroFactor : quatre barres empilées, mangé / objectif à droite. Lisible, chaque chiffre a sa place.</p></div><div class="meta"><b>Le plus lisible</b><b>Repas classiques</b></div></article><article class="card"><div class="ph mf v2"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="cols"><div class="col k"><small>Kcal</small><b class="tn">780</b><div class="bar"><i style="width:65%"></i></div><small class="tn">sur 2 200</small></div><div class="col p"><small>Prot.</small><b class="tn">52</b><div class="bar"><i style="width:65%"></i></div><small class="tn">sur 150</small></div><div class="col c"><small>Gluc.</small><b class="tn">80</b><div class="bar"><i style="width:67%"></i></div><small class="tn">sur 240</small></div><div class="col f"><small>Lip.</small><b class="tn">25</b><div class="bar"><i style="width:64%"></i></div><small class="tn">sur 70</small></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">02</span>Quatre colonnes</h2><p>Une ligne de quatre colonnes affiche ce qu'il te reste. L'en-tête prend moitié moins de place, donc le journal en montre plus.</p></div><div class="meta"><b>Compact</b><b>Restant en gros</b></div></article><article class="card"><div class="ph mf v3"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="week"><span class=""><small>L</small><i style="--p:0.98"></i><b>17</b></span><span class=""><small>M</small><i style="--p:1.03"></i><b>18</b></span><span class="on"><small>M</small><i style="--p:0.65"></i><b>19</b></span><span class=""><small>J</small><i style="--p:0"></i><b>20</b></span><span class=""><small>V</small><i style="--p:0"></i><b>21</b></span><span class=""><small>S</small><i style="--p:0"></i><b>22</b></span><span class=""><small>D</small><i style="--p:0"></i><b>23</b></span></div><div class="cols"><div class="col k"><small>Kcal</small><b class="tn">780</b><div class="bar"><i style="width:65%"></i></div><small class="tn">sur 2 200</small></div><div class="col p"><small>Prot.</small><b class="tn">52</b><div class="bar"><i style="width:65%"></i></div><small class="tn">sur 150</small></div><div class="col c"><small>Gluc.</small><b class="tn">80</b><div class="bar"><i style="width:67%"></i></div><small class="tn">sur 240</small></div><div class="col f"><small>Lip.</small><b class="tn">25</b><div class="bar"><i style="width:64%"></i></div><small class="tn">sur 70</small></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">03</span>Semaine + chiffres</h2><p>Une bande des 7 jours en haut, avec un anneau d'adhérence par jour : tu changes de jour d'un toucher. En dessous, les 4 chiffres de la journée.</p></div><div class="meta"><b>Navigation rapide</b><b>Vue de la semaine</b></div></article><article class="card"><div class="ph mf v4"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="hero"><div><b class="tn">780</b><span> kcal restantes</span></div><small class="tn">1 420 mangées · objectif 2 200</small><div class="bar k"><i style="width:65%"></i></div></div><div class="pills"><div class="pill p"><b class="tn">98<small>/150 g</small></b><div class="bar"><i style="width:65%"></i></div><small>Protéines</small></div><div class="pill c"><b class="tn">160<small>/240 g</small></b><div class="bar"><i style="width:67%"></i></div><small>Glucides</small></div><div class="pill f"><b class="tn">45<small>/70 g</small></b><div class="bar"><i style="width:64%"></i></div><small>Lipides</small></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">04</span>Calories en vedette</h2><p>Le reste de calories en très grand, la jauge juste dessous, puis trois pastilles de macros. Tu sais en une seconde où tu en es.</p></div><div class="meta"><b>Hiérarchie claire</b><b>Un chiffre clé</b></div></article><article class="card"><div class="ph mf v5"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="sticky"><span class="k"><b class="tn">780</b><small>kcal</small><i style="--w:65%"></i></span><span class="p"><b class="tn">52</b><small>P</small><i style="--w:65%"></i></span><span class="c"><b class="tn">80</b><small>G</small><i style="--w:67%"></i></span><span class="f"><b class="tn">25</b><small>L</small><i style="--w:64%"></i></span></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">05</span>Barre collante</h2><p>L'écran est montré défilé : l'en-tête se réduit à une barre fine qui reste en haut. Les chiffres restent visibles pendant que tu parcours le journal.</p></div><div class="meta"><b>Toujours visible</b><b>Maximum de place</b></div></article><article class="card"><div class="ph mf v6 dk"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="hb k"><div class="row"><span>Calories</span><span class="tn">780 kcal restantes</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb p"><div class="row"><span>Protéines</span><span class="tn">52 g restants</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb c"><div class="row"><span>Glucides</span><span class="tn">80 g restants</span></div><div class="bar"><i style="width:67%"></i></div></div><div class="hb f"><div class="row"><span>Lipides</span><span class="tn">25 g restants</span></div><div class="bar"><i style="width:64%"></i></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">06</span>Sombre</h2><p>La variante 01 en mode sombre : fond noir, barres saturées, chiffres blancs. Confortable le soir.</p></div><div class="meta"><b>Mode sombre</b><b>Contraste fort</b></div></article><article class="card"><div class="ph mf v7"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="hero sm"><div><b class="tn">1 420</b><span class="tn"> / 2 200 kcal</span></div><small class="tn">780 restantes</small></div><div class="seg"><i class="p" style="width:17.8%"></i><i class="c" style="width:29.1%"></i><i class="f" style="width:18.4%"></i></div><div class="leg"><span class="p"><i></i>Prot. <b class="tn">98</b>/150</span><span class="c"><i></i>Gluc. <b class="tn">160</b>/240</span><span class="f"><i></i>Lip. <b class="tn">45</b>/70</span></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">07</span>Barre segmentée</h2><p>Une seule barre de calories, découpée en kcal de protéines, glucides et lipides : tu vois d'où viennent tes calories.</p></div><div class="meta"><b>Répartition visible</b><b>Original</b></div></article><article class="card"><div class="ph mf v8"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="rings"><div class="rg k"><div class="ring" style="--p:0.6454545454545455"></div><b class="tn">780</b><small>kcal</small></div><div class="rg p"><div class="ring" style="--p:0.6533333333333333"></div><b class="tn">52</b><small>prot.</small></div><div class="rg c"><div class="ring" style="--p:0.6666666666666666"></div><b class="tn">80</b><small>gluc.</small></div><div class="rg f"><div class="ring" style="--p:0.6428571428571429"></div><b class="tn">25</b><small>lip.</small></div></div></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">08</span>Quatre anneaux</h2><p>Quatre anneaux alignés, le chiffre restant au centre de chacun. Plus doux visuellement, aussi rapide à lire.</p></div><div class="meta"><b>Visuel</b><b>Restant au centre</b></div></article><article class="card"><div class="ph mf v9"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><table class="tb"><tr><th></th><th>Objectif</th><th>Mangé</th><th>Reste</th></tr><tr class="k"><th>Kcal</th><td class="tn">2 200</td><td class="tn">1 420</td><td class="tn r">780</td></tr><tr class="p"><th>Prot.</th><td class="tn">150</td><td class="tn">98</td><td class="tn r">52</td></tr><tr class="c"><th>Gluc.</th><td class="tn">240</td><td class="tn">160</td><td class="tn r">80</td></tr><tr class="f"><th>Lip.</th><td class="tn">70</td><td class="tn">45</td><td class="tn r">25</td></tr></table></div><div class="lg"><div class="ms"><span>Petit-déjeuner</span><span class="tn">420 kcal</span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>Déjeuner</span><span class="tn">680 kcal</span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>Collation</span><span class="tn">320 kcal</span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div>
+<div class="ms"><span>Dîner</span><span class="tn"><em>+ Ajouter</em></span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">09</span>Tableau</h2><p>Un mini tableau Objectif / Mangé / Reste. Aucun graphique, que des chiffres alignés : pour ceux qui comptent au gramme près.</p></div><div class="meta"><b>Précis</b><b>Zéro décoration</b></div></article><article class="card"><div class="ph mf v10"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+<div class="hd"><div class="dayb"><span class="chev">‹</span><b>Aujourd'hui</b><span class="chev">›</span></div><div class="hb k"><div class="row"><span>Calories</span><span class="tn">1 420 / 2 200 kcal</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb p"><div class="row"><span>Protéines</span><span class="tn">98 / 150 g</span></div><div class="bar"><i style="width:65%"></i></div></div><div class="hb c"><div class="row"><span>Glucides</span><span class="tn">160 / 240 g</span></div><div class="bar"><i style="width:67%"></i></div></div><div class="hb f"><div class="row"><span>Lipides</span><span class="tn">45 / 70 g</span></div><div class="bar"><i style="width:64%"></i></div></div></div><div class="lg"><div class="ms"><span>7:45</span><span></span></div>
+<div class="en"><div class="nm"><b>Flocons d'avoine</b><small>60 g</small></div><div class="kv"><b class="tn">228</b><span class="mm"><i class="p">8</i><i class="c">39</i><i class="f">4</i></span></div></div>
+<div class="en"><div class="nm"><b>Banane</b><small>1 moyenne · 118 g</small></div><div class="kv"><b class="tn">105</b><span class="mm"><i class="p">1</i><i class="c">27</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Lait demi-écrémé</b><small>150 ml</small></div><div class="kv"><b class="tn">87</b><span class="mm"><i class="p">5</i><i class="c">7</i><i class="f">2</i></span></div></div>
+<div class="ms"><span>12:50</span><span></span></div>
+<div class="en"><div class="nm"><b>Poulet grillé</b><small>150 g</small></div><div class="kv"><b class="tn">248</b><span class="mm"><i class="p">46</i><i class="c">0</i><i class="f">6</i></span></div></div>
+<div class="en"><div class="nm"><b>Riz basmati cuit</b><small>200 g</small></div><div class="kv"><b class="tn">432</b><span class="mm"><i class="p">6</i><i class="c">87</i><i class="f">6</i></span></div></div>
+<div class="ms"><span>16:15</span><span></span></div>
+<div class="en"><div class="nm"><b>Skyr nature</b><small>150 g</small></div><div class="kv"><b class="tn">147</b><span class="mm"><i class="p">16</i><i class="c">6</i><i class="f">0</i></span></div></div>
+<div class="en"><div class="nm"><b>Amandes</b><small>30 g</small></div><div class="kv"><b class="tn">173</b><span class="mm"><i class="p">6</i><i class="c">6</i><i class="f">15</i></span></div></div><div class="menu"><span>Rechercher</span><span>Scanner un code-barres</span><span>Ajout rapide</span></div></div><nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav><div class="fab">+</div></div><div class="cap"><h2><span class="n">10</span>Journal horodaté</h2><p>Les 4 barres en haut, puis les aliments classés par heure, sans cases repas (comme MacroFactor). Le + ouvre Rechercher, Scanner ou Ajout rapide.</p></div><div class="meta"><b>Sans repas</b><b>Menu d'ajout rapide</b></div></article></div>
+<footer class="note"><p><strong>Ma recommandation : 01 ou 10 en clair et 06 en sombre</strong>, l'app suivant le réglage de l'iPhone. Les quatre barres sont le plus lisible, et l'en-tête se réduit en barre collante (05) quand tu fais défiler.</p>
+<p>Tu peux combiner : l'en-tête d'une maquette, le journal d'une autre (par repas ou par heure). Dis-moi les numéros.</p></footer>
+</div>

@@ -1,0 +1,8 @@
+*.xcodeproj/
+build/
+DerivedData/
+App/Resources/foods.sqlite
+/data/
+*.ipa
+.DS_Store
+__pycache__/

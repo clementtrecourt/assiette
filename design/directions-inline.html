@@ -1,0 +1,496 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Assiette — 10 directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Archivo+Black&display=swap">
+<style>
+/* Layout: a contact sheet of ten phone mockups, each captioned with its idea and how many taps it takes to log a food. */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --ink:#18201b; --muted:#5f6b63; --line:#dde3dd; --accent:#1f8f5f; --accent-soft:#e2f2e9;
+  --display:"Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --text:"Inter", system-ui, -apple-system, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  --ios:-apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1411;--surface:#161d19;--ink:#e8eee9;--muted:#9aa89f;--line:#26312a;--accent:#4cc38a;--accent-soft:#183326;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1411;--surface:#161d19;--ink:#e8eee9;--muted:#9aa89f;--line:#26312a;--accent:#4cc38a;--accent-soft:#183326;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--text);line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:grid;gap:12px;max-width:760px;margin-bottom:36px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(32px,5vw,52px);line-height:1.02;margin:0;text-wrap:balance}
+.lede{color:var(--muted);font-size:16px;margin:0;max-width:65ch}
+.shared{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.shared span{font-size:12.5px;background:var(--accent-soft);color:var(--ink);padding:5px 10px;border-radius:999px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:40px 28px}
+.card{display:grid;gap:14px;align-content:start;min-width:0}
+.cap{display:grid;gap:4px}
+.cap h2{font-family:var(--display);font-size:22px;font-weight:700;margin:0;display:flex;gap:10px;align-items:baseline}
+.cap h2 .n{font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:600}
+.cap p{margin:0;color:var(--muted);font-size:14px}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.meta b{font-size:11.5px;font-weight:600;border:1px solid var(--line);padding:3px 8px;border-radius:6px;color:var(--ink);background:var(--surface)}
+.meta b.fast{border-color:var(--accent);color:var(--accent)}
+.rec{outline:2px solid var(--accent);outline-offset:10px;border-radius:44px}
+footer.note{margin-top:56px;max-width:760px;display:grid;gap:10px;color:var(--muted);font-size:14.5px}
+footer.note strong{color:var(--ink)}
+
+/* ---------- phone shell ---------- */
+.ph{width:270px;height:585px;border-radius:40px;overflow:hidden;position:relative;justify-self:center;
+  box-shadow:0 0 0 7px #101312,0 0 0 8px #2d332f,0 24px 50px -20px rgba(0,0,0,.45);font-family:var(--ios);font-size:12px;line-height:1.3}
+.ph .sb{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px 0 26px;font-weight:600;font-size:12px}
+.ph .sb i{width:44px;height:12px;border-radius:6px;background:currentColor;opacity:.85;display:block;transform:scale(.6);transform-origin:right}
+.ph .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:76px;height:22px;border-radius:12px;background:#000;z-index:5}
+.ph .body{padding:4px 14px;display:flex;flex-direction:column;gap:10px}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:62px;display:flex;justify-content:space-around;align-items:flex-start;padding-top:9px;font-size:9px;font-weight:500}
+.tabs span{display:grid;justify-items:center;gap:3px;opacity:.5}
+.tabs span.on{opacity:1}
+.tabs span::before{content:"";width:20px;height:18px;border-radius:5px;background:currentColor;opacity:.9;
+  -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.t-j{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3z' fill='black'/%3E%3C/svg%3E")}
+.t-a{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='black'/%3E%3C/svg%3E")}
+.t-p{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 18l6-6 4 4 8-9v4l-8 9-4-4-6 6z' fill='black'/%3E%3C/svg%3E")}
+.t-u{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4.5' fill='black'/%3E%3Cpath d='M3 21a9 7 0 0 1 18 0z' fill='black'/%3E%3C/svg%3E")}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ring{--p:.65;--c:#f08a24;--t:#0000001a;--w:10px;width:var(--s,90px);aspect-ratio:1;border-radius:50%;
+  background:conic-gradient(var(--c) calc(var(--p)*360deg),var(--t) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - var(--w)),#000 calc(100% - var(--w) + 1px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - var(--w)),#000 calc(100% - var(--w) + 1px))}
+.bar{height:6px;border-radius:4px;background:var(--bt,#0000001a);overflow:hidden}
+.bar i{display:block;height:100%;width:var(--p);background:var(--c);border-radius:4px}
+.tn{font-variant-numeric:tabular-nums}
+
+/* 1 Anneaux */
+.d1{background:#f2f2f7;color:#111}
+.d1 .h{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.d1 .date{color:#8a8a8e;font-weight:600;font-size:11px;text-transform:uppercase}
+.d1 .sum{background:#fff;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center}
+.d1 .rings{position:relative;width:92px;height:92px;flex:none}
+.d1 .rings .ring{position:absolute;inset:0;margin:auto}
+.d1 .k{font-size:22px;font-weight:800}
+.d1 .lab{color:#8a8a8e;font-size:10.5px}
+.d1 .meal{background:#fff;border-radius:14px;padding:9px 12px;display:grid;gap:5px}
+.d1 .meal .row b{font-size:13px}
+.d1 .meal small{color:#8a8a8e}
+.d1 .plus{width:22px;height:22px;border-radius:50%;background:#1f8f5f;color:#fff;display:grid;place-items:center;font-weight:700}
+.d1 .tabs{background:#f9f9f9ee;border-top:1px solid #0000000f;color:#1f8f5f}
+.d1 .tabs span:not(.on){color:#777}
+
+/* 2 Recherche d'abord */
+.d2{background:#fff;color:#151a17}
+.d2 .ask{font-family:var(--display);font-size:25px;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+.d2 .search{border:2px solid #1f8f5f;border-radius:14px;padding:11px 12px;display:flex;gap:8px;align-items:center;color:#7a857e;font-size:13px}
+.d2 .search::before{content:"";width:13px;height:13px;border:2px solid #1f8f5f;border-radius:50%}
+.d2 .search em{margin-left:auto;font-style:normal;background:#151a17;color:#fff;border-radius:8px;padding:3px 7px;font-size:10px;font-weight:700}
+.d2 .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7a857e}
+.d2 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.d2 .chips span{background:#eef5f0;border-radius:999px;padding:6px 10px;font-weight:600;font-size:11px}
+.d2 .chips span::after{content:" +";color:#1f8f5f;font-weight:800}
+.d2 .mini{border-top:1px solid #edf0ee;padding-top:8px;display:grid;gap:7px}
+.d2 .mini .row span{color:#7a857e}
+.d2 .bud{display:flex;gap:4px;align-items:baseline}
+.d2 .bud b{font-size:20px;font-weight:800}
+.d2 .tabs{border-top:1px solid #eef0ee;color:#151a17}
+
+/* 3 Timeline */
+.d3{background:#fbfaf7;color:#1d1d1b}
+.d3 .h{display:flex;justify-content:space-between;align-items:baseline}
+.d3 .h b{font-size:20px;font-weight:800}
+.d3 .budget{display:grid;gap:5px}
+.d3 .budget .bar{height:10px;--bt:#ece8df}
+.d3 .tl{position:relative;padding-left:44px;display:grid;gap:10px}
+.d3 .tl::before{content:"";position:absolute;left:33px;top:4px;bottom:0;width:2px;background:#e4dfd3}
+.d3 .ev{position:relative;display:grid;gap:1px}
+.d3 .ev time{position:absolute;left:-44px;top:0;font-size:10px;color:#8c8678;width:28px;text-align:right}
+.d3 .ev::before{content:"";position:absolute;left:-15px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--c,#1f8f5f);box-shadow:0 0 0 3px #fbfaf7}
+.d3 .ev b{font-size:12.5px}
+.d3 .ev small{color:#8c8678}
+.d3 .now{color:#1f8f5f;font-weight:700;font-size:11px}
+.d3 .fab{position:absolute;right:16px;bottom:76px;width:48px;height:48px;border-radius:16px;background:#1d1d1b;color:#fff;display:grid;place-items:center;font-size:24px;font-weight:300}
+.d3 .tabs{background:#fbfaf7;border-top:1px solid #ece8df}
+
+/* 4 Budget */
+.d4{background:#0f3d2e;color:#eafff4}
+.d4 .body{padding:10px 18px;gap:14px}
+.d4 .lbl{opacity:.65;font-size:11px;font-weight:600}
+.d4 .big{font-family:var(--display);font-size:60px;font-weight:800;letter-spacing:-.04em;line-height:.9}
+.d4 .big small{font-size:16px;font-weight:600;opacity:.7;letter-spacing:0}
+.d4 .m{display:grid;gap:9px}
+.d4 .m .row{font-size:11px}
+.d4 .m .bar{--bt:#ffffff22;height:5px}
+.d4 .sheet{position:absolute;left:0;right:0;bottom:0;top:300px;background:#f5faf7;color:#0f2a20;border-radius:26px 26px 0 0;padding:14px 18px;display:grid;gap:8px;align-content:start}
+.d4 .sheet .grab{width:36px;height:4px;border-radius:2px;background:#c9d6cf;justify-self:center}
+.d4 .sheet .row{border-bottom:1px solid #e3ece7;padding-bottom:7px}
+.d4 .sheet .row span{color:#6b7c73}
+.d4 .add{background:#0f3d2e;color:#fff;border-radius:14px;padding:11px;text-align:center;font-weight:700;margin-top:2px}
+
+/* 5 Tuiles repas */
+.d5{background:#fff6ec;color:#2b1d12}
+.d5 .h{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.d5 .strip{display:flex;gap:6px}
+.d5 .strip div{flex:1;background:#fff;border-radius:12px;padding:7px 8px;display:grid;gap:4px}
+.d5 .strip b{font-size:13px}
+.d5 .strip small{font-size:9.5px;color:#93806e}
+.d5 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.d5 .tile{border-radius:20px;padding:12px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between;background:var(--b);position:relative}
+.d5 .tile b{font-size:14px}
+.d5 .tile .k{font-size:22px;font-weight:800}
+.d5 .tile small{opacity:.7;font-size:10px}
+.d5 .tile .p{position:absolute;right:10px;top:10px;width:26px;height:26px;border-radius:50%;background:#2b1d12;color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+.d5 .tile.empty{background:transparent;border:2px dashed #e6c9a8}
+.d5 .tabs{background:#fff6ec;border-top:1px solid #f0dfcb}
+
+/* 6 Assiette */
+.d6{background:#eef4ef;color:#17251d}
+.d6 .h{text-align:center;display:grid;gap:2px}
+.d6 .h b{font-size:15px}
+.d6 .h small{color:#6d7f74}
+.d6 .plate{width:196px;height:196px;border-radius:50%;margin:2px auto 0;background:#fff;box-shadow:0 10px 28px -12px #2a5a3e66, inset 0 0 0 12px #f6faf7;display:grid;place-items:center;position:relative}
+.d6 .plate .fill{position:absolute;inset:20px;border-radius:50%;background:conic-gradient(#e2475c 0 26%, #ffffff 26% 28%, #3399db 28% 68%, #ffffff 68% 70%, #f4b42a 70% 92%, #e7eee9 92% 100%)}
+.d6 .plate .c{position:relative;width:104px;height:104px;border-radius:50%;background:#fff;display:grid;place-items:center;text-align:center}
+.d6 .plate .c b{font-size:24px;font-weight:800;display:block}
+.d6 .plate .c small{color:#6d7f74;font-size:10px}
+.d6 .leg{display:flex;justify-content:center;gap:12px;font-size:10.5px}
+.d6 .leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--c)}
+.d6 .ml{display:grid;gap:6px}
+.d6 .ml .row{background:#fff;border-radius:12px;padding:8px 10px}
+.d6 .ml span{color:#6d7f74}
+.d6 .tabs{background:#eef4ef;border-top:1px solid #dbe6de}
+
+/* 7 Sombre sport */
+.d7{background:#0b0b0c;color:#f4f4f4}
+.d7 .h{font-family:"Archivo Black",var(--display);font-size:24px;text-transform:uppercase;letter-spacing:-.01em;line-height:1}
+.d7 .h span{color:#c6ff3d}
+.d7 .pro{background:#18181a;border-radius:16px;padding:12px;display:grid;gap:7px}
+.d7 .pro .big{font-family:"Archivo Black",var(--display);font-size:38px;line-height:1}
+.d7 .pro .big small{font-size:14px;color:#8d8d93}
+.d7 .bar{--bt:#2a2a2e;height:8px}
+.d7 .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.d7 .trio div{background:#18181a;border-radius:12px;padding:8px;display:grid;gap:4px}
+.d7 .trio b{font-size:15px}
+.d7 .trio small{color:#8d8d93;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em}
+.d7 .list{display:grid;gap:0}
+.d7 .list .row{border-bottom:1px solid #222225;padding:7px 0}
+.d7 .list span{color:#8d8d93}
+.d7 .tabs{background:#0b0b0c;border-top:1px solid #1d1d20;color:#c6ff3d}
+.d7 .tabs span:not(.on){color:#888}
+
+/* 8 Verre */
+.d8{background:radial-gradient(120% 70% at 10% 0%,#7fe0b1 0%,transparent 55%),radial-gradient(90% 60% at 100% 30%,#7aa8ff 0%,transparent 60%),radial-gradient(90% 60% at 30% 100%,#ffb38a 0%,transparent 60%),#e9eef8;color:#0e1726}
+.d8 .glass{background:#ffffff66;backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);border:1px solid #ffffffaa;border-radius:22px;box-shadow:0 8px 24px -14px #1b2a4a55}
+.d8 .h{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.d8 .sum{padding:14px;display:flex;align-items:center;gap:14px}
+.d8 .sum b{font-size:24px;font-weight:800;display:block}
+.d8 .chips{display:flex;gap:6px}
+.d8 .chips div{flex:1;padding:8px;text-align:center}
+.d8 .chips b{font-size:13px;display:block}
+.d8 .chips small{font-size:9.5px;opacity:.7}
+.d8 .meal{padding:10px 12px;display:grid;gap:3px}
+.d8 .meal span{opacity:.65}
+.d8 .ft{position:absolute;left:14px;right:14px;bottom:14px;height:52px;border-radius:26px;display:flex;justify-content:space-around;align-items:center}
+.d8 .ft span{width:22px;height:20px;background:#0e1726;opacity:.45;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.d8 .ft span.on{opacity:1}
+.d8 .ft .plus{width:40px;height:40px;border-radius:50%;background:#0e1726;opacity:1;-webkit-mask:none;mask:none;color:#fff;display:grid;place-items:center;font-size:22px}
+
+/* 9 Ticket */
+.d9{background:#e9e7e1;color:#1e1e1c;font-family:var(--mono)}
+.d9 .paper{background:#fffef9;margin:6px 14px 0;padding:14px 14px 18px;display:grid;gap:7px;font-size:10.5px;
+  -webkit-mask:radial-gradient(circle 5px at 50% 100%,transparent 98%,#000) 0 0/12px 100%;mask:radial-gradient(circle 5px at 50% 100%,transparent 98%,#000) 0 0/12px 100%;padding-bottom:22px}
+.d9 .c{text-align:center}
+.d9 .c b{font-size:15px;letter-spacing:.2em}
+.d9 hr{border:0;border-top:1px dashed #b9b6ab;margin:2px 0;width:100%}
+.d9 .sec{font-weight:700;letter-spacing:.08em}
+.d9 .row span{color:#77746a}
+.d9 .tot{font-size:13px;font-weight:700}
+.d9 .stamp{justify-self:center;border:2px solid #1f8f5f;color:#1f8f5f;padding:3px 10px;transform:rotate(-4deg);font-weight:700;letter-spacing:.1em}
+.d9 .tabs{background:#e9e7e1;font-family:var(--ios)}
+
+/* 10 Bento */
+.d10{background:#f4f1fb;color:#1b1630}
+.d10 .h{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.d10 .bento{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:62px;gap:8px}
+.d10 .b{border-radius:18px;padding:10px;background:#fff;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.d10 .b small{font-size:9.5px;color:#7b7593;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.d10 .b b{font-size:17px;font-weight:800}
+.d10 .kcal{grid-row:span 2;background:#2a1f5c;color:#fff}
+.d10 .kcal small{color:#b8afe0}
+.d10 .kcal b{font-size:28px}
+.d10 .water{background:#dff0ff}
+.d10 .fav{grid-column:span 2;flex-direction:row;align-items:center;gap:6px;overflow:hidden}
+.d10 .fav span{background:#f1edfb;border-radius:10px;padding:6px 8px;font-weight:600;font-size:10.5px;white-space:nowrap}
+.d10 .scan{background:#c6f0d9;align-items:flex-start}
+.d10 .meals{grid-column:span 2;grid-row:span 2;gap:5px;justify-content:flex-start}
+.d10 .meals .row{font-size:11px}
+.d10 .meals .row span{color:#7b7593}
+.d10 .tabs{background:#f4f1fb;border-top:1px solid #e6e0f5;color:#2a1f5c}
+@media (prefers-reduced-motion: no-preference){.card .ph{transition:transform .25s ease}.card:hover .ph{transform:translateY(-4px)}}
+
+/* T3 inline render overrides */
+body{background:transparent!important}
+.wrap{padding:0!important;max-width:none}
+header.top{margin-bottom:24px}
+h1{font-size:34px}
+.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 18px}
+.ph{zoom:.74}
+.rec{outline-offset:6px}
+.cap h2{font-size:18px}
+.cap p{font-size:12.5px}
+footer.note{margin-top:32px}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Assiette · écran Journal</span>
+    <h1>10 directions de design</h1>
+    <p class="lede">Même journée sur les 10 maquettes : 1 420 kcal mangées sur 2 200, trois repas notés, dîner vide. Seul le design change. Sous chaque téléphone : le nombre de touchers pour noter un aliment déjà mangé, et pour un nouvel aliment.</p>
+    <div class="shared"><span>Hors ligne, recherche &lt; 20 ms</span><span>Ajouter un aliment en 2 touchers</span><span>Mode sombre partout</span><span>Textes en français</span></div>
+  </header>
+
+  <div class="grid">
+
+    <!-- 1 -->
+    <article class="card">
+      <div class="ph d1 rec"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div><div class="date">Mercredi 19 novembre</div><div class="h">Aujourd'hui</div></div>
+          <div class="sum">
+            <div class="rings">
+              <div class="ring" style="--s:92px;--p:.65;--c:#f08a24;--w:9px"></div>
+              <div class="ring" style="--s:70px;--p:.65;--c:#e2475c;--w:8px"></div>
+              <div class="ring" style="--s:50px;--p:.67;--c:#3399db;--w:7px"></div>
+              <div class="ring" style="--s:32px;--p:.64;--c:#f4b42a;--w:6px"></div>
+            </div>
+            <div style="display:grid;gap:3px"><div class="lab">Restant</div><div class="k tn">780 kcal</div><div class="lab tn">P 98/150 · G 160/240 · L 45/70</div></div>
+          </div>
+          <div class="meal"><div class="row"><b>Petit-déjeuner</b><span class="tn">420 kcal</span></div><small>Flocons d'avoine 60 g · Banane · Lait</small></div>
+          <div class="meal"><div class="row"><b>Déjeuner</b><span class="tn">680 kcal</span></div><small>Poulet grillé 150 g · Riz basmati 200 g</small></div>
+          <div class="meal"><div class="row"><b>Collation</b><span class="tn">320 kcal</span></div><small>Skyr 150 g · Amandes 30 g</small></div>
+          <div class="meal"><div class="row"><b>Dîner</b><div class="plus">+</div></div><small>Rien pour l'instant</small></div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">01</span>Anneaux iOS</h2><p>Le style Santé et Forme d'Apple : 4 anneaux imbriqués (kcal, protéines, glucides, lipides), puis une carte par repas. Rien à apprendre si tu utilises déjà un iPhone.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Natif SwiftUI</b><b>Le plus rapide à coder</b></div>
+    </article>
+
+    <!-- 2 -->
+    <article class="card">
+      <div class="ph d2"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="ask">Qu'est-ce que<br>tu as mangé ?</div>
+          <div class="search">poulet, skyr, code-barres… <em>SCAN</em></div>
+          <div class="lbl">Un toucher pour noter, au dîner</div>
+          <div class="chips"><span>Skyr 150 g</span><span>Banane</span><span>Riz 200 g</span><span>Poulet 150 g</span><span>Œufs ×3</span><span>Café</span></div>
+          <div class="mini">
+            <div class="bud"><b class="tn">780</b><span>kcal restantes</span></div>
+            <div class="bar" style="--p:65%;--c:#1f8f5f"><i></i></div>
+            <div class="row"><b>Petit-déjeuner</b><span class="tn">420</span></div>
+            <div class="row"><b>Déjeuner</b><span class="tn">680</span></div>
+            <div class="row"><b>Collation</b><span class="tn">320</span></div>
+            <div class="row"><b>Dîner</b><span>—</span></div>
+          </div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">02</span>La recherche d'abord</h2><p>L'écran s'ouvre sur le champ de recherche, avec tes aliments habituels en pastilles. Un toucher sur une pastille note l'aliment avec ta dernière quantité. Le journal passe en dessous.</p></div>
+      <div class="meta"><b class="fast">1 toucher (habituel)</b><b class="fast">2 touchers (nouveau)</b><b>Plus que 3 onglets</b></div>
+    </article>
+
+    <!-- 3 -->
+    <article class="card">
+      <div class="ph d3"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h"><b>Mer. 19</b><span class="tn" style="color:#8c8678">‹ ›</span></div>
+          <div class="budget"><div class="row"><span class="tn"><b>1 420</b> / 2 200 kcal</span><span class="tn" style="color:#1f8f5f;font-weight:700">780 restantes</span></div><div class="bar" style="--p:65%;--c:linear-gradient(90deg,#1f8f5f,#7cc49b)"><i></i></div></div>
+          <div class="tl">
+            <div class="ev"><time>7:45</time><b>Flocons d'avoine, banane, lait</b><small class="tn">420 kcal · P 18 · G 68 · L 9</small></div>
+            <div class="ev" style="--c:#f08a24"><time>10:30</time><b>Café crème</b><small class="tn">40 kcal</small></div>
+            <div class="ev"><time>12:50</time><b>Poulet grillé, riz basmati</b><small class="tn">640 kcal · P 52 · G 70 · L 12</small></div>
+            <div class="ev" style="--c:#3399db"><time>16:15</time><b>Skyr, amandes</b><small class="tn">320 kcal · P 28 · G 14 · L 16</small></div>
+            <div class="ev" style="--c:#c9c2b2"><time>19:40</time><span class="now">Maintenant · dîner ?</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">03</span>Fil de la journée</h2><p>Pas de cases repas : chaque prise s'inscrit à son heure sur une ligne du temps. Le bouton + note à l'heure actuelle. Utile si tu manges en plusieurs fois.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Pas de repas à choisir</b><b>Heures de prise visibles</b></div>
+    </article>
+
+    <!-- 4 -->
+    <article class="card">
+      <div class="ph d4"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="lbl">Il te reste aujourd'hui</div>
+          <div class="big tn">780<small> kcal</small></div>
+          <div class="m">
+            <div class="row"><span>Protéines</span><span class="tn">98 / 150 g</span></div><div class="bar" style="--p:65%;--c:#ff8a9a"><i></i></div>
+            <div class="row"><span>Glucides</span><span class="tn">160 / 240 g</span></div><div class="bar" style="--p:67%;--c:#8fd0ff"><i></i></div>
+            <div class="row"><span>Lipides</span><span class="tn">45 / 70 g</span></div><div class="bar" style="--p:64%;--c:#ffd57a"><i></i></div>
+          </div>
+        </div>
+        <div class="sheet"><div class="grab"></div>
+          <div class="row"><b>Petit-déjeuner</b><span class="tn">420 kcal</span></div>
+          <div class="row"><b>Déjeuner</b><span class="tn">680 kcal</span></div>
+          <div class="row"><b>Collation</b><span class="tn">320 kcal</span></div>
+          <div class="row"><b>Dîner</b><span>—</span></div>
+          <div class="add">+ Ajouter au dîner</div>
+        </div>
+      </div>
+      <div class="cap"><h2><span class="n">04</span>Budget</h2><p>Comme une appli bancaire : un seul grand chiffre, ce qu'il te reste à manger. Les repas sont dans un panneau que tu tires vers le haut. Le bouton d'ajout vise le prochain repas selon l'heure.</p></div>
+      <div class="meta"><b class="fast">1 toucher pour ouvrir la recherche</b><b>Très épuré</b><b>Pas de barre d'onglets</b></div>
+    </article>
+
+    <!-- 5 -->
+    <article class="card">
+      <div class="ph d5"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h">Mercredi</div>
+          <div class="strip">
+            <div><small>Kcal</small><b class="tn">1 420</b><div class="bar" style="--p:65%;--c:#f08a24;--bt:#f6e7d6"><i></i></div></div>
+            <div><small>Prot.</small><b class="tn">98 g</b><div class="bar" style="--p:65%;--c:#e2475c;--bt:#f6e7d6"><i></i></div></div>
+            <div><small>Gluc.</small><b class="tn">160 g</b><div class="bar" style="--p:67%;--c:#3399db;--bt:#f6e7d6"><i></i></div></div>
+          </div>
+          <div class="tiles">
+            <div class="tile" style="--b:#ffe0b8"><div class="p">+</div><b>Petit-déj</b><div><div class="k tn">420</div><small>3 aliments</small></div></div>
+            <div class="tile" style="--b:#cdeedd"><div class="p">+</div><b>Déjeuner</b><div><div class="k tn">680</div><small>2 aliments</small></div></div>
+            <div class="tile" style="--b:#dfe3ff"><div class="p">+</div><b>Collation</b><div><div class="k tn">320</div><small>2 aliments</small></div></div>
+            <div class="tile empty"><div class="p">+</div><b>Dîner</b><div><div class="k" style="opacity:.35">—</div><small>Toucher pour ajouter</small></div></div>
+          </div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">05</span>Tuiles repas</h2><p>Quatre grosses tuiles colorées, une par repas, faciles à toucher d'une main. Une tuile ouvre son contenu, son + ouvre directement la recherche pour ce repas.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Grosses zones tactiles</b><b>Chaleureux</b></div>
+    </article>
+
+    <!-- 6 -->
+    <article class="card">
+      <div class="ph d6"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h"><b>Mon assiette du jour</b><small>Mercredi 19 novembre</small></div>
+          <div class="plate"><div class="fill"></div><div class="c"><div><b class="tn">780</b><small>kcal restantes</small></div></div></div>
+          <div class="leg"><span><i style="--c:#e2475c"></i>Prot. 98 g</span><span><i style="--c:#3399db"></i>Gluc. 160 g</span><span><i style="--c:#f4b42a"></i>Lip. 45 g</span></div>
+          <div class="ml">
+            <div class="row"><b>Petit-déjeuner</b><span class="tn">420</span></div>
+            <div class="row"><b>Déjeuner</b><span class="tn">680</span></div>
+            <div class="row"><b>Collation · Dîner +</b><span class="tn">320</span></div>
+          </div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">06</span>L'assiette</h2><p>Le nom de l'app devient l'écran : une assiette qui se remplit au fil de la journée, découpée en protéines, glucides et lipides. Tu vois l'équilibre de ta journée d'un coup d'œil.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Identité forte</b><b>Ludique</b></div>
+    </article>
+
+    <!-- 7 -->
+    <article class="card">
+      <div class="ph d7"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h">Jour <span>124</span> · Sèche</div>
+          <div class="pro">
+            <div class="row"><span style="color:#8d8d93;font-size:10px;text-transform:uppercase;letter-spacing:.08em">Protéines</span><span style="color:#c6ff3d;font-weight:700" class="tn">52 g à manger</span></div>
+            <div class="big tn">98<small> / 150 g</small></div>
+            <div class="bar" style="--p:65%;--c:#c6ff3d"><i></i></div>
+          </div>
+          <div class="trio">
+            <div><small>Kcal</small><b class="tn">1 420</b><div class="bar" style="--p:65%;--c:#fff;height:4px"><i></i></div></div>
+            <div><small>Gluc.</small><b class="tn">160</b><div class="bar" style="--p:67%;--c:#fff;height:4px"><i></i></div></div>
+            <div><small>Lip.</small><b class="tn">45</b><div class="bar" style="--p:64%;--c:#fff;height:4px"><i></i></div></div>
+          </div>
+          <div class="list">
+            <div class="row"><b>Petit-déjeuner</b><span class="tn">P 18 · 420</span></div>
+            <div class="row"><b>Déjeuner</b><span class="tn">P 52 · 680</span></div>
+            <div class="row"><b>Collation</b><span class="tn">P 28 · 320</span></div>
+            <div class="row"><b>Dîner</b><span style="color:#c6ff3d">+ Ajouter</span></div>
+          </div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">07</span>Mode athlète</h2><p>Fond noir, gros chiffres, et les protéines en premier : le chiffre clé pour la musculation. Chaque repas affiche ses protéines. Pensé pour les phases de sèche et de prise de masse.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Protéines d'abord</b><b>Très contrasté</b></div>
+    </article>
+
+    <!-- 8 -->
+    <article class="card">
+      <div class="ph d8"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h">Aujourd'hui</div>
+          <div class="glass sum">
+            <div class="ring" style="--s:70px;--p:.65;--c:#0e1726;--t:#0e172622;--w:8px"></div>
+            <div><span style="opacity:.65">Restant</span><b class="tn">780 kcal</b><span style="opacity:.65" class="tn">1 420 / 2 200</span></div>
+          </div>
+          <div class="chips">
+            <div class="glass"><b class="tn">98 g</b><small>Protéines</small></div>
+            <div class="glass"><b class="tn">160 g</b><small>Glucides</small></div>
+            <div class="glass"><b class="tn">45 g</b><small>Lipides</small></div>
+          </div>
+          <div class="glass meal"><div class="row"><b>Petit-déjeuner</b><span class="tn">420</span></div><span>Avoine · Banane · Lait</span></div>
+          <div class="glass meal"><div class="row"><b>Déjeuner</b><span class="tn">680</span></div><span>Poulet grillé · Riz basmati</span></div>
+          <div class="glass meal"><div class="row"><b>Collation</b><span class="tn">320</span></div><span>Skyr · Amandes</span></div>
+        </div>
+        <div class="glass ft"><span class="on t-j"></span><span class="t-p"></span><span class="plus">+</span><span class="t-u"></span><span class="t-a"></span></div>
+      </div>
+      <div class="cap"><h2><span class="n">08</span>Verre dépoli</h2><p>Le look iOS 26 : panneaux translucides sur un fond coloré doux, barre d'onglets flottante avec un gros + au centre, toujours sous le pouce.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>+ toujours visible</b><b>Le plus « tendance »</b></div>
+    </article>
+
+    <!-- 9 -->
+    <article class="card">
+      <div class="ph d9"><div class="island"></div><div class="sb" style="font-family:var(--ios)"><span>9:41</span><i></i></div>
+        <div class="paper">
+          <div class="c"><b>ASSIETTE</b><br>MER 19/11 · TICKET N°124</div>
+          <hr>
+          <div class="sec">PETIT-DÉJ</div>
+          <div class="row"><span>Avoine 60 g</span><span class="tn">228</span></div>
+          <div class="row"><span>Banane 1 moy.</span><span class="tn">105</span></div>
+          <div class="row"><span>Lait demi 150 ml</span><span class="tn">87</span></div>
+          <div class="sec">DÉJEUNER</div>
+          <div class="row"><span>Poulet grillé 150 g</span><span class="tn">248</span></div>
+          <div class="row"><span>Riz basmati 200 g</span><span class="tn">432</span></div>
+          <div class="sec">COLLATION</div>
+          <div class="row"><span>Skyr 150 g</span><span class="tn">147</span></div>
+          <div class="row"><span>Amandes 30 g</span><span class="tn">173</span></div>
+          <hr>
+          <div class="row tot"><span style="color:inherit">TOTAL</span><span class="tn">1 420</span></div>
+          <div class="row"><span>Budget</span><span class="tn">2 200</span></div>
+          <div class="row"><span>Rendu</span><span class="tn">780</span></div>
+          <div class="row"><span>P / G / L</span><span class="tn">98 / 160 / 45</span></div>
+          <div class="stamp">DANS LE BUDGET</div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">09</span>Ticket de caisse</h2><p>La journée est un ticket : chaque aliment est une ligne avec son prix en kcal, et ce qu'il te reste est le « rendu ». Très lisible, et un style qu'on ne voit dans aucune autre appli.</p></div>
+      <div class="meta"><b class="fast">2 touchers</b><b>Tout le détail sur un écran</b><b>Original</b></div>
+    </article>
+
+    <!-- 10 -->
+    <article class="card">
+      <div class="ph d10"><div class="island"></div><div class="sb"><span>9:41</span><i></i></div>
+        <div class="body">
+          <div class="h">Mercredi 19</div>
+          <div class="bento">
+            <div class="b kcal"><small>Restant</small><div><b class="tn">780</b><div class="bar" style="--p:65%;--c:#a99bff;--bt:#ffffff22;margin-top:6px"><i></i></div></div><small class="tn">1 420 / 2 200 kcal</small></div>
+            <div class="b"><small>Protéines</small><b class="tn">98/150</b></div>
+            <div class="b water"><small>Eau</small><b class="tn">1,25 L</b></div>
+            <div class="b fav"><small style="margin-right:2px">Favoris</small><span>Skyr +</span><span>Banane +</span><span>Œufs +</span></div>
+            <div class="b scan"><small>Scanner</small><b>▥▥</b></div>
+            <div class="b"><small>Poids</small><b class="tn">78,4 kg</b></div>
+            <div class="b meals"><div class="row"><b>Petit-déj</b><span class="tn">420</span></div><div class="row"><b>Déjeuner</b><span class="tn">680</span></div><div class="row"><b>Collation</b><span class="tn">320</span></div><div class="row"><b>Dîner</b><span style="color:#5b45d6;font-weight:700">+ Ajouter</span></div></div>
+          </div>
+        </div>
+        <nav class="tabs"><span class="on t-j">Journal</span><span class="t-a">Ajouter</span><span class="t-p">Progrès</span><span class="t-u">Profil</span></nav>
+      </div>
+      <div class="cap"><h2><span class="n">10</span>Bento</h2><p>Un tableau de bord en tuiles : calories, protéines, eau, poids, scanner et favoris sur le même écran. Tout est à un toucher, mais l'écran est plus chargé.</p></div>
+      <div class="meta"><b class="fast">1 toucher (favori)</b><b>Tout sur un écran</b><b>Plus dense</b></div>
+    </article>
+
+  </div>
+
+  <footer class="note">
+    <p><strong>Ma recommandation : 01 (Anneaux iOS) avec les pastilles de 02.</strong> C'est le plus familier sur iPhone, le plus lisible, et les aliments habituels se notent en un toucher.</p>
+    <p>Les directions se combinent. Par exemple : la structure de 01, la couleur de 07 et le + flottant de 08. Dis-moi les numéros que tu gardes.</p>
+  </footer>
+</div>
+</body></html>

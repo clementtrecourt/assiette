@@ -1,0 +1,101 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATASET_URL: https://downloads.opennutrition.app/opennutrition-dataset-2025.1.zip
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Cache dataset
+        id: dataset
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: dataset-${{ env.DATASET_URL }}-${{ hashFiles('tools/build_db.py') }}
+
+      - name: Build food database
+        if: steps.dataset.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p data
+          curl -fsSL "$DATASET_URL" -o data/dataset.zip
+          curl -fsSL "$DATASET_URL.sha256" -o data/dataset.zip.sha256
+          expected=$(awk '{print $1}' data/dataset.zip.sha256)
+          actual=$(shasum -a 256 data/dataset.zip | awk '{print $1}')
+          test "$expected" = "$actual"
+          unzip -o -q data/dataset.zip -d data/raw
+          python3 -I tools/build_db.py data/raw/opennutrition_foods.tsv data/foods.sqlite
+          rm -rf data/raw data/dataset.zip
+
+      - name: Bundle database
+        run: cp data/foods.sqlite App/Resources/foods.sqlite
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          SIM=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in sorted(d.items(), reverse=True) if 'iOS' in k for x in v if 'iPhone' in x['name']))")
+          xcodebuild test -project Assiette.xcodeproj -scheme Assiette \
+            -destination "id=$SIM" -derivedDataPath build/test CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/test.log | xcbeautify --renderer github-actions
+
+      - name: Build unsigned IPA
+        run: |
+          set -o pipefail
+          xcodebuild build -project Assiette.xcodeproj -scheme Assiette \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build/device.log | xcbeautify --renderer github-actions
+          mkdir -p build/ipa/Payload
+          cp -R build/device/Build/Products/Release-iphoneos/Assiette.app build/ipa/Payload/
+          (cd build/ipa && zip -qry ../Assiette.ipa Payload)
+          ls -lh build/Assiette.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Assiette-ipa
+          path: build/Assiette.ipa
+          retention-days: 30
+
+      - name: Publish release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG=latest; fi
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" build/Assiette.ipa --target "$GITHUB_SHA" \
+            --title "Assiette $TAG" --notes "Build ${GITHUB_SHA::7} — IPA non signé, à signer avant installation." \
+            $([[ "$TAG" == latest ]] && echo --prerelease)
+
+      - name: Show compiler errors
+        if: failure()
+        run: grep -E "error:|Test Case .* failed|XCTAssert" build/*.log | sort -u | head -200 || true
