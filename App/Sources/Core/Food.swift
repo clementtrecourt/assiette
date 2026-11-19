@@ -66,6 +66,10 @@ struct Food: Identifiable, Hashable, Sendable {
     let packageGrams: Double?
     /// Values per 100 g / 100 ml.
     let per100: NutrientValues
+    /// OpenNutrition illustration basename (CDN: `<icon>@4x.webp`), exact or best generic
+    /// match computed by tools/build_db.py. nil when unknown. Last so the memberwise init
+    /// keeps working without it.
+    var icon: String? = nil
 
     /// Name without the trailing " by Brand".
     var displayName: String {
@@ -85,7 +89,8 @@ struct Food: Identifiable, Hashable, Sendable {
             packageGrams: packageGrams,
             isLiquid: isLiquid,
             ean: ean,
-            per100: per100
+            per100: per100,
+            icon: icon
         )
     }
 }
@@ -106,6 +111,9 @@ struct FoodItem: Identifiable, Hashable, Sendable {
     var isLiquid: Bool = false
     var ean: String?
     var per100: NutrientValues
+    /// OpenNutrition illustration basename (see `FoodIconView`). Must stay the LAST stored
+    /// property (defaulted) so existing memberwise `FoodItem(...)` calls keep compiling.
+    var icon: String? = nil
 
     /// Stable key, used for favorites and de-duplication: "source:ref" (or "source:name").
     var id: String { "\(source.rawValue):\(ref ?? name)" }

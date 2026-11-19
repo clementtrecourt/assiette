@@ -6,3 +6,4 @@ App/Resources/foods.sqlite
 *.ipa
 .DS_Store
 __pycache__/
+design/onicons/

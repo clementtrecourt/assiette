@@ -39,6 +39,8 @@ struct FoodRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
+            FoodIconView(item: item, size: 40)
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.name)
                     .font(.subheadline.weight(.semibold))

@@ -70,6 +70,35 @@ private extension View {
     }
 }
 
+/// Pinned macro header. Owns the "remaining ↔ consumed" toggle so tapping it re-renders only
+/// the header, not the whole timeline list.
+private struct TodayPinnedHeader: View {
+    let totals: NutrientValues
+    let targets: TodayTargets
+    let onShiftDay: (Int) -> Void
+
+    @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
+
+    var body: some View {
+        TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.snappy) { showsConsumed.toggle() }
+            }
+            .gesture(daySwipe)
+    }
+
+    private var daySwipe: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+                guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
+                onShiftDay(dx < 0 ? 1 : -1)
+            }
+    }
+}
+
 /// Content of one journal day: pinned macro header, timeline log, water, micronutrients.
 /// The queries are built from `day` in the initializer, so a new day re-creates them.
 struct TodayDayContent: View {
@@ -81,8 +110,6 @@ struct TodayDayContent: View {
     @Query private var entries: [JournalEntry]
     @Query private var waterEntries: [WaterEntry]
     @Query private var profiles: [UserProfile]
-
-    @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
 
     @State private var sheet: TodaySheet?
     @State private var showClearDialog = false
@@ -121,12 +148,15 @@ struct TodayDayContent: View {
     private var addContext: LogContext { LogContext(day: day, meal: Meal.suggested()) }
 
     var body: some View {
+        // Computed once per evaluation and passed down (NutrientValues decoding is memoized
+        // in Core, so each entry's JSON is decoded at most once overall).
         let totals = NutrientValues.sum(entries.map(\.nutrients))
         let groups = TodayTimelineGroup.make(from: entries)
+        let targets = self.targets
 
         logList(groups: groups)
             .safeAreaInset(edge: .top, spacing: 0) {
-                header(totals: totals)
+                TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
             }
             .overlay(alignment: .bottomTrailing) {
                 fab
@@ -199,15 +229,6 @@ struct TodayDayContent: View {
         .environment(\.defaultMinListRowHeight, 0)
         .scrollContentBackground(.hidden)
         .background(Theme.background.ignoresSafeArea())
-    }
-
-    private func header(totals: NutrientValues) -> some View {
-        TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.snappy) { showsConsumed.toggle() }
-            }
-            .gesture(daySwipe)
     }
 
     private var fab: some View {
@@ -456,16 +477,6 @@ struct TodayDayContent: View {
     }
 
     // MARK: - Swipe between days
-
-    private var daySwipe: some Gesture {
-        DragGesture(minimumDistance: 30)
-            .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
-                guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
-                shiftDay(dx < 0 ? 1 : -1)
-            }
-    }
 
     private func shiftDay(_ delta: Int) {
         withAnimation(.snappy) {

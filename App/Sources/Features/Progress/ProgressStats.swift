@@ -36,6 +36,14 @@ struct ProgressDayStat: Identifiable, Hashable {
 
     var id: Date { day }
     var isLogged: Bool { entryCount > 0 }
+
+    mutating func accumulate(calories: Double, protein: Double, carbs: Double, fat: Double) {
+        self.calories += calories
+        self.protein += protein
+        self.carbs += carbs
+        self.fat += fat
+        entryCount += 1
+    }
 }
 
 /// One weighing with its 7-day moving average.
@@ -54,14 +62,13 @@ enum ProgressStats {
         byDay.reserveCapacity(days)
         for entry in entries {
             let day = entry.day.startOfDay
-            let n = entry.nutrients
-            var stat = byDay[day] ?? ProgressDayStat(day: day)
-            stat.calories += n.calories
-            stat.protein += n.protein
-            stat.carbs += n.carbs
-            stat.fat += n.fat
-            stat.entryCount += 1
-            byDay[day] = stat
+            // Read the (memoized) per-100 g bag once and scale only the 4 values needed,
+            // instead of building a full scaled NutrientValues per entry.
+            let per100 = entry.per100
+            let factor = entry.grams / 100
+            byDay[day, default: ProgressDayStat(day: day)].accumulate(
+                calories: per100.calories * factor, protein: per100.protein * factor,
+                carbs: per100.carbs * factor, fat: per100.fat * factor)
         }
         let first = start.startOfDay
         return (0..<max(days, 0)).map { offset in
@@ -91,21 +98,51 @@ enum ProgressStats {
     }
 
     /// Number of consecutive days with at least one entry, ending today (or yesterday if
-    /// nothing has been logged yet today). Uses `loggedDays` inside the range and cheap
-    /// count fetches for older days.
+    /// nothing has been logged yet today). Uses `loggedDays` inside the range; older days are
+    /// read in batches of `day` values only (newest first) instead of one count query per day.
     static func streak(loggedDays: Set<Date>, rangeStart: Date, today: Date,
                        context: ModelContext) -> Int {
         let rangeStart = rangeStart.startOfDay
-        func isLogged(_ day: Date) -> Bool {
-            if day >= rangeStart { return loggedDays.contains(day) }
-            let start = day
-            let end = day.adding(days: 1).startOfDay
-            let descriptor = FetchDescriptor<JournalEntry>(
+        var olderDays: [Date] = []      // distinct start-of-days before rangeStart, newest first
+        var olderExhausted = false
+        var olderOffset = 0
+        let batchSize = 512
+
+        func loadMoreOlderDays() {
+            guard !olderExhausted else { return }
+            let limit = rangeStart
+            var descriptor = FetchDescriptor<JournalEntry>(
                 predicate: #Predicate<JournalEntry> { entry in
-                    entry.day >= start && entry.day < end
-                }
+                    entry.day < limit
+                },
+                sortBy: [SortDescriptor(\JournalEntry.day, order: .reverse)]
             )
-            return ((try? context.fetchCount(descriptor)) ?? 0) > 0
+            descriptor.propertiesToFetch = [\JournalEntry.day]
+            descriptor.fetchOffset = olderOffset
+            descriptor.fetchLimit = batchSize
+            let batch = (try? context.fetch(descriptor)) ?? []
+            olderOffset += batch.count
+            if batch.count < batchSize { olderExhausted = true }
+            for entry in batch {
+                let day = entry.day.startOfDay
+                if olderDays.last != day { olderDays.append(day) }
+            }
+        }
+
+        var olderIndex = 0
+        func isOlderDayLogged(_ day: Date) -> Bool {
+            while true {
+                while olderIndex < olderDays.count, olderDays[olderIndex] > day {
+                    olderIndex += 1
+                }
+                if olderIndex < olderDays.count { return olderDays[olderIndex] == day }
+                if olderExhausted { return false }
+                loadMoreOlderDays()
+            }
+        }
+
+        func isLogged(_ day: Date) -> Bool {
+            day >= rangeStart ? loggedDays.contains(day) : isOlderDayLogged(day)
         }
 
         var day = today.startOfDay

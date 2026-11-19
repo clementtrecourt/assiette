@@ -155,15 +155,20 @@ struct FoodDetailView: View {
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
-                Text(item.name)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Theme.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .center, spacing: 12) {
+                    FoodIconView(item: item, size: 64)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.name)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(Theme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                if let brand = item.brand, !brand.isEmpty {
-                    Text(brand)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textSecondary)
+                        if let brand = item.brand, !brand.isEmpty {
+                            Text(brand)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
                 }
 
                 badges

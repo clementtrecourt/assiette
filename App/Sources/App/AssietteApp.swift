@@ -9,6 +9,26 @@ struct AssietteApp: App {
     private static let isRunningTests =
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
+    init() {
+        if !Self.isRunningTests {
+            Self.prewarmFoodDatabase()
+        }
+    }
+
+    /// Opens the bundled SQLite file, pages in the FTS index, builds the French lexicon
+    /// tables and caches the food count (thread-safe) in the background, so the first search (and the
+    /// search sheet's hint text, which reads `count`) do not pay for it on the main thread.
+    private static func prewarmFoodDatabase() {
+        Task.detached(priority: .utility) {
+            let database = FoodDatabase.shared
+            guard database.isAvailable else { return }
+            // "a" is a stop word (no SQL would run): use a real word that also goes
+            // through the lexicon ("pomme" → apple).
+            _ = database.search(FrenchFoodLexicon.rewritingPhrases("pomme"), limit: 1)
+            _ = database.count
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

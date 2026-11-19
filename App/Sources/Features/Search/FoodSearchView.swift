@@ -18,7 +18,8 @@ struct FoodSearchView: View {
     @State private var context: LogContext
     @State private var query = ""
     @State private var filter: SearchKindFilter = .all
-    @State private var results: [Food] = []
+    /// Database results, already converted to `FoodItem` off the main thread.
+    @State private var results: [FoodItem] = []
     @State private var searchedText = ""
     @State private var isSearching = false
     @State private var activeSheet: SearchSheet?
@@ -46,43 +47,51 @@ struct FoodSearchView: View {
     private var searchKey: SearchQueryKey { SearchQueryKey(text: trimmedQuery, filter: filter) }
 
     /// Distinct items of the latest journal entries (most recent first).
+    /// De-duplicates on the stored key fields first so only the ~20 kept entries pay for
+    /// `entry.item` (which JSON-decodes the nutrient snapshot).
     private var recentItems: [FoodItem] {
         var seen = Set<String>()
         var items: [FoodItem] = []
         for entry in recentEntries {
-            let item = entry.item
-            guard seen.insert(item.id).inserted else { continue }
-            items.append(item)
+            // Same value as `entry.item.id` ("source:ref" or "source:name").
+            let key = "\(entry.source.rawValue):\(entry.ref ?? entry.name)"
+            guard seen.insert(key).inserted else { continue }
+            items.append(entry.item)
             if items.count >= 20 { break }
         }
         return items
     }
 
-    /// Custom foods whose name/brand contains every query word.
-    private var matchingCustomFoods: [CustomFood] {
-        guard filter == .all else { return [] }
-        let words = FoodDatabase.tokens(of: trimmedQuery)
+    /// Custom foods whose name/brand contains every query word. Computed once per body pass.
+    private func matchingCustomFoods(for text: String) -> [CustomFood] {
+        guard filter == .all, !text.isEmpty, !customFoods.isEmpty else { return [] }
+        let words = FoodDatabase.tokens(of: text)
             .filter { !FrenchFoodLexicon.stopWords.contains($0) }
         guard !words.isEmpty else { return [] }
-        return customFoods.filter { food in
+        var matches: [CustomFood] = []
+        for food in customFoods {
             let haystack = FoodDatabase.tokens(of: food.name + " " + (food.brand ?? "")).joined(separator: " ")
-            return words.allSatisfy { haystack.contains($0) }
+            if words.allSatisfy({ haystack.contains($0) }) {
+                matches.append(food)
+                if matches.count >= 10 { break }
+            }
         }
-        .prefix(10)
-        .map { $0 }
+        return matches
     }
 
     // MARK: Body
 
     var body: some View {
+        let text = trimmedQuery
+        let custom = matchingCustomFoods(for: text)
         List {
             if !FoodDatabase.shared.isAvailable {
                 databaseErrorSection
             }
-            if trimmedQuery.isEmpty {
+            if text.isEmpty {
                 emptyQueryContent
             } else {
-                searchContent
+                searchContent(custom: custom)
             }
             AttributionFooter()
                 .listRowBackground(Color.clear)
@@ -98,12 +107,12 @@ struct FoodSearchView: View {
         .autocorrectionDisabled()
         .textInputAutocapitalization(.never)
         .overlay {
-            if !trimmedQuery.isEmpty, !isSearching, searchedText == trimmedQuery,
-               results.isEmpty, matchingCustomFoods.isEmpty {
+            if !text.isEmpty, !isSearching, searchedText == text,
+               results.isEmpty, custom.isEmpty {
                 ContentUnavailableView {
                     Label("Aucun résultat", systemImage: "magnifyingglass")
                 } description: {
-                    Text("Aucun aliment ne correspond à « \(trimmedQuery) ». Essayez un autre mot, en français ou en anglais.")
+                    Text("Aucun aliment ne correspond à « \(text) ». Essayez un autre mot, en français ou en anglais.")
                 } actions: {
                     Button("Ajout rapide") { activeSheet = .quickAdd }
                         .buttonStyle(.bordered)
@@ -264,14 +273,13 @@ struct FoodSearchView: View {
     }
 
     @ViewBuilder
-    private var searchContent: some View {
+    private func searchContent(custom: [CustomFood]) -> some View {
         Section {
             filterChips
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
         }
 
-        let custom = matchingCustomFoods
         if !custom.isEmpty {
             Section {
                 ForEach(custom) { food in
@@ -284,8 +292,8 @@ struct FoodSearchView: View {
 
         if FoodDatabase.shared.isAvailable {
             Section {
-                ForEach(results) { food in
-                    foodRow(food.item)
+                ForEach(results) { item in
+                    foodRow(item)
                 }
             } header: {
                 HStack(spacing: 6) {
@@ -320,7 +328,9 @@ struct FoodSearchView: View {
 
     private func foodRow(_ item: FoodItem) -> some View {
         NavigationLink {
-            FoodDetailView(item: item, context: context, onLogged: closeSheetAfterLogging)
+            // Wrapper so FoodDetailView's init (and its @Query) only runs when pushed,
+            // not for every visible row on every keystroke.
+            SearchDetailDestination(item: item, context: context, onLogged: closeSheetAfterLogging)
         } label: {
             HStack(spacing: 8) {
                 FoodRowView(item: item)
@@ -357,13 +367,23 @@ struct FoodSearchView: View {
             isSearching = false
             return
         }
-        isSearching = true
-        try? await Task.sleep(nanoseconds: 250_000_000)
-        if Task.isCancelled { return }
-        var found: [Food] = []
+        if !isSearching { isSearching = true }
+        // Debounce typing (the task is cancelled on every keystroke); a filter change on
+        // the text already searched runs immediately.
+        if key.text != searchedText {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            if Task.isCancelled { return }
+        }
+        var found: [FoodItem] = []
         if FoodDatabase.shared.isAvailable {
-            let text = FrenchFoodLexicon.rewritingPhrases(key.text)
-            found = await FoodDatabase.shared.searchAsync(text, kinds: key.filter.kinds, limit: 60)
+            let text = key.text
+            let kinds = key.filter.kinds
+            // Lexicon rewrite, SQLite query, ranking and Food → FoodItem conversion all run
+            // off the main thread.
+            found = await Task.detached(priority: .userInitiated) { () -> [FoodItem] in
+                let rewritten = FrenchFoodLexicon.rewritingPhrases(text)
+                return FoodDatabase.shared.search(rewritten, kinds: kinds, limit: 60).map { $0.item }
+            }.value
         }
         if Task.isCancelled { return }
         results = found
@@ -387,6 +407,17 @@ struct FoodSearchView: View {
 }
 
 // MARK: - Private helpers
+
+/// Defers building `FoodDetailView` until the row is actually pushed.
+private struct SearchDetailDestination: View {
+    let item: FoodItem
+    let context: LogContext
+    let onLogged: (() -> Void)?
+
+    var body: some View {
+        FoodDetailView(item: item, context: context, onLogged: onLogged)
+    }
+}
 
 private struct SearchQueryKey: Equatable {
     let text: String

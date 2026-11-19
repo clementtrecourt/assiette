@@ -127,7 +127,8 @@ struct ProgressCaloriesChart: View {
 
     private var selectedStat: ProgressDayStat? {
         guard let selectedDate else { return nil }
-        return stats.first { Calendar.current.isDate($0.day, inSameDayAs: selectedDate) }
+        let day = Calendar.current.startOfDay(for: selectedDate)
+        return stats.first { $0.day == day }
     }
 
     private var yMax: Double {
@@ -141,8 +142,10 @@ struct ProgressCaloriesChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
+        // Resolved once per evaluation (it was recomputed for every bar, O(n²) while dragging).
+        let selected = selectedStat
+        return VStack(alignment: .leading, spacing: 10) {
+            header(selected: selected)
 
             Chart {
                 ForEach(stats) { stat in
@@ -150,7 +153,7 @@ struct ProgressCaloriesChart: View {
                             y: .value("Calories", stat.calories))
                         .foregroundStyle(barColor(stat))
                         .cornerRadius(3)
-                        .opacity(selectedStat == nil || selectedStat?.day == stat.day ? 1 : 0.35)
+                        .opacity(selected == nil || selected?.day == stat.day ? 1 : 0.35)
                 }
                 if target > 0 {
                     RuleMark(y: .value("Objectif", target))
@@ -177,8 +180,8 @@ struct ProgressCaloriesChart: View {
     }
 
     @ViewBuilder
-    private var header: some View {
-        if let stat = selectedStat {
+    private func header(selected: ProgressDayStat?) -> some View {
+        if let stat = selected {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Formatters.dayTitle(stat.day))
                     .font(.caption)

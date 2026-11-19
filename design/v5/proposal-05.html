@@ -1,0 +1,182 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+.p5{--bg:#050505;--raise:#0f0f11;--line:#1f1f23;--line2:#2c2c31;--fg:#fafafa;--fg2:#d4d4d8;--mut:#a1a1aa;--mut2:#71717a;--mut3:#52525b;--kcal:#4ec2b8;--pro:#a1b0e8;--carb:#f3bc52;--fat:#e08b92;--flame:#f97316;display:grid;gap:14px;align-content:start;min-width:0}
+.p5 *{box-sizing:border-box}
+.p5 .phones{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.p5 .ph{width:270px;height:585px;border-radius:40px;background:#0b0b0c;padding:7px;box-shadow:0 0 0 1px #2a2a2e,0 0 0 2px #050505,0 24px 48px -16px rgba(0,0,0,.6);flex:none;position:relative}
+.p5 .scr{position:relative;width:256px;height:571px;border-radius:33px;background:var(--bg);overflow:hidden;color:var(--fg);font-family:'DM Sans',Inter,system-ui,sans-serif;font-size:12px;line-height:1.3;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+.p5 .di{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:76px;height:22px;border-radius:12px;background:#000;z-index:6}
+.p5 .sb{height:38px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:4px 22px 0 27px;font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+.p5 .sb .ic{display:flex;gap:4px;align-items:center}
+.p5 .sb svg{display:block}
+.p5 .hi{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:92px;height:4px;border-radius:3px;background:#e4e4e7;z-index:7}
+.p5 .fl{width:9px;height:9px;flex:none;color:var(--flame);display:inline-block;vertical-align:-.5px;margin-right:2px}
+/* ---------- journal ---------- */
+.p5 .nav{flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:2px 14px 9px 16px}
+.p5 .nav h3{margin:0;font-size:20px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.p5 .nav .d{font-size:10.5px;color:var(--mut);font-weight:500;margin-top:4px;line-height:1}
+.p5 .arr{display:flex;gap:2px}
+.p5 .arr span{width:24px;height:24px;display:grid;place-items:center;color:var(--mut);border-radius:6px}
+.p5 .arr span+span{color:var(--mut3)}
+.p5 .mac{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg)}
+.p5 .mc{padding:8px 9px 8px 10px;min-width:0}
+.p5 .mc+.mc{border-left:1px solid var(--line)}
+.p5 .ml{font-size:8.5px;color:var(--mut);font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;line-height:1}
+.p5 .mv{font-size:19px;font-weight:600;letter-spacing:-.035em;margin-top:5px;white-space:nowrap;line-height:1}
+.p5 .mv small{font-size:10px;font-weight:500;color:var(--mut);margin-left:1px;letter-spacing:0}
+.p5 .bar{height:2px;background:#1c1c20;margin:7px 0 5px;border-radius:1px;overflow:hidden}
+.p5 .bar i{display:block;height:100%;border-radius:1px}
+.p5 .of{font-size:9px;color:var(--mut2);white-space:nowrap;line-height:1}
+.p5 .tl{flex:1;min-height:0;padding:4px 0 0}
+.p5 .grp{display:grid;grid-template-columns:44px minmax(0,1fr);padding-right:14px}
+.p5 .grp+.grp{border-top:1px solid var(--line)}
+.p5 .tm{padding:9px 0 0 16px;font-size:10.5px;font-weight:600;color:var(--fg2);letter-spacing:-.01em;line-height:1}
+.p5 .rows{min-width:0;padding:2px 0 0}
+.p5 .r{display:flex;align-items:center;gap:7px;height:25px;min-width:0}
+.p5 .r+.r{box-shadow:inset 0 1px 0 #141417}
+.p5 .r img{width:16px;height:16px;flex:none;object-fit:contain}
+.p5 .r .nm{font-size:11.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;letter-spacing:-.01em}
+.p5 .r .q{font-size:10px;color:var(--mut2);white-space:nowrap;flex:none}
+.p5 .r .k{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--fg2);flex:none;padding-left:6px}
+.p5 .gf{display:flex;align-items:center;gap:9px;height:21px;font-size:9.5px;color:var(--mut2);padding-left:23px;white-space:nowrap}
+.p5 .gf b{font-weight:600;margin-right:2px}
+.p5 .gf .tot{margin-left:auto;color:var(--mut);font-weight:600}
+.p5 .gf .tot em{font-style:normal;font-weight:500;color:var(--mut2);margin-left:2px}
+.p5 .c-p{color:var(--pro)}.p5 .c-g{color:var(--carb)}.p5 .c-l{color:var(--fat)}
+.p5 .now{display:grid;grid-template-columns:44px minmax(0,1fr);border-top:1px solid var(--line);height:34px;align-items:center;padding-right:14px}
+.p5 .now .tm{padding:0 0 0 16px;color:var(--fg);display:flex;align-items:center;gap:0}
+.p5 .now .add{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);white-space:nowrap}
+.p5 .now .add b{font-weight:600;color:var(--fg)}
+.p5 .now .add .pl{width:16px;height:16px;border-radius:5px;border:1px dashed #3f3f46;display:grid;place-items:center;color:var(--fg)}
+.p5 .nowdot{width:5px;height:5px;border-radius:50%;background:var(--kcal);margin-right:5px;box-shadow:0 0 0 3px rgba(78,194,184,.15)}
+.p5 .fab{position:absolute;right:14px;bottom:66px;width:44px;height:44px;border-radius:14px;background:var(--fg);color:#09090b;display:grid;place-items:center;box-shadow:0 8px 20px -6px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.08);z-index:4}
+.p5 .tab{position:absolute;left:0;right:0;bottom:0;height:56px;border-top:1px solid var(--line);background:rgba(5,5,5,.92);display:grid;grid-template-columns:repeat(3,1fr);padding:6px 18px 0;z-index:3}
+.p5 .tab div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:500;color:var(--mut3)}
+.p5 .tab div.on{color:var(--fg)}
+.p5 .tab svg{display:block}
+/* ---------- search ---------- */
+.p5 .sh{flex:none;display:grid;grid-template-columns:58px 1fr 58px;align-items:center;padding:0 14px;height:30px}
+.p5 .sh .cx{font-size:11.5px;color:var(--mut);font-weight:500}
+.p5 .sh h4{margin:0;text-align:center;font-size:13px;font-weight:600;letter-spacing:-.02em;white-space:nowrap}
+.p5 .sh .bc{justify-self:end;color:var(--fg2);display:grid}
+.p5 .dest{flex:none;text-align:center;font-size:9.5px;color:var(--mut2);margin:-3px 0 8px;white-space:nowrap}
+.p5 .dest b{color:var(--fg2);font-weight:600}
+.p5 .sf{flex:none;margin:0 12px;height:32px;border:1px solid var(--line2);border-radius:8px;background:var(--raise);display:flex;align-items:center;gap:7px;padding:0 9px;color:var(--mut)}
+.p5 .sf .tx{font-size:12.5px;color:var(--fg);font-weight:500;display:flex;align-items:center;letter-spacing:-.01em}
+.p5 .sf .caret{width:1.5px;height:14px;background:var(--fg);margin-left:1px;border-radius:1px}
+.p5 .sf .clr{margin-left:auto;width:15px;height:15px;border-radius:50%;background:#3f3f46;display:grid;place-items:center;color:#09090b}
+.p5 .chips{flex:none;display:flex;gap:6px;padding:9px 12px 0}
+.p5 .chip{height:22px;padding:0 8px;border-radius:11px;border:1px solid var(--line2);font-size:10px;font-weight:500;color:var(--mut);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.p5 .chip.on{background:var(--fg);border-color:var(--fg);color:#09090b;font-weight:600}
+.p5 .chip svg{display:block}
+.p5 .rh{flex:none;display:flex;justify-content:space-between;align-items:center;padding:12px 14px 5px;font-size:8.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mut2);border-bottom:1px solid var(--line)}
+.p5 .rh span:last-child{display:flex;align-items:center;gap:3px;color:var(--mut)}
+.p5 .sr{display:flex;align-items:center;gap:10px;height:46px;padding:0 12px 0 12px;position:relative}
+.p5 .sr::after{content:"";position:absolute;left:52px;right:0;bottom:0;height:1px;background:var(--line)}
+.p5 .tile{width:30px;height:30px;flex:none;border-radius:7px;background:#121214;box-shadow:inset 0 0 0 1px #1c1c20;display:grid;place-items:center}
+.p5 .tile img{width:22px;height:22px;object-fit:contain;display:block}
+.p5 .sx{min-width:0;flex:1}
+.p5 .sx .nm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;display:flex;align-items:center;gap:4px}
+.p5 .sx .nm span{overflow:hidden;text-overflow:ellipsis}
+.p5 .sx .nm svg{flex:none;color:var(--mut2)}
+.p5 .sx .sub{font-size:10px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p5 .sx .sub .kc{color:var(--fg2);font-weight:500}
+.p5 .sx .sub .dt{color:var(--mut3);margin:0 3px}
+.p5 .sx mark{background:none;color:var(--fg);font-weight:700}
+.p5 .pl{width:24px;height:24px;flex:none;border-radius:50%;border:1px solid #3f3f46;display:grid;place-items:center;color:var(--fg)}
+.p5 .sr.hit .pl{background:var(--fg);border-color:var(--fg);color:#09090b}
+/* ---------- caption ---------- */
+.p5 .cap{display:grid;gap:4px}
+.p5 .cap h2{margin:0;display:flex;gap:10px;align-items:baseline}
+.p5 .cap p{margin:0}
+.p5 .meta{display:flex;flex-wrap:wrap;gap:6px}
+</style>
+<article class="p5 card"><div class="phones">
+
+<!-- ===== Phone 1 : Journal ===== -->
+<div class="ph"><div class="scr">
+  <div class="di"></div>
+  <div class="sb"><span>9:41</span><span class="ic"><svg width="16" height="10" viewBox="0 0 16 10" fill="#fafafa"><rect x="0" y="6.5" width="3" height="3.5" rx=".7"/><rect x="4.3" y="4.5" width="3" height="5.5" rx=".7"/><rect x="8.6" y="2.3" width="3" height="7.7" rx=".7"/><rect x="12.9" y="0" width="3" height="10" rx=".7"/></svg><svg width="14" height="10" viewBox="0 0 14 10" fill="#fafafa"><path d="M7 2.2c1.9 0 3.6.7 4.9 1.9l1-1A8.4 8.4 0 0 0 7 .8 8.4 8.4 0 0 0 1.1 3.1l1 1A7 7 0 0 1 7 2.2Zm0 2.9c1.1 0 2.1.4 2.9 1.1l1-1A5.6 5.6 0 0 0 7 3.7c-1.5 0-2.9.6-3.9 1.5l1 1c.8-.7 1.8-1.1 2.9-1.1Zm0 2.9c.4 0 .8.1 1 .4L7 9.4 6 8.4c.2-.3.6-.4 1-.4Z"/></svg><svg width="23" height="11" viewBox="0 0 23 11"><rect x=".5" y=".5" width="19.5" height="10" rx="3" fill="none" stroke="#fafafa" stroke-opacity=".4"/><rect x="2" y="2" width="15" height="7" rx="1.6" fill="#fafafa"/><path d="M21.4 3.7v3.6c.7-.3 1.1-1 1.1-1.8s-.4-1.5-1.1-1.8Z" fill="#fafafa" fill-opacity=".45"/></svg></span></div>
+
+  <div class="nav">
+    <div><h3>Journal</h3><div class="d">Aujourd'hui · jeu. 19 nov.</div></div>
+    <div class="arr"><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span><span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+  </div>
+
+  <div class="mac">
+    <div class="mc"><div class="ml">Kcal</div><div class="mv">780</div><div class="bar"><i style="width:64.5%;background:var(--kcal)"></i></div><div class="of">sur 2&nbsp;200</div></div>
+    <div class="mc"><div class="ml">Prot.</div><div class="mv">52<small>g</small></div><div class="bar"><i style="width:65.3%;background:var(--pro)"></i></div><div class="of">sur 150</div></div>
+    <div class="mc"><div class="ml">Gluc.</div><div class="mv">80<small>g</small></div><div class="bar"><i style="width:66.7%;background:var(--carb)"></i></div><div class="of">sur 240</div></div>
+    <div class="mc"><div class="ml">Lip.</div><div class="mv">25<small>g</small></div><div class="bar"><i style="width:64.3%;background:var(--fat)"></i></div><div class="of">sur 70</div></div>
+  </div>
+
+  <div class="tl">
+    <div class="grp"><div class="tm">7:45</div><div class="rows">
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/rolled_oats.png" alt=""><span class="nm">Flocons d'avoine</span><span class="q">60 g</span><span class="k">228</span></div>
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/banana.png" alt=""><span class="nm">Banane</span><span class="q">118 g</span><span class="k">105</span></div>
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/whole_milk.png" alt=""><span class="nm">Lait entier</span><span class="q">150 ml</span><span class="k">92</span></div>
+      <div class="gf"><span><b class="c-p">P</b>16</span><span><b class="c-g">G</b>74</span><span><b class="c-l">L</b>9</span><span class="tot">425<em>kcal</em></span></div>
+    </div></div>
+    <div class="grp"><div class="tm">12:50</div><div class="rows">
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/chicken_breast_boneless_skinless_cooked.png" alt=""><span class="nm">Poulet grillé</span><span class="q">150 g</span><span class="k">248</span></div>
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/basmati_white_rice.png" alt=""><span class="nm">Riz basmati</span><span class="q">200 g</span><span class="k">260</span></div>
+      <div class="gf"><span><b class="c-p">P</b>52</span><span><b class="c-g">G</b>56</span><span><b class="c-l">L</b>6</span><span class="tot">508<em>kcal</em></span></div>
+    </div></div>
+    <div class="grp"><div class="tm">16:15</div><div class="rows">
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/almonds.png" alt=""><span class="nm">Amandes</span><span class="q">30 g</span><span class="k">173</span></div>
+      <div class="r"><img src="/home/clem/openNutrition/design/onicons/large_eggs.png" alt=""><span class="nm">Œufs</span><span class="q">×2</span><span class="k">143</span></div>
+      <div class="gf"><span><b class="c-p">P</b>18</span><span><b class="c-g">G</b>7</span><span><b class="c-l">L</b>25</span><span class="tot">316<em>kcal</em></span></div>
+    </div></div>
+    <div class="now"><div class="tm"><span class="nowdot"></span></div><div class="add">Maintenant<span style="color:var(--mut3)">·</span><span class="pl"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><b>Ajouter</b></div></div>
+  </div>
+
+  <div class="fab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+  <div class="tab">
+    <div class="on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="3.5" cy="6" r=".6" fill="currentColor"/><circle cx="3.5" cy="12" r=".6" fill="currentColor"/><circle cx="3.5" cy="18" r=".6" fill="currentColor"/></svg>Journal</div>
+    <div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 16l4.5-5 3.5 3 6-7"/></svg>Progrès</div>
+    <div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.4-4 4.4-6 8-6s6.6 2 8 6"/></svg>Profil</div>
+  </div>
+  <div class="hi"></div>
+</div></div>
+
+<!-- ===== Phone 2 : Ajouter un aliment ===== -->
+<div class="ph"><div class="scr">
+  <div class="di"></div>
+  <div class="sb"><span>9:41</span><span class="ic"><svg width="16" height="10" viewBox="0 0 16 10" fill="#fafafa"><rect x="0" y="6.5" width="3" height="3.5" rx=".7"/><rect x="4.3" y="4.5" width="3" height="5.5" rx=".7"/><rect x="8.6" y="2.3" width="3" height="7.7" rx=".7"/><rect x="12.9" y="0" width="3" height="10" rx=".7"/></svg><svg width="14" height="10" viewBox="0 0 14 10" fill="#fafafa"><path d="M7 2.2c1.9 0 3.6.7 4.9 1.9l1-1A8.4 8.4 0 0 0 7 .8 8.4 8.4 0 0 0 1.1 3.1l1 1A7 7 0 0 1 7 2.2Zm0 2.9c1.1 0 2.1.4 2.9 1.1l1-1A5.6 5.6 0 0 0 7 3.7c-1.5 0-2.9.6-3.9 1.5l1 1c.8-.7 1.8-1.1 2.9-1.1Zm0 2.9c.4 0 .8.1 1 .4L7 9.4 6 8.4c.2-.3.6-.4 1-.4Z"/></svg><svg width="23" height="11" viewBox="0 0 23 11"><rect x=".5" y=".5" width="19.5" height="10" rx="3" fill="none" stroke="#fafafa" stroke-opacity=".4"/><rect x="2" y="2" width="15" height="7" rx="1.6" fill="#fafafa"/><path d="M21.4 3.7v3.6c.7-.3 1.1-1 1.1-1.8s-.4-1.5-1.1-1.8Z" fill="#fafafa" fill-opacity=".45"/></svg></span></div>
+
+  <div class="sh"><span class="cx">Annuler</span><h4>Ajouter un aliment</h4><span class="bc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 9v6M11 9v6M14 9v6M17 9v6"/></svg></span></div>
+  <div class="dest">dans <b>Maintenant · 18:30</b> ▾</div>
+
+  <div class="sf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="tx">bana<span class="caret"></span></span><span class="clr"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span></div>
+
+  <div class="chips">
+    <span class="chip on">Tout</span>
+    <span class="chip"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Récents</span>
+    <span class="chip">Favoris</span>
+    <span class="chip">Plats</span>
+  </div>
+
+  <div class="rh"><span>1&nbsp;696 résultats</span><span>Par portion <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></span></div>
+
+  <div>
+    <div class="sr hit"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/banana.png" alt=""></span><div class="sx"><div class="nm"><span><mark>Bana</mark>ne</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">105 kcal</span><span class="dt">•</span>1 moyenne, 118 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/banana.png" alt=""></span><div class="sx"><div class="nm"><span><mark>Bana</mark>ne, tranches surgelées</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">134 kcal</span><span class="dt">•</span>1 tasse, 150 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/rolled_oats.png" alt=""></span><div class="sx"><div class="nm"><span>Porridge <mark>bana</mark>ne</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">212 kcal</span><span class="dt">•</span>1 bol, 250 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/whole_milk.png" alt=""></span><div class="sx"><div class="nm"><span>Lait frappé à la <mark>bana</mark>ne</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">186 kcal</span><span class="dt">•</span>1 verre, 250 ml</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/almonds.png" alt=""></span><div class="sx"><div class="nm"><span>Granola <mark>bana</mark>ne-amande</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">256 kcal</span><span class="dt">•</span>½ tasse, 55 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/peanut_butter.png" alt=""></span><div class="sx"><div class="nm"><span>Tartine <mark>bana</mark>ne-cacahuète</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">289 kcal</span><span class="dt">•</span>1 tranche, 95 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+
+    <div class="sr"><span class="tile"><img src="/home/clem/openNutrition/design/onicons/banana.png" alt=""></span><div class="sx"><div class="nm"><span><mark>Bana</mark>nes séchées</span></div><div class="sub"><svg class="fl" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 4.6 5.6 4.6 10.4A6.1 6.1 0 0 1 12 22a6.1 6.1 0 0 1-6.5-6c0-2.7 1.4-4.3 2.6-5.6.2 1.8.9 3 2 3.4C10 9.3 11.4 6 12 2Z"/></svg><span class="kc">97 kcal</span><span class="dt">•</span>1 poignée, 28 g</div></div><span class="pl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+  </div>
+  <div class="hi"></div>
+</div></div>
+
+</div>
+<div class="cap"><h2><span class="n">05</span>Minimal pro</h2><p>Interface monochrome en DM Sans où seules les quatre couleurs de macros portent de la couleur : des filets d'un pixel remplacent les cartes, les heures forment une colonne fixe et les kcal s'alignent en chiffres tabulaires à droite. L'œil descend une seule colonne de nombres sans bruit visuel, les petites icônes en couleur suffisent à reconnaître un aliment, et le « + » de chaque résultat ajoute en un tap au créneau « Maintenant ».</p></div>
+<div class="meta"><b>DM Sans</b><b>Monochrome</b><b>Filets 1px</b><b>Couleur = macros</b><b>Chiffres tabulaires</b></div>
+</article>

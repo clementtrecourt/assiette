@@ -28,6 +28,73 @@ NUTRIENTS = [
 ]
 TYPES = {"everyday": 0, "prepared": 1, "restaurant": 2, "grocery": 3}
 BY_RE = re.compile(r"^(.*) by (.+)$")
+WORD_RE = re.compile(r"[a-z0-9]+")
+ICONS_TSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "icons.tsv")
+
+
+def load_icons(path=ICONS_TSV):
+    """ext_id -> icon basename, from the crawler output (tools/map_icons.py). {} if absent."""
+    icons = {}
+    if not os.path.exists(path):
+        return icons
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) >= 2 and parts[0] and parts[1].strip():
+                icons[parts[0].strip()] = parts[1].strip()
+    return icons
+
+
+def norm_word(w):
+    """Crude singular form, applied identically to keys and names (only consistency matters):
+    eggs -> egg, tomatoes -> tomato, peaches -> peach, berries/berry -> berry,
+    cookies/cookie -> cooky."""
+    if len(w) > 4 and (w.endswith("oes") or w.endswith("ches") or w.endswith("shes")):
+        w = w[:-2]
+    elif len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+        w = w[:-1]
+    if len(w) > 2 and w.endswith("ie"):
+        w = w[:-2] + "y"
+    return w
+
+
+def name_words(name):
+    m = BY_RE.match(name)
+    if m:
+        name = m.group(1)
+    return [norm_word(w) for w in WORD_RE.findall(name.lower())]
+
+
+def assign_fallback_icons(db):
+    """Give foods without an icon the icon of the best-matching short generic food name."""
+    index = {}  # "white rice" -> icon
+    rows = db.execute("SELECT name, icon FROM food WHERE icon IS NOT NULL AND type IN (0, 1) ORDER BY id")
+    for name, icon in rows:
+        words = name_words(name)
+        if not 1 <= len(words) <= 3:
+            continue
+        key = " ".join(words)
+        # Prefer the canonical illustrations ("white_rice_3iVYQH") over per-food ones ("fd_...").
+        if key not in index or (index[key].startswith("fd_") and not icon.startswith("fd_")):
+            index[key] = icon
+    updates = []
+    misses = db.execute("SELECT id, name FROM food WHERE icon IS NULL").fetchall()
+    for food_id, name in misses:
+        words = name_words(name)
+        found = None
+        for size in (3, 2, 1):
+            # Rightmost n-gram first: English head nouns come last ("chocolate chip cookie").
+            for start in range(len(words) - size, -1, -1):
+                icon = index.get(" ".join(words[start:start + size]))
+                if icon:
+                    found = icon
+                    break
+            if found:
+                break
+        if found:
+            updates.append((found, food_id))
+    db.executemany("UPDATE food SET icon = ? WHERE id = ?", updates)
+    return len(index), len(misses), len(updates)
 
 
 def num(v):
@@ -59,14 +126,17 @@ def main(src, dst):
         serving_g REAL,
         is_liquid INTEGER NOT NULL DEFAULT 0,
         package_g REAL,
-        {cols})""")
+        {cols},
+        icon TEXT)""")
     db.execute("""CREATE VIRTUAL TABLE food_fts USING fts5(
         name, alt, content='', columnsize=0,
         tokenize='unicode61 remove_diacritics 2', prefix='2 3')""")
     db.execute("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
 
-    placeholders = ",".join("?" * (11 + len(NUTRIENTS)))
+    icons = load_icons()
+    placeholders = ",".join("?" * (12 + len(NUTRIENTS)))
     n = 0
+    exact = 0
     with open(src, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f, delimiter="\t"):
             try:
@@ -99,21 +169,34 @@ def main(src, dst):
                 alt = " ".join(json.loads(row["alternate_names"] or "[]"))
             except json.JSONDecodeError:
                 alt = ""
+            icon = icons.get(row["id"])
+            if icon:
+                exact += 1
             db.execute(
                 f"INSERT INTO food VALUES({placeholders})",
                 (n, row["id"], name, brand, t, row["ean_13"] or None,
                  common.get("unit"), num(common.get("quantity")),
                  num(metric.get("quantity")), is_liquid, pkg,
-                 *[num(nut.get(k)) for k in NUTRIENTS]),
+                 *[num(nut.get(k)) for k in NUTRIENTS], icon),
             )
             db.execute("INSERT INTO food_fts(rowid, name, alt) VALUES(?,?,?)", (n, name, alt))
+    if icons:
+        keys, missing, matched = assign_fallback_icons(db)
+        total = exact + matched
+        print(f"icons: {len(icons)} mapped, {exact} exact, {matched}/{missing} fallback "
+              f"({keys} keys) -> {total}/{n} foods ({100 * total / max(n, 1):.1f} %)")
+        for t_name, t in TYPES.items():
+            c, w = db.execute("SELECT count(*), count(icon) FROM food WHERE type = ?", (t,)).fetchone()
+            print(f"  {t_name:10s} {w}/{c} ({100 * w / max(c, 1):.1f} %)")
+    else:
+        print(f"icons: {ICONS_TSV} not found, icon column left NULL")
     db.execute("CREATE INDEX ix_food_ean ON food(ean) WHERE ean IS NOT NULL")
     db.execute("INSERT INTO food_fts(food_fts) VALUES('optimize')")
     db.executemany("INSERT INTO meta VALUES(?,?)", [
         ("dataset", "OpenNutrition 2025.1"),
         ("license", "ODbL 1.0"),
         ("count", str(n)),
-        ("schema", "1"),
+        ("schema", "2"),
     ])
     db.commit()
     db.execute("VACUUM")

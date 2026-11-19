@@ -280,12 +280,13 @@ struct TodayTimelineEntryContent: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            if entry.source == .quickAdd {
-                Image(systemName: "bolt.fill")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            }
+        HStack(alignment: .center, spacing: 8) {
+            // openNutrition entries resolve their icon from the bundled database (ref = food id).
+            FoodIconView(icon: nil,
+                         foodId: entry.source == .openNutrition ? entry.ref.flatMap { Int64($0) } : nil,
+                         kind: entry.kindRaw.flatMap { FoodKind(rawValue: $0) },
+                         size: 28,
+                         placeholder: FoodIconView.placeholderSymbol(for: entry.source))
             // Name and quantity on one line when they fit, otherwise quantity goes below.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {

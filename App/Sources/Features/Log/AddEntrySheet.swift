@@ -220,14 +220,19 @@ struct AddEntrySheet: View {
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
-                Text(item.name)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let brand = item.brand, !brand.isEmpty {
-                    Text(brand)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textSecondary)
+                HStack(alignment: .center, spacing: 12) {
+                    FoodIconView(item: item, size: 56)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let brand = item.brand, !brand.isEmpty {
+                            Text(brand)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
                 }
                 HStack(spacing: 8) {
                     Label(item.kind?.label ?? item.source.label,

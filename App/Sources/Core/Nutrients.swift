@@ -225,18 +225,63 @@ struct NutrientValues: Codable, Hashable, Sendable {
     static func += (lhs: inout NutrientValues, rhs: NutrientValues) { lhs = lhs + rhs }
 
     static func sum<S: Sequence>(_ values: S) -> NutrientValues where S.Element == NutrientValues {
-        values.reduce(NutrientValues(), +)
+        // In-place merge: avoids copying the accumulated dictionary at every step.
+        var result = NutrientValues()
+        for value in values {
+            result.storage.merge(value.storage, uniquingKeysWith: +)
+        }
+        return result
     }
 
     // MARK: Data round-trip (used by SwiftData models)
 
-    var data: Data { (try? JSONEncoder().encode(storage)) ?? Data() }
+    /// JSON encoding (sorted keys so identical values give identical bytes and share one
+    /// decode-cache slot). The result is also seeded into the decode cache.
+    var data: Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let encoded = try? encoder.encode(storage) else { return Data() }
+        NutrientValuesDecodeCache.shared.insert(storage, for: encoded)
+        return encoded
+    }
 
+    /// Decodes JSON produced by `data`. Decoding is memoized by content: SwiftData models
+    /// (JournalEntry.per100, .nutrients…) call this on every access, many times per render,
+    /// and JSONDecoder is by far the most expensive part of that path.
     init(data: Data?) {
-        if let data, let decoded = try? JSONDecoder().decode([String: Double].self, from: data) {
-            storage = decoded
-        } else {
+        guard let data, !data.isEmpty else {
             storage = [:]
+            return
         }
+        if let cached = NutrientValuesDecodeCache.shared.lookup(data) {
+            storage = cached
+            return
+        }
+        let decoded = (try? JSONDecoder().decode([String: Double].self, from: data)) ?? [:]
+        NutrientValuesDecodeCache.shared.insert(decoded, for: data)
+        storage = decoded
+    }
+}
+
+/// Thread-safe memo of decoded nutrient JSON blobs, keyed by the raw bytes (so it can never
+/// return stale values: a changed blob is a different key). Bounded; flushed when full.
+final class NutrientValuesDecodeCache: @unchecked Sendable {
+    static let shared = NutrientValuesDecodeCache()
+
+    private let lock = NSLock()
+    private var storage: [Data: [String: Double]] = [:]
+    private let limit = 4096
+
+    func lookup(_ data: Data) -> [String: Double]? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage[data]
+    }
+
+    func insert(_ values: [String: Double], for data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        if storage.count >= limit { storage.removeAll(keepingCapacity: true) }
+        storage[data] = values
     }
 }
