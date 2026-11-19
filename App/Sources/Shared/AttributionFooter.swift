@@ -7,7 +7,7 @@ struct AttributionFooter: View {
     var includeOpenFoodFacts = false
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             Link(destination: URL(string: "https://www.opennutrition.app")!) {
                 Text("Données : OpenNutrition (ODbL)")
             }
@@ -17,10 +17,10 @@ struct AttributionFooter: View {
                 }
             }
         }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .tint(.secondary)
+        .font(Theme.font(11, .regular, relativeTo: .caption2))
+        .foregroundStyle(Theme.textTertiary)
+        .tint(Theme.textTertiary)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
 }

@@ -1,39 +1,52 @@
 import SwiftData
 import SwiftUI
 
+// MARK: - Hairline
+
+/// 1 pt horizontal rule (`Theme.separator` by default), DESIGN.md "hairlines instead of cards".
+struct TodayHairline: View {
+    var color: Color = Theme.separator
+
+    var body: some View {
+        Rectangle()
+            .fill(color)
+            .frame(height: Theme.hairline)
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Pinned macro header
 
-/// Pinned header: 4 equal columns Kcal / Prot. / Gluc. / Lip. with the remaining (or consumed)
-/// value, a thin progress bar and the target.
+/// Pinned header: 4 equal columns Kcal / Prot. / Gluc. / Lip. separated by hairlines, with the
+/// remaining (or consumed) value, a 2 pt progress bar and the target.
 struct TodayMacroHeader: View {
     let totals: NutrientValues
     let targets: TodayTargets
     let showsConsumed: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 0) {
             TodayMacroHeaderColumn(label: "Kcal", consumed: totals.calories,
                                    target: targets.calories, color: Theme.calories,
                                    unit: "kcal", showsConsumed: showsConsumed)
             TodayMacroHeaderColumn(label: "Prot.", consumed: totals.protein,
                                    target: targets.protein, color: Theme.protein,
-                                   unit: "g", showsConsumed: showsConsumed)
+                                   unit: "g", showsConsumed: showsConsumed, leadingRule: true)
             TodayMacroHeaderColumn(label: "Gluc.", consumed: totals.carbs,
                                    target: targets.carbs, color: Theme.carbs,
-                                   unit: "g", showsConsumed: showsConsumed)
+                                   unit: "g", showsConsumed: showsConsumed, leadingRule: true)
             TodayMacroHeaderColumn(label: "Lip.", consumed: totals.fat,
                                    target: targets.fat, color: Theme.fat,
-                                   unit: "g", showsConsumed: showsConsumed)
+                                   unit: "g", showsConsumed: showsConsumed, leadingRule: true)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity)
         .background(Theme.background)
+        .overlay(alignment: .top) {
+            TodayHairline()
+        }
         .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: 0.5)
+            TodayHairline()
         }
         .accessibilityElement(children: .contain)
         .accessibilityHint(showsConsumed ? "Touchez pour afficher le restant" : "Touchez pour afficher le consommé")
@@ -47,36 +60,68 @@ struct TodayMacroHeaderColumn: View {
     let color: Color
     let unit: String
     let showsConsumed: Bool
+    /// Vertical hairline on the leading edge (columns 2–4).
+    var leadingRule: Bool = false
 
     private var remaining: Double { target - consumed }
     private var displayed: Double { showsConsumed ? consumed : remaining }
     private var isNegative: Bool { !showsConsumed && remaining.rounded() < 0 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(showsConsumed ? "\(label) · mangé" : label)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Text(Formatters.number(displayed, maxFractionDigits: 0))
-                .font(.system(size: 22, weight: .bold, design: .default))
+        VStack(alignment: .leading, spacing: 0) {
+            labelText
+            valueText
                 .monospacedDigit()
-                .foregroundStyle(isNegative ? Theme.overTarget : Theme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
-            ProgressBar(value: consumed, total: target, color: color, height: 4)
-            Text("sur \(Formatters.number(target, maxFractionDigits: 0))")
-                .font(.caption2)
-                .monospacedDigit()
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .padding(.top, 6)
+            ProgressBar(value: consumed, total: target, color: color, height: 2)
+                .padding(.top, 8)
+            targetText
+                .padding(.top, 6)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .leading) {
+            if leadingRule {
+                Rectangle()
+                    .fill(Theme.separator)
+                    .frame(width: Theme.hairline)
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+    }
+
+    private var labelText: some View {
+        Text((showsConsumed ? "\(label) · mangé" : label).uppercased())
+            .font(Theme.label)
+            .tracking(0.6)
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
+
+    private var valueText: Text {
+        let number = Text(Formatters.number(displayed, maxFractionDigits: 0))
+            .font(Theme.numberLarge)
+            .foregroundStyle(isNegative ? Theme.overTarget : Theme.textPrimary)
+        guard unit != "kcal" else { return number }
+        let suffix = Text(unit)
+            .font(Theme.font(12, .medium, relativeTo: .caption))
+            .foregroundStyle(Theme.textTertiary)
+        return number + suffix
+    }
+
+    private var targetText: some View {
+        Text("sur \(Formatters.number(target, maxFractionDigits: 0))")
+            .font(Theme.caption)
+            .monospacedDigit()
+            .foregroundStyle(Theme.textTertiary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 
     private var accessibilityText: String {
@@ -141,19 +186,28 @@ enum TodayTimeFormat {
 }
 
 enum TodayTimelineMetrics {
-    static let gutterWidth: CGFloat = 64
-    static let timeWidth: CGFloat = 34
-    static let lineColumnWidth: CGFloat = 18
-    static let contentLeading: CGFloat = 68
+    /// Leading margin of the time column.
+    static let timeLeading: CGFloat = 16
+    /// Fixed time column (DESIGN.md: 36 pt).
+    static let timeWidth: CGFloat = 36
+    static let gutterWidth: CGFloat = timeLeading + timeWidth
+    /// Kept for source compatibility (the timeline no longer draws a vertical line).
+    static let lineColumnWidth: CGFloat = 0
+    static let contentLeading: CGFloat = gutterWidth + 8
     static let trailing: CGFloat = 16
     static let groupGap: CGFloat = 14
-    /// Center of the dot in a group header row (gap + top padding + half a caption line).
-    static let headerDotY: CGFloat = 30
+    /// Top offset of the time label in rows that show one.
+    static let headerDotY: CGFloat = 14
+    /// Icon side in timeline rows.
+    static let iconSize: CGFloat = 24
+    /// Spacing between the icon and the name.
+    static let iconSpacing: CGFloat = 10
 }
 
 // MARK: - Timeline building blocks
 
-/// Left gutter: time label, vertical line and an optional dot.
+/// Left gutter: fixed time column. `dotColor`, `lineAbove` and `lineBelow` are kept for
+/// source compatibility; the "Minimal pro" timeline has no vertical line nor dots.
 struct TodayTimelineGutter: View {
     var time: String?
     var dotColor: Color?
@@ -162,53 +216,22 @@ struct TodayTimelineGutter: View {
     var lineBelow: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 4) {
-            timeLabel
-            lineColumn
-        }
-        .padding(.leading, 8)
-        .frame(width: TodayTimelineMetrics.gutterWidth, alignment: .leading)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .accessibilityHidden(true)
-    }
-
-    private var timeLabel: some View {
         Text(time ?? "")
-            .font(.caption2)
+            .font(Theme.font(12, .medium, relativeTo: .caption))
             .monospacedDigit()
             .foregroundStyle(Theme.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .frame(width: TodayTimelineMetrics.timeWidth, alignment: .trailing)
-            .padding(.top, max(dotY - 7, 0))
-    }
-
-    private var lineColumn: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: 0) {
-                Rectangle()
-                    .fill(lineAbove ? Theme.separator : Color.clear)
-                    .frame(width: 2, height: dotY)
-                Rectangle()
-                    .fill(lineBelow ? Theme.separator : Color.clear)
-                    .frame(width: 2)
-                    .frame(maxHeight: .infinity)
-            }
-            if let dotColor {
-                Circle()
-                    .fill(dotColor)
-                    .frame(width: 9, height: 9)
-                    .padding(3)
-                    .background(Circle().fill(Theme.background))
-                    .offset(y: dotY - 7.5)
-            }
-        }
-        .frame(width: TodayTimelineMetrics.lineColumnWidth)
-        .frame(maxHeight: .infinity, alignment: .top)
+            .frame(width: TodayTimelineMetrics.timeWidth, alignment: .leading)
+            .padding(.top, dotY)
+            .padding(.leading, TodayTimelineMetrics.timeLeading)
+            .frame(width: TodayTimelineMetrics.gutterWidth, alignment: .leading)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .accessibilityHidden(true)
     }
 }
 
-/// One list row of the timeline: content shifted right of the gutter.
+/// One list row of the timeline: content shifted right of the time column.
 struct TodayTimelineRow<Content: View>: View {
     let time: String?
     let dotColor: Color?
@@ -233,60 +256,92 @@ struct TodayTimelineRow<Content: View>: View {
             .padding(.leading, TodayTimelineMetrics.contentLeading)
             .padding(.trailing, TodayTimelineMetrics.trailing)
             .background(alignment: .topLeading) {
-                TodayTimelineGutter(time: time, dotColor: dotColor, dotY: dotY,
-                                    lineAbove: lineAbove, lineBelow: lineBelow)
+                if time != nil {
+                    TodayTimelineGutter(time: time, dotColor: dotColor, dotY: dotY,
+                                        lineAbove: lineAbove, lineBelow: lineBelow)
+                }
             }
     }
 }
 
-/// Top of a group card: small secondary meal label.
+/// Top of a group: time in the fixed column + tiny uppercase meal label, hairline above
+/// every group but the first. Full-width row (not wrapped in `TodayTimelineRow`).
 struct TodayGroupHeaderContent: View {
     let group: TodayTimelineGroup
+    var time: String? = nil
+    var showsRule: Bool = false
 
     var body: some View {
-        Text(group.mealLabel)
-            .font(.caption)
-            .foregroundStyle(Theme.textSecondary)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.top, 9)
-            .padding(.bottom, 3)
-            .background(Theme.card,
-                        in: UnevenRoundedRectangle(topLeadingRadius: Theme.cornerRadius,
-                                                   topTrailingRadius: Theme.cornerRadius,
-                                                   style: .continuous))
-            .padding(.top, TodayTimelineMetrics.groupGap)
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(time ?? "")
+                .font(Theme.font(12, .medium, relativeTo: .caption))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: TodayTimelineMetrics.contentLeading - TodayTimelineMetrics.timeLeading,
+                       alignment: .leading)
+            Text(group.mealLabel.uppercased())
+                .font(Theme.label)
+                .tracking(0.6)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, TodayTimelineMetrics.timeLeading)
+        .padding(.trailing, TodayTimelineMetrics.trailing)
+        .padding(.top, TodayTimelineMetrics.groupGap)
+        .padding(.bottom, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) {
+            if showsRule {
+                TodayHairline()
+                    .padding(.horizontal, TodayTimelineMetrics.timeLeading)
+            }
+        }
     }
 }
 
-/// "Name  qty        kcal" inside a group card.
+/// "icon  Name  qty        kcal" timeline row (no card, faint rule between rows).
 struct TodayTimelineEntryContent: View {
     let entry: JournalEntry
     let showsDivider: Bool
 
     private var nameText: some View {
         Text(entry.name)
-            .font(.subheadline)
-            .foregroundStyle(Theme.textPrimary)
+            .font(Theme.font(14, .medium, relativeTo: .subheadline))
+            .foregroundStyle(Theme.textBody)
             .lineLimit(1)
     }
 
     private var quantityText: some View {
         Text(quantity)
-            .font(.caption)
-            .foregroundStyle(Theme.textSecondary)
+            .font(Theme.caption)
+            .monospacedDigit()
+            .foregroundStyle(Theme.textTertiary)
             .lineLimit(1)
     }
 
+    private var kcalText: some View {
+        Text(Formatters.number(entry.nutrients.calories, maxFractionDigits: 0))
+            .font(Theme.font(14, .medium, relativeTo: .subheadline))
+            .monospacedDigit()
+            .foregroundStyle(Theme.textBody)
+            .layoutPriority(2)
+    }
+
+    private var icon: some View {
+        // openNutrition entries resolve their icon from the bundled database (ref = food id).
+        FoodIconView(icon: nil,
+                     foodId: entry.source == .openNutrition ? entry.ref.flatMap { Int64($0) } : nil,
+                     kind: entry.kindRaw.flatMap { FoodKind(rawValue: $0) },
+                     size: TodayTimelineMetrics.iconSize,
+                     placeholder: FoodIconView.placeholderSymbol(for: entry.source))
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            // openNutrition entries resolve their icon from the bundled database (ref = food id).
-            FoodIconView(icon: nil,
-                         foodId: entry.source == .openNutrition ? entry.ref.flatMap { Int64($0) } : nil,
-                         kind: entry.kindRaw.flatMap { FoodKind(rawValue: $0) },
-                         size: 28,
-                         placeholder: FoodIconView.placeholderSymbol(for: entry.source))
+        HStack(alignment: .center, spacing: TodayTimelineMetrics.iconSpacing) {
+            icon
             // Name and quantity on one line when they fit, otherwise quantity goes below.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -299,22 +354,14 @@ struct TodayTimelineEntryContent: View {
                 }
             }
             Spacer(minLength: 8)
-            Text(Formatters.number(entry.nutrients.calories, maxFractionDigits: 0))
-                .font(.subheadline)
-                .monospacedDigit()
-                .foregroundStyle(Theme.textPrimary)
-                .layoutPriority(2)
+            kcalText
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card)
+        .background(Theme.background)
         .overlay(alignment: .top) {
             if showsDivider {
-                Rectangle()
-                    .fill(Theme.separator)
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 12)
+                TodayHairline(color: Theme.separator.opacity(0.6))
             }
         }
         .contentShape(Rectangle())
@@ -328,55 +375,65 @@ struct TodayTimelineEntryContent: View {
     }
 }
 
-/// Bottom of a group card: P/G/L dots + total kcal.
+/// Bottom of a group: colored P/G/L + group kcal, aligned with the entry names.
 struct TodayGroupFooterContent: View {
     let totals: NutrientValues
+
+    private var totalText: Text {
+        let value = Text(Formatters.number(totals.calories, maxFractionDigits: 0))
+            .font(Theme.font(12, .bold, relativeTo: .caption))
+            .foregroundStyle(Theme.textSecondary)
+        let unit = Text(" kcal")
+            .font(Theme.caption)
+            .foregroundStyle(Theme.textTertiary)
+        return value + unit
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             TodayMacroDots(values: totals)
             Spacer(minLength: 8)
-            Text(Formatters.kcal(totals.calories))
-                .font(.caption.weight(.bold))
+            totalText
                 .monospacedDigit()
-                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 7)
-        .padding(.bottom, 9)
-        .background(Theme.card,
-                    in: UnevenRoundedRectangle(bottomLeadingRadius: Theme.cornerRadius,
-                                               bottomTrailingRadius: Theme.cornerRadius,
-                                               style: .continuous))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: 0.5)
-                .padding(.horizontal, 12)
-        }
+        .padding(.leading, TodayTimelineMetrics.iconSize + TodayTimelineMetrics.iconSpacing)
+        .padding(.top, 3)
+        .padding(.bottom, 12)
+        .accessibilityElement(children: .combine)
     }
 }
 
-/// "● 12  ● 30  ● 5" for protein / carbs / fat (grams).
+/// "P 12  G 30  L 5": macro letter in its color, grams in textTertiary.
 struct TodayMacroDots: View {
     let values: NutrientValues
 
     var body: some View {
         HStack(spacing: 10) {
             ForEach(NutrientKey.macros) { key in
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Theme.color(for: key))
-                        .frame(width: 6, height: 6)
+                HStack(spacing: 3) {
+                    Text(Self.letter(for: key))
+                        .font(Theme.font(12, .bold, relativeTo: .caption))
+                        .foregroundStyle(Theme.color(for: key))
                     Text(Formatters.number(values.value(key), maxFractionDigits: 0))
-                        .font(.caption2)
+                        .font(Theme.caption)
                         .monospacedDigit()
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
         }
+        .lineLimit(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+    }
+
+    static func letter(for key: NutrientKey) -> String {
+        switch key {
+        case .protein: "P"
+        case .carbohydrates: "G"
+        case .totalFat: "L"
+        default: String(key.label.prefix(1))
+        }
     }
 
     private var accessibilityText: String {
@@ -386,7 +443,7 @@ struct TodayMacroDots: View {
     }
 }
 
-/// Last timeline item: accent dot + dashed "Maintenant : + Ajouter" card.
+/// Last timeline item: current time + dashed "Maintenant · + Ajouter" row.
 struct TodayNowRow: View {
     let isToday: Bool
     let hasGroups: Bool
@@ -394,32 +451,66 @@ struct TodayNowRow: View {
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            TodayTimelineRow(time: isToday ? TodayTimeFormat.short(context.date) : nil,
-                             dotColor: Theme.accent,
-                             dotY: TodayTimelineMetrics.groupGap + 22,
-                             lineAbove: hasGroups,
-                             lineBelow: false) {
-                button
+            row(time: isToday ? TodayTimeFormat.short(context.date) : "")
+        }
+    }
+
+    private func row(time: String) -> some View {
+        HStack(alignment: .center, spacing: 0) {
+            Text(time)
+                .font(Theme.font(12, .bold, relativeTo: .caption))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: TodayTimelineMetrics.contentLeading - TodayTimelineMetrics.timeLeading,
+                       alignment: .leading)
+                .accessibilityHidden(true)
+            button
+        }
+        .padding(.leading, TodayTimelineMetrics.timeLeading)
+        .padding(.trailing, TodayTimelineMetrics.trailing)
+        .padding(.vertical, 10)
+        .overlay(alignment: .top) {
+            if hasGroups {
+                TodayHairline()
+                    .padding(.horizontal, TodayTimelineMetrics.timeLeading)
             }
         }
     }
 
+    private var buttonLabel: some View {
+        HStack(spacing: 8) {
+            if isToday {
+                Text("Maintenant")
+                    .foregroundStyle(Theme.textSecondary)
+                Text("·")
+                    .foregroundStyle(Theme.textQuaternary)
+            }
+            Image(systemName: "plus")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Ajouter")
+                .font(Theme.font(14, .bold, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 0)
+        }
+        .font(Theme.font(14, .medium, relativeTo: .subheadline))
+        .lineLimit(1)
+    }
+
     private var button: some View {
         Button(action: onAdd) {
-            Text(isToday ? "Maintenant : + Ajouter" : "+ Ajouter")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.accent)
-                .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+            buttonLabel
                 .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
                 .background {
                     RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                        .strokeBorder(Theme.separator, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .strokeBorder(Theme.separatorStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.top, TodayTimelineMetrics.groupGap)
         .accessibilityLabel("Ajouter un aliment")
     }
 }
@@ -431,25 +522,26 @@ struct TodayEmptyState: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "fork.knife")
-                .font(.title2)
-                .foregroundStyle(Theme.textSecondary)
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(Theme.textTertiary)
             Text(isToday ? "Votre journée commence ici" : "Rien de noté ce jour-là")
-                .font(.headline)
+                .font(Theme.headline)
                 .foregroundStyle(Theme.textPrimary)
             Text("Touchez « + » pour rechercher un aliment, scanner un code-barres ou faire un ajout rapide.")
-                .font(.footnote)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textTertiary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 32)
         .padding(.top, 28)
-        .padding(.bottom, 8)
+        .padding(.bottom, 12)
     }
 }
 
 // MARK: - Below the timeline
 
+/// Water as a hairline row: drop + "Eau 0,75 / 2 L" + undo + outlined "+250" "+500", 2 pt bar.
 struct TodayWaterCard: View {
     let totalMl: Double
     let targetMl: Double
@@ -458,19 +550,9 @@ struct TodayWaterCard: View {
     let onUndo: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 8) {
-                Image(systemName: "drop.fill")
-                    .foregroundStyle(Theme.water)
-                Text("Eau")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("\(liters(totalMl)) / \(liters(targetMl)) L")
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-                    .contentTransition(.numericText())
+                titleLabel
                 Spacer(minLength: 4)
                 undoButton
                 addButton(250)
@@ -478,15 +560,34 @@ struct TodayWaterCard: View {
             }
             TodayWaterBar(fraction: targetMl > 0 ? totalMl / targetMl : 0)
         }
-        .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) {
+            TodayHairline()
+        }
+    }
+
+    private var titleLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "drop.fill")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.water)
+            Text("Eau")
+                .font(Theme.font(14, .medium, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textBody)
+            Text("\(liters(totalMl)) / \(liters(targetMl)) L")
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+                .contentTransition(.numericText())
+        }
     }
 
     private var undoButton: some View {
         Button(action: onUndo) {
             Image(systemName: "arrow.uturn.backward")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(canUndo ? Theme.textSecondary : Theme.textSecondary.opacity(0.35))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(canUndo ? Theme.textSecondary : Theme.textQuaternary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
@@ -500,12 +601,15 @@ struct TodayWaterCard: View {
             onAdd(ml)
         } label: {
             Text("+\(Formatters.number(ml, maxFractionDigits: 0))")
-                .font(.caption.weight(.semibold))
+                .font(Theme.font(12, .medium, relativeTo: .caption))
                 .monospacedDigit()
-                .foregroundStyle(Theme.water)
+                .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Theme.water.opacity(0.16), in: Capsule())
+                .padding(.vertical, 5)
+                .overlay {
+                    Capsule().strokeBorder(Theme.separatorStrong, lineWidth: 1)
+                }
+                .contentShape(Capsule())
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("Ajouter \(Formatters.number(ml, maxFractionDigits: 0)) ml d'eau")
@@ -523,39 +627,46 @@ private struct TodayWaterBar: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.separator)
+                Capsule().fill(Theme.separatorStrong)
                 Capsule()
                     .fill(Theme.water)
                     .frame(width: geo.size.width * min(max(fraction, 0), 1))
             }
         }
-        .frame(height: 4)
+        .frame(height: 2)
         .animation(.snappy, value: fraction)
     }
 }
 
-/// Compact row linking to the day's micronutrients.
+/// Hairline row linking to the day's micronutrients.
 struct TodayNutrientsLinkLabel: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "chart.bar.doc.horizontal")
-                .foregroundStyle(Theme.accent)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
             Text("Nutriments du jour")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.font(14, .medium, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textBody)
             Spacer(minLength: 8)
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.textTertiary)
         }
-        .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .padding(.vertical, 13)
+        .overlay(alignment: .top) {
+            TodayHairline()
+        }
+        .overlay(alignment: .bottom) {
+            TodayHairline()
+        }
         .contentShape(Rectangle())
     }
 }
 
 // MARK: - Floating add button
 
+/// White circle with a near-black "+" (DESIGN.md FAB).
 struct TodayAddButton: View {
     let onSearch: () -> Void
     let onScan: () -> Void
@@ -574,10 +685,11 @@ struct TodayAddButton: View {
             }
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Color.white)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(Theme.onAccent)
                 .frame(width: 56, height: 56)
                 .background(Circle().fill(Theme.accent))
+                .shadow(color: Color.black.opacity(0.6), radius: 12, x: 0, y: 6)
                 .contentShape(Circle())
         }
         .menuOrder(.fixed)

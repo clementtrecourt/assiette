@@ -14,6 +14,7 @@ struct ProfileView: View {
                     ProfileSettingsForm(profile: profile)
                 } else {
                     ProgressView()
+                        .tint(Theme.textTertiary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Theme.background.ignoresSafeArea())
                         .task { _ = UserProfile.current(in: modelContext) }
@@ -65,20 +66,22 @@ private struct ProfileSettingsForm: View {
     var body: some View {
         Form {
             summarySection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             personalSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             goalSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             targetsSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             foodsSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             dataSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
             aboutSection
-                .listRowBackground(Theme.card)
+                .profileListRow()
         }
+        .font(Theme.body)
+        .listSectionSpacing(.compact)
         .themedBackground()
         .tint(Theme.accent)
         .scrollDismissesKeyboard(.interactively)
@@ -121,22 +124,27 @@ private struct ProfileSettingsForm: View {
     private var summarySection: some View {
         Section {
             HStack(spacing: 16) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(Theme.accent)
+                Image(systemName: "person.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 52, height: 52)
+                    .background(Theme.raised, in: Circle())
+                    .overlay(Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline))
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(profile.sex.label), \(profile.age) ans")
-                        .font(.headline)
+                        .font(Theme.title)
                         .foregroundStyle(Theme.textPrimary)
                     Text("\(Formatters.number(profile.heightCm, maxFractionDigits: 0)) cm · \(Formatters.number(profile.weightKg, maxFractionDigits: 1)) kg · IMC \(Formatters.number(bmi, maxFractionDigits: 1))")
-                        .font(.subheadline)
+                        .font(Theme.callout)
+                        .monospacedDigit()
                         .foregroundStyle(Theme.textSecondary)
                     Text("\(profile.goal.label) · \(Formatters.kcal(profile.calorieTarget)) / jour")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
         }
     }
 
@@ -159,9 +167,9 @@ private struct ProfileSettingsForm: View {
                 ForEach(ActivityLevel.allCases) { Text($0.label).tag($0) }
             }
         } header: {
-            Text("Mes informations")
+            ProfileSectionHeader("Mes informations")
         } footer: {
-            Text("\(profile.activity.detail). Enregistrez vos pesées dans l'onglet Progrès pour suivre votre évolution.")
+            ProfileSectionFooter("\(profile.activity.detail). Enregistrez vos pesées dans l'onglet Progrès pour suivre votre évolution.")
         }
     }
 
@@ -189,9 +197,9 @@ private struct ProfileSettingsForm: View {
                                    maxFractionDigits: 1, placeholder: "Facultatif")
             }
         } header: {
-            Text("Objectif")
+            ProfileSectionHeader("Objectif")
         } footer: {
-            if let text = goalFooter { Text(text) }
+            if let text = goalFooter { ProfileSectionFooter(text) }
         }
     }
 
@@ -213,7 +221,7 @@ private struct ProfileSettingsForm: View {
 
     private var targetsSection: some View {
         Section {
-            Toggle("Objectifs personnalisés", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { profile.manualTargets },
                 set: { manual in
                     withAnimation {
@@ -221,7 +229,11 @@ private struct ProfileSettingsForm: View {
                         if !manual { GoalCalculator.apply(to: profile) }
                     }
                 }
-            ))
+            )) {
+                Text("Objectifs personnalisés")
+                    .foregroundStyle(Theme.textBody)
+            }
+            .tint(Theme.textSecondary)
 
             if profile.manualTargets {
                 ProfileNumberField("Calories", value: plain(\.calorieTarget), unit: "kcal", maxFractionDigits: 0)
@@ -237,7 +249,8 @@ private struct ProfileSettingsForm: View {
                     successTrigger += 1
                 } label: {
                     Label("Reprendre les valeurs calculées", systemImage: "arrow.counterclockwise")
-                        .foregroundStyle(Theme.accent)
+                        .font(Theme.font(15, .medium, relativeTo: .body))
+                        .foregroundStyle(Theme.textPrimary)
                 }
             } else {
                 ProfileTargetRow(title: "Calories", value: Formatters.kcal(profile.calorieTarget),
@@ -255,9 +268,9 @@ private struct ProfileSettingsForm: View {
             ProfileNumberField("Fibres", value: plain(\.fiberTarget), unit: "g", maxFractionDigits: 0)
             ProfileNumberField("Eau", value: plain(\.waterTargetMl), unit: "ml", maxFractionDigits: 0)
         } header: {
-            Text("Objectifs quotidiens")
+            ProfileSectionHeader("Objectifs quotidiens")
         } footer: {
-            Text(targetsFooter)
+            ProfileSectionFooter(targetsFooter)
         }
     }
 
@@ -282,8 +295,7 @@ private struct ProfileSettingsForm: View {
             NavigationLink {
                 CustomFoodsListView(pickContext: nil)
             } label: {
-                Label("Mes aliments & recettes", systemImage: "takeoutbag.and.cup.and.straw")
-                    .foregroundStyle(Theme.textPrimary)
+                rowLabel("Mes aliments & recettes", systemImage: "takeoutbag.and.cup.and.straw")
             }
         }
     }
@@ -293,26 +305,36 @@ private struct ProfileSettingsForm: View {
             NavigationLink {
                 ProfileExportView()
             } label: {
-                Label("Exporter mes données", systemImage: "square.and.arrow.up")
-                    .foregroundStyle(Theme.textPrimary)
+                rowLabel("Exporter mes données", systemImage: "square.and.arrow.up")
             }
             Button {
                 showImporter = true
             } label: {
-                Label("Importer une sauvegarde", systemImage: "square.and.arrow.down")
-                    .foregroundStyle(Theme.accent)
+                rowLabel("Importer une sauvegarde", systemImage: "square.and.arrow.down")
             }
             Button(role: .destructive) {
                 warningTrigger += 1
                 showEraseConfirm = true
             } label: {
-                Label("Effacer toutes les données", systemImage: "trash")
-                    .foregroundStyle(Theme.overTarget)
+                rowLabel("Effacer toutes les données", systemImage: "trash", color: Theme.overTarget)
             }
         } header: {
-            Text("Données")
+            ProfileSectionHeader("Données")
         } footer: {
-            Text("Vos données sont stockées uniquement sur cet appareil.")
+            ProfileSectionFooter("Vos données sont stockées uniquement sur cet appareil.")
+        }
+    }
+
+    /// Settings row label: monochrome icon in a fixed column + body text.
+    private func rowLabel(_ title: String, systemImage: String, color: Color? = nil) -> some View {
+        Label {
+            Text(title)
+                .font(Theme.body)
+                .foregroundStyle(color ?? Theme.textBody)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(color ?? Theme.textSecondary)
         }
     }
 
@@ -323,10 +345,11 @@ private struct ProfileSettingsForm: View {
             } label: {
                 LabeledContent {
                     Text(ProfileAboutView.appVersion)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
                 } label: {
-                    Label("À propos d'Assiette", systemImage: "info.circle")
-                        .foregroundStyle(Theme.textPrimary)
+                    rowLabel("À propos d'Assiette", systemImage: "info.circle")
                 }
             }
         } footer: {

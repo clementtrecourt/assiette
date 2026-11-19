@@ -42,15 +42,18 @@ struct ProfileNumberField: View {
                     .keyboardType(maxFractionDigits > 0 ? .decimalPad : .numberPad)
                     .multilineTextAlignment(.trailing)
                     .focused($focused)
+                    .font(Theme.font(15, .medium, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .frame(minWidth: 60, maxWidth: 120)
                 Text(unit)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textTertiary)
             }
         } label: {
             Text(title)
-                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textBody)
         }
         .onAppear { text = Self.format(value, digits: maxFractionDigits) }
         .onChange(of: text) {
@@ -112,18 +115,19 @@ struct ProfileMacroSplitView: View {
                 }
                 .clipShape(Capsule())
             }
-            .frame(height: 10)
+            .frame(height: 4)
 
             HStack {
                 ForEach(parts) { part in
                     HStack(spacing: 4) {
-                        Circle().fill(Theme.color(for: part.key)).frame(width: 8, height: 8)
+                        Circle().fill(Theme.color(for: part.key)).frame(width: 6, height: 6)
                         Text("\(part.key.shortLabel) \(Formatters.percent(fraction(part.kcal)))")
+                            .monospacedDigit()
                     }
                     if part.key != .totalFat { Spacer(minLength: 4) }
                 }
             }
-            .font(.caption)
+            .font(Theme.caption)
             .foregroundStyle(Theme.textSecondary)
         }
         .padding(.vertical, 4)
@@ -135,19 +139,19 @@ struct ProfileMacroSplitView: View {
     }
 }
 
-/// Full-width accent button, radius 12 (onboarding & primary actions).
+/// Full-width primary button: white fill (`Theme.accent`), near-black label (`Theme.onAccent`), radius 8.
 struct ProfilePrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
-            .foregroundStyle(Color.white)
+            .font(Theme.font(16, .bold, relativeTo: .headline))
+            .foregroundStyle(isEnabled ? Theme.onAccent : Theme.textTertiary)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: Theme.cornerRadius)
-                    .fill(Theme.accent.opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35))
+                    .fill(isEnabled ? Theme.accent.opacity(configuration.isPressed ? 0.75 : 1) : Theme.separatorStrong)
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
     }
@@ -165,12 +169,54 @@ struct ProfileTargetRow: View {
                 .fill(color)
                 .frame(width: 8, height: 8)
             Text(title)
-                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textBody)
             Spacer(minLength: 8)
             Text(value)
-                .font(.body.weight(.semibold).monospacedDigit())
+                .font(Theme.font(15, .medium, relativeTo: .body))
+                .monospacedDigit()
                 .foregroundStyle(Theme.textPrimary)
         }
+    }
+}
+
+/// Section header for Profile lists: tiny uppercase label in `textTertiary` (DESIGN.md).
+struct ProfileSectionHeader: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(Theme.label)
+            .tracking(0.6)
+            .textCase(.uppercase)
+            .foregroundStyle(Theme.textTertiary)
+    }
+}
+
+/// Section footer text for Profile lists.
+struct ProfileSectionFooter: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(Theme.caption)
+            .foregroundStyle(Theme.textTertiary)
+    }
+}
+
+extension View {
+    /// Hairline list row: page background + `Theme.separator` separators.
+    func profileListRow() -> some View {
+        listRowBackground(Theme.background)
+            .listRowSeparatorTint(Theme.separator)
     }
 }
 

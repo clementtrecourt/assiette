@@ -70,22 +70,18 @@ struct CustomFoodsListView: View {
         let foods = filteredFoods
         List {
             Section {
-                Picker("Type", selection: $segment) {
-                    ForEach(CustomFoodsSegment.allCases) { item in
-                        Text(item.label).tag(item)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                segmentChips
             }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
+            .listRowBackground(Theme.background)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
 
             if foods.isEmpty {
                 Section {
                     emptyState
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(Theme.background)
+                .listRowSeparator(.hidden)
             } else {
                 Section {
                     ForEach(foods) { food in
@@ -104,7 +100,7 @@ struct CustomFoodsListView: View {
                                     } label: {
                                         Label("Modifier", systemImage: "pencil")
                                     }
-                                    .tint(Theme.accent)
+                                    .tint(Theme.textTertiary)
                                 }
                             }
                             .contextMenu {
@@ -112,18 +108,18 @@ struct CustomFoodsListView: View {
                             }
                     }
                 } header: {
-                    Text(countLabel(foods.count))
-                        .foregroundStyle(Theme.textSecondary)
+                    CustomFoodsSectionHeader(countLabel(foods.count))
                 } footer: {
                     if let pickContext {
-                        Text("Touchez un élément pour l'ajouter à « \(pickContext.meal.label) ». Le crayon permet de le modifier.")
-                            .foregroundStyle(Theme.textSecondary)
+                        CustomFoodsFooterText("Touchez un élément pour l'ajouter à « \(pickContext.meal.label) ». Le crayon permet de le modifier.")
                     }
                 }
-                .listRowBackground(Theme.card)
+                .customFoodsRow()
             }
         }
+        .listStyle(.plain)
         .themedBackground()
+        .tint(Theme.textPrimary)
         .navigationTitle("Mes aliments")
         .searchable(text: $searchText, prompt: segment == .recipes ? "Rechercher une recette" : "Rechercher un aliment")
         .autocorrectionDisabled()
@@ -175,9 +171,11 @@ struct CustomFoodsListView: View {
                 Button {
                     sheet = .edit(food)
                 } label: {
-                    Image(systemName: "pencil.circle")
-                        .font(.title3)
-                        .foregroundStyle(Theme.textSecondary)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textBody)
+                        .frame(width: 28, height: 28)
+                        .overlay(Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline))
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
@@ -226,28 +224,54 @@ struct CustomFoodsListView: View {
     private var emptyState: some View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !query.isEmpty {
-            ContentUnavailableView.search(text: query)
+            ThemedUnavailableView.search(text: query)
         } else if segment == .recipes {
             ContentUnavailableView {
-                Label("Aucune recette", systemImage: "frying.pan")
+                emptyTitle("Aucune recette", systemImage: "frying.pan")
             } description: {
-                Text("Composez vos plats à partir d'ingrédients pour les ajouter en une fois au journal.")
+                emptyDescription("Composez vos plats à partir d'ingrédients pour les ajouter en une fois au journal.")
             } actions: {
                 Button("Nouvelle recette") { sheet = .newRecipe }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    .buttonStyle(CustomFoodsCompactButtonStyle())
             }
         } else {
             ContentUnavailableView {
-                Label("Aucun aliment", systemImage: "carrot")
+                emptyTitle("Aucun aliment", systemImage: "carrot")
             } description: {
-                Text("Créez vos propres aliments à partir de leur étiquette nutritionnelle.")
+                emptyDescription("Créez vos propres aliments à partir de leur étiquette nutritionnelle.")
             } actions: {
                 Button("Nouvel aliment") { sheet = .newFood }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    .buttonStyle(CustomFoodsCompactButtonStyle())
             }
         }
+    }
+
+    private var segmentChips: some View {
+        HStack(spacing: 6) {
+            ForEach(CustomFoodsSegment.allCases) { item in
+                CustomFoodsChip(title: item.label, isSelected: segment == item) {
+                    segment = item
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func emptyTitle(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .font(Theme.title)
+                .foregroundStyle(Theme.textPrimary)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Theme.textTertiary)
+        }
+    }
+
+    private func emptyDescription(_ text: String) -> some View {
+        Text(text)
+            .font(Theme.callout)
+            .foregroundStyle(Theme.textSecondary)
     }
 
     private func countLabel(_ count: Int) -> String {
@@ -339,56 +363,47 @@ private struct CustomFoodsListRow: View {
         return parts.joined(separator: " · ")
     }
 
-    private var iconName: String {
-        if food.isRecipe { return "frying.pan" }
-        return food.isLiquid ? "drop" : "carrot"
-    }
-
     var body: some View {
         let values = shownValues
         HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.body)
-                .foregroundStyle(Theme.accent)
-                .frame(width: 34, height: 34)
-                .background(Theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            FoodIconView(item: food.item, size: 32)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(food.name)
-                    .font(.body)
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.font(15, .medium, relativeTo: .body))
+                    .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-                HStack(spacing: 8) {
-                    macroDot("P", values.protein, color: Theme.protein)
-                    macroDot("G", values.carbs, color: Theme.carbs)
-                    macroDot("L", values.fat, color: Theme.fat)
+                HStack(spacing: 5) {
+                    KcalLabel(kcal: values.calories, color: Theme.textBody)
+                    Text("·")
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textQuaternary)
+                    Text(subtitle)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
+                }
+                HStack(spacing: 9) {
+                    macroValue("P", values.protein, color: Theme.protein)
+                    macroValue("G", values.carbs, color: Theme.carbs)
+                    macroValue("L", values.fat, color: Theme.fat)
                 }
             }
 
             Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(Formatters.number(values.calories, maxFractionDigits: 0))
-                    .font(.callout.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(Theme.textPrimary)
-                Text("kcal")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 
-    private func macroDot(_ letter: String, _ value: Double, color: Color) -> some View {
-        HStack(spacing: 3) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text("\(letter) \(Formatters.number(value, maxFractionDigits: value < 10 ? 1 : 0)) g")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(Theme.textSecondary)
+    private func macroValue(_ letter: String, _ value: Double, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Text(letter)
+                .font(Theme.font(11, .bold, relativeTo: .caption2))
+                .foregroundStyle(color)
+            Text("\(Formatters.number(value, maxFractionDigits: value < 10 ? 1 : 0)) g")
+                .font(Theme.font(11, .regular, relativeTo: .caption2))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textTertiary)
         }
     }
 }

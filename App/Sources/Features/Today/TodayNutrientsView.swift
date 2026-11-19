@@ -10,28 +10,13 @@ struct TodayNutrientsView: View {
     var body: some View {
         Group {
             if entryCount == 0 {
-                ContentUnavailableView(
-                    "Aucun aliment",
+                ThemedUnavailableView(
+                    title: "Aucun aliment",
                     systemImage: "fork.knife",
-                    description: Text("Ajoutez des aliments au journal pour voir le détail de vos nutriments.")
+                    description: "Ajoutez des aliments au journal pour voir le détail de vos nutriments."
                 )
             } else {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        energyCard
-                        NutritionTableView(values: totals, showDailyPercent: true)
-                            .padding()
-                            .background(Theme.card,
-                                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-                        Text("Les pourcentages se basent sur les apports de référence pour un adulte. Les valeurs inconnues de certains aliments ne sont pas comptées.")
-                            .font(.footnote)
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 4)
-                        AttributionFooter(includeOpenFoodFacts: true)
-                    }
-                    .padding()
-                }
+                content
             }
         }
         .background(Theme.background.ignoresSafeArea())
@@ -39,6 +24,39 @@ struct TodayNutrientsView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle("Nutriments")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                energySection
+                    .padding(16)
+                TodayHairline()
+                sectionHeader("Détail du jour")
+                NutritionTableView(values: totals, showDailyPercent: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                TodayHairline()
+                Text("Les pourcentages se basent sur les apports de référence pour un adulte. Les valeurs inconnues de certains aliments ne sont pas comptées.")
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                AttributionFooter(includeOpenFoodFacts: true)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 16)
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(Theme.label)
+            .tracking(0.6)
+            .foregroundStyle(Theme.textTertiary)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
     }
 
     // MARK: - Energy split
@@ -58,66 +76,78 @@ struct TodayNutrientsView: View {
         ]
     }
 
-    private var energyCard: some View {
+    private var energySection: some View {
         let macroKcal = parts.reduce(0) { $0 + $1.kcal }
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(TodayDayFormat.title(for: day))
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textSecondary)
-                    Text(Formatters.kcal(totals.calories))
-                        .font(.title.weight(.bold))
-                        .monospacedDigit()
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Objectif")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                    Text(Formatters.kcal(targets.calories))
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                }
-            }
-
+            energyHeadline
             if macroKcal > 0 {
-                GeometryReader { geo in
-                    HStack(spacing: 2) {
-                        ForEach(parts) { part in
-                            Rectangle()
-                                .fill(Theme.color(for: part.key))
-                                .frame(width: max(0, (geo.size.width - 4) * part.kcal / macroKcal))
-                        }
-                    }
-                }
-                .frame(height: 12)
-                .clipShape(Capsule())
-
-                HStack(alignment: .top) {
+                splitBar(macroKcal: macroKcal)
+                HStack(alignment: .top, spacing: 0) {
                     ForEach(parts) { part in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Theme.color(for: part.key))
-                                    .frame(width: 8, height: 8)
-                                Text(part.key.label)
-                                    .font(.caption.weight(.semibold))
-                            }
-                            Text(Formatters.amount(part.grams, of: part.key))
-                                .font(.subheadline.weight(.semibold))
-                                .monospacedDigit()
-                            Text("\(Formatters.percent(part.kcal / macroKcal)) de l'énergie")
-                                .font(.caption2)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        partColumn(part, macroKcal: macroKcal)
                     }
                 }
             }
         }
-        .padding()
-        .background(Theme.card,
-                    in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+    }
+
+    private var energyHeadline: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(TodayDayFormat.title(for: day).uppercased())
+                    .font(Theme.label)
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.calories)
+                Text(Formatters.kcal(totals.calories))
+                    .font(Theme.font(28, .bold, relativeTo: .title))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("OBJECTIF")
+                    .font(Theme.label)
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.textTertiary)
+                Text(Formatters.kcal(targets.calories))
+                    .font(Theme.headline)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textBody)
+            }
+        }
+    }
+
+    private func splitBar(macroKcal: Double) -> some View {
+        GeometryReader { geo in
+            HStack(spacing: 2) {
+                ForEach(parts) { part in
+                    Rectangle()
+                        .fill(Theme.color(for: part.key))
+                        .frame(width: max(0, (geo.size.width - 4) * part.kcal / macroKcal))
+                }
+            }
+        }
+        .frame(height: 4)
+        .clipShape(Capsule())
+    }
+
+    private func partColumn(_ part: Part, macroKcal: Double) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(part.key.label.uppercased())
+                .font(Theme.label)
+                .tracking(0.6)
+                .foregroundStyle(Theme.color(for: part.key))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(Formatters.amount(part.grams, of: part.key))
+                .font(Theme.headline)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+            Text("\(Formatters.percent(part.kcal / macroKcal)) de l'énergie")
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

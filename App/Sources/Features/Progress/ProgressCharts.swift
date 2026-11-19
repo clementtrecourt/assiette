@@ -13,7 +13,8 @@ private extension View {
                 AxisGridLine()
                     .foregroundStyle(Theme.separator)
                 AxisValueLabel(format: .dateTime.day().month(.abbreviated))
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.font(10, .regular, relativeTo: .caption2))
+                    .foregroundStyle(Theme.textTertiary)
             }
         }
     }
@@ -25,7 +26,8 @@ private extension View {
                 AxisGridLine()
                     .foregroundStyle(Theme.separator)
                 AxisValueLabel()
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.font(10, .regular, relativeTo: .caption2))
+                    .foregroundStyle(Theme.textTertiary)
             }
         }
     }
@@ -44,8 +46,8 @@ private struct ProgressLegendItem: View {
                 .frame(width: dashed ? 10 : 12, height: dashed ? 2 : 4)
             Text(text)
         }
-        .font(.caption2)
-        .foregroundStyle(Theme.textSecondary)
+        .font(Theme.caption)
+        .foregroundStyle(Theme.textTertiary)
     }
 }
 
@@ -71,7 +73,7 @@ struct ProgressWeightChart: View {
             Chart {
                 if let targetKg {
                     RuleMark(y: .value("Objectif", targetKg))
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.textQuaternary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 4]))
                 }
                 ForEach(points) { point in
@@ -99,7 +101,7 @@ struct ProgressWeightChart: View {
                 ProgressLegendItem(color: Theme.weight.opacity(0.4), text: "Pesées")
                 ProgressLegendItem(color: Theme.weight, text: "Tendance 7 j")
                 if targetKg != nil {
-                    ProgressLegendItem(color: Theme.textSecondary, text: "Objectif", dashed: true)
+                    ProgressLegendItem(color: Theme.textQuaternary, text: "Objectif", dashed: true)
                 }
             }
         }
@@ -152,12 +154,12 @@ struct ProgressCaloriesChart: View {
                     BarMark(x: .value("Jour", stat.day, unit: .day),
                             y: .value("Calories", stat.calories))
                         .foregroundStyle(barColor(stat))
-                        .cornerRadius(3)
+                        .cornerRadius(2)
                         .opacity(selected == nil || selected?.day == stat.day ? 1 : 0.35)
                 }
                 if target > 0 {
                     RuleMark(y: .value("Objectif", target))
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.textQuaternary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 }
             }
@@ -171,7 +173,7 @@ struct ProgressCaloriesChart: View {
             HStack(spacing: 12) {
                 ProgressLegendItem(color: Theme.calories, text: "Consommé")
                 if target > 0 {
-                    ProgressLegendItem(color: Theme.textSecondary, text: "Objectif", dashed: true)
+                    ProgressLegendItem(color: Theme.textQuaternary, text: "Objectif", dashed: true)
                 }
                 ProgressLegendItem(color: Theme.overTarget, text: "> 110 %")
             }
@@ -184,25 +186,30 @@ struct ProgressCaloriesChart: View {
         if let stat = selected {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Formatters.dayTitle(stat.day))
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.label)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Theme.textTertiary)
                 Text(stat.isLogged ? Formatters.kcal(stat.calories) : "Aucune saisie")
-                    .font(.system(size: 22, weight: .bold).monospacedDigit())
+                    .font(Theme.numberLarge)
+                    .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
             }
         } else {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Moyenne par jour suivi")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.label)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Theme.textTertiary)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(Formatters.kcal(average))
-                        .font(.system(size: 22, weight: .bold).monospacedDigit())
+                        .font(Theme.numberLarge)
+                        .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
                     if target > 0 {
                         Text("/ \(Formatters.kcal(target))")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(Theme.callout)
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.textTertiary)
                     }
                 }
             }
@@ -259,7 +266,8 @@ struct ProgressMacrosChart: View {
                         Text("\(Formatters.number(grams, maxFractionDigits: 0)) g")
                     }
                 }
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.font(10, .regular, relativeTo: .caption2))
+                .foregroundStyle(Theme.textTertiary)
             }
         }
         .progressDateAxis()
@@ -278,27 +286,29 @@ struct ProgressMacroAverageRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
                 Text(label)
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.label)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(color)
                 Spacer()
                 Text("\(Formatters.number(grams, maxFractionDigits: 0)) g")
-                    .font(.body.monospacedDigit())
-                    .fontWeight(.semibold)
+                    .font(Theme.headline)
+                    .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                 if target > 0 {
                     Text("/ \(Formatters.number(target, maxFractionDigits: 0)) g")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
                 }
                 Text(Formatters.percent(energyShare))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textTertiary)
                     .frame(minWidth: 40, alignment: .trailing)
             }
-            ProgressBar(value: grams, total: target, color: color)
+            ProgressBar(value: grams, total: target, color: color, height: 2)
         }
         .padding(.vertical, 2)
     }

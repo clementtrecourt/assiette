@@ -135,40 +135,43 @@ struct CustomFoodEditor: View {
         NavigationStack {
             Form {
                 identitySection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 servingSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 nutritionSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 extrasSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 previewSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 if isEditing {
                     Section {
                         Button(role: .destructive) {
                             showDeleteConfirm = true
                         } label: {
                             Label("Supprimer l'aliment", systemImage: "trash")
+                                .font(Theme.headline)
                                 .foregroundStyle(Theme.overTarget)
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 }
             }
             .themedBackground()
-            .tint(Theme.accent)
+            .tint(Theme.textPrimary)
+            .font(Theme.body)
             .navigationTitle(isEditing ? "Modifier l'aliment" : "Nouvel aliment")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") { save() }
-                        .fontWeight(.semibold)
+                        .font(Theme.headline)
                         .disabled(trimmedName.isEmpty)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -192,83 +195,115 @@ struct CustomFoodEditor: View {
 
     private var identitySection: some View {
         Section {
-            TextField("Nom (obligatoire)", text: $name)
-                .focused($focused, equals: .name)
-                .textInputAutocapitalization(.sentences)
-                .submitLabel(.next)
-                .onSubmit { focused = .brand }
-            TextField("Marque (facultatif)", text: $brand)
-                .focused($focused, equals: .brand)
-                .textInputAutocapitalization(.words)
-            HStack {
-                Image(systemName: "barcode")
-                    .foregroundStyle(Theme.textSecondary)
-                TextField("Code-barres (facultatif)", text: $barcode)
-                    .focused($focused, equals: .barcode)
-                    .keyboardType(.numberPad)
-                    .font(.body.monospacedDigit())
+            VStack(spacing: 8) {
+                TextField("Nom (obligatoire)", text: $name)
+                    .focused($focused, equals: .name)
+                    .textInputAutocapitalization(.sentences)
+                    .submitLabel(.next)
+                    .onSubmit { focused = .brand }
+                    .customFoodsInputField(minHeight: 40)
+                TextField("Marque (facultatif)", text: $brand)
+                    .focused($focused, equals: .brand)
+                    .textInputAutocapitalization(.words)
+                    .customFoodsInputField(minHeight: 40)
+                barcodeField
             }
+            .padding(.vertical, 4)
             Toggle(isOn: $isLiquid) {
-                Label("Liquide (valeurs en ml)", systemImage: "drop")
+                Label {
+                    Text("Liquide (valeurs en ml)")
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.textBody)
+                } icon: {
+                    Image(systemName: "drop")
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
+            .tint(Theme.textSecondary)
         } header: {
-            Text("Aliment")
+            CustomFoodsSectionHeader("Aliment")
         } footer: {
             if showValidation && trimmedName.isEmpty {
-                Text("Le nom est obligatoire.").foregroundStyle(Theme.overTarget)
+                CustomFoodsFooterText("Le nom est obligatoire.", color: Theme.overTarget)
             }
         }
+    }
+
+    private var barcodeField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "barcode")
+                .foregroundStyle(Theme.textTertiary)
+            TextField("Code-barres (facultatif)", text: $barcode)
+                .focused($focused, equals: .barcode)
+                .keyboardType(.numberPad)
+                .monospacedDigit()
+        }
+        .customFoodsInputField(minHeight: 40)
     }
 
     private var servingSection: some View {
         Section {
             TextField("Libellé (ex. 1 pot, 1 tranche)", text: $servingLabel)
                 .focused($focused, equals: .servingLabel)
-            HStack {
+                .customFoodsInputField(minHeight: 40)
+                .padding(.vertical, 4)
+            HStack(spacing: 8) {
                 Text("Quantité")
+                    .font(Theme.body)
+                    .foregroundStyle(Theme.textBody)
                 Spacer()
                 TextField("—", text: $servingGramsText)
                     .focused($focused, equals: .servingGrams)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 120)
+                    .monospacedDigit()
+                    .customFoodsInputField()
+                    .frame(maxWidth: 110)
                 Text(unit)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textTertiary)
                     .frame(width: 32, alignment: .leading)
             }
         } header: {
-            Text("Portion")
+            CustomFoodsSectionHeader("Portion")
         } footer: {
-            Text("Facultatif. Permet d'ajouter l'aliment au journal en nombre de portions.")
+            CustomFoodsFooterText("Facultatif. Permet d'ajouter l'aliment au journal en nombre de portions.")
         }
     }
 
     private var nutritionSection: some View {
         Section {
-            Picker("Valeurs", selection: $basis) {
-                Text("Pour 100 \(unit)").tag(CustomFoodBasis.per100)
-                Text("Par portion").tag(CustomFoodBasis.perServing)
-            }
-            .pickerStyle(.segmented)
-            .listRowSeparator(.hidden)
+            basisChips
 
             ForEach(CustomFoodEditor.mainKeys, id: \.self) { key in
                 nutrientRow(key, color: Theme.color(for: key))
             }
         } header: {
-            Text("Valeurs nutritionnelles")
+            CustomFoodsSectionHeader("Valeurs nutritionnelles")
         } footer: {
             if basisNeedsServing {
-                Text("Indiquez la quantité d'une portion pour saisir les valeurs par portion.")
-                    .foregroundStyle(Theme.overTarget)
+                CustomFoodsFooterText("Indiquez la quantité d'une portion pour saisir les valeurs par portion.", color: Theme.overTarget)
             } else if showValidation && caloriesValue == nil {
-                Text("Les calories sont obligatoires.").foregroundStyle(Theme.overTarget)
+                CustomFoodsFooterText("Les calories sont obligatoires.", color: Theme.overTarget)
             } else if basis == .perServing, let servingGrams {
-                Text("Valeurs pour une portion de \(Formatters.number(servingGrams)) \(unit), converties automatiquement pour 100 \(unit).")
+                CustomFoodsFooterText("Valeurs pour une portion de \(Formatters.number(servingGrams)) \(unit), converties automatiquement pour 100 \(unit).")
             } else {
-                Text("Calories obligatoires. Laissez vide une valeur inconnue.")
+                CustomFoodsFooterText("Calories obligatoires. Laissez vide une valeur inconnue.")
             }
         }
+    }
+
+    private var basisChips: some View {
+        HStack(spacing: 6) {
+            CustomFoodsChip(title: "Pour 100 \(unit)", isSelected: basis == .per100) {
+                basis = .per100
+            }
+            CustomFoodsChip(title: "Par portion", isSelected: basis == .perServing) {
+                basis = .perServing
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
     }
 
     private var extrasSection: some View {
@@ -279,12 +314,19 @@ struct CustomFoodEditor: View {
                 }
                 saltRow
             } label: {
-                Label("Plus de nutriments", systemImage: "list.bullet.rectangle")
-                    .foregroundStyle(Theme.textPrimary)
+                Label {
+                    Text("Plus de nutriments")
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.textPrimary)
+                } icon: {
+                    Image(systemName: "list.bullet.rectangle")
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
+            .tint(Theme.textTertiary)
         } footer: {
             if showExtras {
-                Text("Le sel est converti en sodium (1 g de sel = 400 mg de sodium).")
+                CustomFoodsFooterText("Le sel est converti en sodium (1 g de sel = 400 mg de sodium).")
             }
         }
     }
@@ -294,40 +336,44 @@ struct CustomFoodEditor: View {
         if caloriesValue != nil, !basisNeedsServing {
             let per100 = computedPer100
             Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Pour 100 \(unit)")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                    CustomFoodsMacroSummary(values: per100)
-                }
+                summaryBlock("Pour 100 \(unit)", values: per100)
                 if let servingGrams {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(servingTitle(servingGrams))
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                        CustomFoodsMacroSummary(values: per100.forGrams(servingGrams))
-                    }
+                    summaryBlock(servingTitle(servingGrams), values: per100.forGrams(servingGrams))
                 }
                 if let warning = energyWarning(per100) {
                     Label(warning, systemImage: "exclamationmark.triangle")
-                        .font(.footnote)
+                        .font(Theme.caption)
                         .foregroundStyle(Theme.fat)
                 }
             } header: {
-                Text("Aperçu")
+                CustomFoodsSectionHeader("Aperçu")
             }
         }
     }
 
     // MARK: - Rows
 
+    /// Caption line + 4-column summary, edge to edge between hairlines.
+    private func summaryBlock(_ title: String, values: NutrientValues) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(Theme.caption)
+                .foregroundStyle(Theme.textTertiary)
+            CustomFoodsMacroSummary(values: values)
+                .padding(.horizontal, -8)
+        }
+        .padding(.vertical, 4)
+    }
+
     private func nutrientRow(_ key: NutrientKey, color: Color?) -> some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(color ?? Color.clear)
-                .frame(width: 8, height: 8)
+                .fill(color ?? Theme.textQuaternary)
+                .frame(width: color == nil ? 4 : 7, height: color == nil ? 4 : 7)
+                .frame(width: 8)
             Text(key.label)
-                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textBody)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 8)
@@ -335,10 +381,12 @@ struct CustomFoodEditor: View {
                 .focused($focused, equals: .nutrient(key))
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .font(.body.monospacedDigit())
+                .monospacedDigit()
+                .customFoodsInputField(minHeight: 34)
                 .frame(maxWidth: 100)
             Text(key.unit)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textTertiary)
                 .frame(width: 34, alignment: .leading)
         }
     }
@@ -346,18 +394,23 @@ struct CustomFoodEditor: View {
     private var saltRow: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(Color.clear)
-                .frame(width: 8, height: 8)
+                .fill(Theme.textQuaternary)
+                .frame(width: 4, height: 4)
+                .frame(width: 8)
             Text("Sel")
-                .foregroundStyle(Theme.textPrimary)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textBody)
             Spacer(minLength: 8)
             TextField("—", text: $saltText)
                 .focused($focused, equals: .salt)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .customFoodsInputField(minHeight: 34)
                 .frame(maxWidth: 100)
             Text("g")
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textTertiary)
                 .frame(width: 34, alignment: .leading)
         }
     }

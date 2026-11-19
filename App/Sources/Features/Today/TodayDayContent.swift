@@ -62,11 +62,12 @@ private struct TodaySheet: Identifiable {
 }
 
 private extension View {
-    /// Full-bleed, transparent, separator-less List row.
+    /// Full-bleed, separator-less List row on the app background (hairlines are drawn by the rows).
     func todayListRow() -> some View {
         listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowSeparatorTint(Theme.separator)
+            .listRowBackground(Theme.background)
     }
 }
 
@@ -121,6 +122,7 @@ struct TodayDayContent: View {
     @State private var successTick = 0
     @State private var impactTick = 0
     @State private var didRunDemoSheet = false
+    @State private var showDatePicker = false
 
     init(day: Date) {
         let start = Calendar.current.startOfDay(for: day)
@@ -156,7 +158,7 @@ struct TodayDayContent: View {
 
         logList(groups: groups)
             .safeAreaInset(edge: .top, spacing: 0) {
-                TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
+                pinnedTop(totals: totals, targets: targets)
             }
             .overlay(alignment: .bottomTrailing) {
                 fab
@@ -164,16 +166,14 @@ struct TodayDayContent: View {
             .overlay(alignment: .bottom) {
                 toastView
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    moreMenu
-                }
-            }
             .navigationDestination(isPresented: $showNutrients) {
                 TodayNutrientsView(day: day, totals: totals, targets: targets, entryCount: entries.count)
             }
             .sheet(item: $sheet) { destination in
                 sheetContent(destination)
+            }
+            .sheet(isPresented: $showDatePicker) {
+                TodayDatePickerSheet()
             }
             .confirmationDialog(
                 "Supprimer tous les aliments de ce jour ?",
@@ -208,6 +208,21 @@ struct TodayDayContent: View {
 
     // MARK: - Layout pieces
 
+    /// Title bar + pinned macro header; the background extends under the status bar so the
+    /// scrolling timeline never shows through.
+    private func pinnedTop(totals: NutrientValues, targets: TodayTargets) -> some View {
+        VStack(spacing: 0) {
+            TodayTitleBar(day: day,
+                          onShiftDay: shiftDay,
+                          onPickDate: { showDatePicker = true },
+                          onToday: goToToday) {
+                moreMenu
+            }
+            TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
+        }
+        .background(Theme.background.ignoresSafeArea(edges: .top))
+    }
+
     private func logList(groups: [TodayTimelineGroup]) -> some View {
         List {
             timelineRows(groups)
@@ -227,8 +242,7 @@ struct TodayDayContent: View {
         }
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 0)
-        .scrollContentBackground(.hidden)
-        .background(Theme.background.ignoresSafeArea())
+        .themedBackground()
     }
 
     private var fab: some View {
@@ -245,12 +259,15 @@ struct TodayDayContent: View {
     private var toastView: some View {
         if let toast {
             Text(toast)
-                .font(.subheadline.weight(.medium))
+                .font(Theme.font(14, .medium, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Theme.card, in: Capsule())
+                .background(Theme.raised, in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(Theme.separatorStrong, lineWidth: 1)
+                }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 84)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -299,13 +316,10 @@ struct TodayDayContent: View {
     }
 
     private func groupHeaderRow(_ group: TodayTimelineGroup, isFirst: Bool) -> some View {
-        TodayTimelineRow(time: TodayTimeFormat.short(group.start),
-                         dotColor: Theme.calories,
-                         dotY: TodayTimelineMetrics.headerDotY,
-                         lineAbove: !isFirst) {
-            TodayGroupHeaderContent(group: group)
-        }
-        .todayListRow()
+        TodayGroupHeaderContent(group: group,
+                                time: TodayTimeFormat.short(group.start),
+                                showsRule: !isFirst)
+            .todayListRow()
     }
 
     private func groupFooterRow(_ group: TodayTimelineGroup) -> some View {
@@ -338,7 +352,8 @@ struct TodayDayContent: View {
             } label: {
                 Label("Dupliquer", systemImage: "plus.square.on.square")
             }
-            .tint(Theme.accent)
+            // Not Theme.accent: the system draws the swipe label in white.
+            .tint(Theme.textTertiary)
         }
         .contextMenu {
             entryContextMenu(entry)
@@ -395,7 +410,7 @@ struct TodayDayContent: View {
             onUndo: undoWater
         )
         .padding(.horizontal, 16)
-        .padding(.top, 28)
+        .padding(.top, 20)
         .todayListRow()
     }
 
@@ -407,7 +422,6 @@ struct TodayDayContent: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
-        .padding(.top, 10)
         .todayListRow()
     }
 
@@ -429,7 +443,11 @@ struct TodayDayContent: View {
             }
             .disabled(entries.isEmpty)
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 34, height: 34)
+                .contentShape(Rectangle())
                 .accessibilityLabel("Options du jour")
         }
     }
@@ -477,6 +495,14 @@ struct TodayDayContent: View {
     }
 
     // MARK: - Swipe between days
+
+    private func goToToday() {
+        let today = Date.now.startOfDay
+        guard today != appState.selectedDay else { return }
+        withAnimation(.snappy) {
+            appState.selectedDay = today
+        }
+    }
 
     private func shiftDay(_ delta: Int) {
         withAnimation(.snappy) {

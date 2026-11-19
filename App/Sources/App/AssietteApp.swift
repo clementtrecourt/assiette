@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 @main
 struct AssietteApp: App {
@@ -10,6 +11,9 @@ struct AssietteApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
+        Theme.registerFonts()
+        Self.configureTabBarAppearance()
+        Self.configureNavigationBarAppearance()
         if !Self.isRunningTests {
             Self.prewarmFoodDatabase()
         }
@@ -29,6 +33,77 @@ struct AssietteApp: App {
         }
     }
 
+    /// Tab bar: opaque app background, hairline on top, selected item textPrimary, others
+    /// textTertiary, DM Sans labels. UIKit appearance so the unselected color applies too.
+    private static func configureTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Theme.background)
+        appearance.shadowColor = UIColor(Theme.separator)
+
+        let normal = UIColor(Theme.textTertiary)
+        let selected = UIColor(Theme.textPrimary)
+        var normalAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: normal]
+        var selectedAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: selected]
+        if let font = UIFont(name: "DMSans-Medium", size: 10) {
+            normalAttributes[.font] = font
+            selectedAttributes[.font] = font
+        }
+        let itemAppearances = [
+            appearance.stackedLayoutAppearance,
+            appearance.inlineLayoutAppearance,
+            appearance.compactInlineLayoutAppearance,
+        ]
+        for item in itemAppearances {
+            item.normal.iconColor = normal
+            item.normal.titleTextAttributes = normalAttributes
+            item.selected.iconColor = selected
+            item.selected.titleTextAttributes = selectedAttributes
+        }
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
+    /// Navigation bars: DM Sans for inline and large titles and for toolbar text buttons
+    /// (UIKit appearance, since SwiftUI's `navigationTitle` and toolbar buttons otherwise use SF).
+    /// Background stays the system default (transparent at scroll edge, blurred when scrolled).
+    private static func configureNavigationBarAppearance() {
+        let title = UIColor(Theme.textPrimary)
+        var titleAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: title]
+        var largeTitleAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: title]
+        if let font = UIFont(name: "DMSans-Bold", size: 17) {
+            titleAttributes[.font] = UIFontMetrics(forTextStyle: .headline).scaledFont(for: font)
+        }
+        if let font = UIFont(name: "DMSans-Bold", size: 34) {
+            largeTitleAttributes[.font] = UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: font)
+        }
+        var buttonAttributes: [NSAttributedString.Key: Any] = [:]
+        if let font = UIFont(name: "DMSans-Medium", size: 17) {
+            buttonAttributes[.font] = UIFontMetrics(forTextStyle: .body).scaledFont(for: font)
+        }
+
+        func styled(_ appearance: UINavigationBarAppearance) -> UINavigationBarAppearance {
+            appearance.titleTextAttributes = titleAttributes
+            appearance.largeTitleTextAttributes = largeTitleAttributes
+            for buttons in [appearance.buttonAppearance, appearance.doneButtonAppearance] {
+                buttons.normal.titleTextAttributes = buttonAttributes
+                buttons.highlighted.titleTextAttributes = buttonAttributes
+                buttons.disabled.titleTextAttributes = buttonAttributes
+            }
+            return appearance
+        }
+
+        let standard = UINavigationBarAppearance()
+        standard.configureWithDefaultBackground()
+        let scrollEdge = UINavigationBarAppearance()
+        scrollEdge.configureWithTransparentBackground()
+
+        let navigationBar = UINavigationBar.appearance()
+        navigationBar.standardAppearance = styled(standard)
+        navigationBar.compactAppearance = styled(UINavigationBarAppearance(barAppearance: standard))
+        navigationBar.scrollEdgeAppearance = styled(scrollEdge)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -41,11 +116,12 @@ struct AssietteApp: App {
     }
 }
 
-/// Dark tab bar shared by every tab.
+/// Dark tab bar shared by every tab. Background and item colors come from the UIKit appearance
+/// set in `AssietteApp.configureTabBarAppearance()` (opaque for both standard and scroll-edge),
+/// so no SwiftUI `toolbarBackground` here: it would replace that appearance.
 private extension View {
     func rootTabBarStyle() -> some View {
-        toolbarBackground(Theme.background, for: .tabBar)
-            .toolbarBackground(.visible, for: .tabBar)
+        self
     }
 }
 
@@ -74,7 +150,7 @@ struct RootView: View {
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(AppTab.profile)
         }
-        .tint(Theme.accent)
+        .tint(Theme.textPrimary)
         .onChange(of: appState.selectedTab) { _, newValue in
             // The former "Ajouter" tab no longer exists: adding lives in the journal.
             if newValue == .add {

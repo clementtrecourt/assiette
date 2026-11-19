@@ -52,72 +52,93 @@ struct FoodDetailView: View {
     }
 
     var body: some View {
+        detailList
+            .navigationTitle("Aliment")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    favoriteButton
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                addButton
+            }
+            .sheet(isPresented: $showAddSheet, onDismiss: {
+                if didLog {
+                    didLog = false
+                    onLogged?()
+                }
+            }) {
+                AddEntrySheet(item: item, context: context, onLogged: {
+                    loggedCount += 1
+                    didLog = true
+                })
+            }
+            .sensoryFeedback(.selection, trigger: favoriteToggles)
+            .sensoryFeedback(.success, trigger: loggedCount)
+    }
+
+    private var detailList: some View {
         List {
             headerSection
 
             if hasServing {
-                Section {
-                    basisPicker
-                }
+                basisPicker
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 12, trailing: 16))
+                    .modifier(FoodDetailRowStyle())
             }
 
-            Section {
-                SearchMacroColumns(values: values, targets: profiles.first?.targets)
-                    .listRowBackground(Theme.card)
-            } header: {
-                Text(referenceDescription)
-                    .foregroundStyle(Theme.textSecondary)
-            }
+            FoodDetailSectionTitle(title: referenceDescription)
+                .modifier(FoodDetailRowStyle())
 
-            Section {
-                NutritionTableView(values: values)
-                    .listRowBackground(Theme.card)
-            } header: {
-                Text("Valeurs nutritionnelles")
-                    .foregroundStyle(Theme.textSecondary)
-            }
+            summaryRow
+
+            FoodDetailSectionTitle(title: "Valeurs nutritionnelles")
+                .padding(.top, 12)
+                .modifier(FoodDetailRowStyle())
+
+            NutritionTableView(values: values)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 12, trailing: 16))
+                .modifier(FoodDetailRowStyle())
 
             if showsDatasetAttribution {
                 AttributionFooter(includeOpenFoodFacts: item.source == .openFoodFacts)
-                    .listRowBackground(Color.clear)
+                    .modifier(FoodDetailRowStyle())
             }
         }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
+        .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 1)
         .themedBackground()
-        .navigationTitle("Aliment")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                favoriteButton
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            addButton
-        }
-        .sheet(isPresented: $showAddSheet, onDismiss: {
-            if didLog {
-                didLog = false
-                onLogged?()
-            }
-        }) {
-            AddEntrySheet(item: item, context: context, onLogged: {
-                loggedCount += 1
-                didLog = true
-            })
-        }
-        .sensoryFeedback(.selection, trigger: favoriteToggles)
-        .sensoryFeedback(.success, trigger: loggedCount)
     }
 
+    /// 4-column summary between two full-width hairlines (same look as the journal header).
+    private var summaryRow: some View {
+        SearchMacroColumns(values: values, targets: profiles.first?.targets)
+            .padding(.horizontal, 6)
+            .overlay(alignment: .top) { FoodDetailHairline() }
+            .overlay(alignment: .bottom) { FoodDetailHairline() }
+            .listRowInsets(EdgeInsets())
+            .modifier(FoodDetailRowStyle())
+    }
+
+    /// "Par portion" / "Pour 100 g" chips (white fill when selected, outline otherwise).
     private var basisPicker: some View {
-        Picker("Base", selection: $basis) {
-            Text("Par portion").tag(FoodDetailBasis.serving)
-            Text("Pour 100 \(item.unitSymbol)").tag(FoodDetailBasis.hundred)
+        HStack(spacing: 6) {
+            basisChip(.serving, title: "Par portion")
+            basisChip(.hundred, title: "Pour 100 \(item.unitSymbol)")
+            Spacer(minLength: 0)
         }
-        .pickerStyle(.segmented)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets())
+        .sensoryFeedback(.selection, trigger: basis)
+    }
+
+    private func basisChip(_ value: FoodDetailBasis, title: String) -> some View {
+        Button {
+            basis = value
+        } label: {
+            FoodDetailChip(title: title, isSelected: basis == value)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityAddTraits(basis == value ? AccessibilityTraits.isSelected : [])
     }
 
     private var favoriteButton: some View {
@@ -125,7 +146,7 @@ struct FoodDetailView: View {
             toggleFavorite()
         } label: {
             Image(systemName: isFavorite ? "star.fill" : "star")
-                .foregroundStyle(isFavorite ? Theme.fat : Theme.accent)
+                .foregroundStyle(isFavorite ? Theme.carbs : Theme.textPrimary)
         }
         .accessibilityLabel(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
     }
@@ -135,8 +156,8 @@ struct FoodDetailView: View {
             showAddSheet = true
         } label: {
             Label("Ajouter au journal", systemImage: "plus")
-                .font(.headline)
-                .foregroundStyle(Color.white)
+                .font(Theme.headline)
+                .foregroundStyle(Theme.onAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
@@ -148,48 +169,53 @@ struct FoodDetailView: View {
         .background {
             Theme.background.ignoresSafeArea(edges: .bottom)
         }
+        .overlay(alignment: .top) { FoodDetailHairline() }
     }
 
     // MARK: Header
 
     private var headerSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 12) {
-                    FoodIconView(item: item, size: 64)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.name)
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(Theme.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        if let brand = item.brand, !brand.isEmpty {
-                            Text(brand)
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                }
-
-                badges
-                headerFacts
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 14) {
+                FoodIconView(item: item, size: 64)
+                headerTitles
             }
-            .padding(.vertical, 4)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            badges
+            headerFacts
+        }
+        .padding(.top, 8)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 14, trailing: 16))
+        .modifier(FoodDetailRowStyle())
+    }
+
+    private var headerTitles: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(item.name)
+                .font(Theme.title)
+                .foregroundStyle(Theme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let brand = item.brand, !brand.isEmpty {
+                Text(brand)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textSecondary)
+            }
         }
     }
 
+    @ViewBuilder
     private var badges: some View {
-        HStack(spacing: 6) {
-            if let kind = item.kind {
-                FoodDetailBadge(text: kind.label, systemImage: kind.systemImage)
-            }
-            if item.source != .openNutrition {
-                FoodDetailBadge(text: item.source.label, systemImage: sourceIcon)
-            }
-            if item.isLiquid {
-                FoodDetailBadge(text: "Liquide", systemImage: "drop")
+        if item.kind != nil || item.source != .openNutrition || item.isLiquid {
+            HStack(spacing: 6) {
+                if let kind = item.kind {
+                    FoodDetailBadge(text: kind.label, systemImage: kind.systemImage)
+                }
+                if item.source != .openNutrition {
+                    FoodDetailBadge(text: item.source.label, systemImage: sourceIcon)
+                }
+                if item.isLiquid {
+                    FoodDetailBadge(text: "Liquide", systemImage: "drop")
+                }
             }
         }
     }
@@ -218,8 +244,8 @@ struct FoodDetailView: View {
                 }
             }
         }
-        .font(.footnote)
-        .foregroundStyle(Theme.textSecondary)
+        .font(Theme.caption)
+        .foregroundStyle(Theme.textTertiary)
     }
 
     private var sourceIcon: String {
@@ -249,18 +275,77 @@ private enum FoodDetailBasis: Hashable {
     case serving, hundred
 }
 
-/// Pill badge used in the detail header.
+/// Outlined pill badge used in the detail header.
 private struct FoodDetailBadge: View {
     let text: String
     let systemImage: String
 
     var body: some View {
         Label(text, systemImage: systemImage)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Theme.card, in: Capsule())
+            .font(Theme.font(12, .medium, relativeTo: .caption))
             .foregroundStyle(Theme.textSecondary)
+            .padding(.horizontal, 10)
+            .frame(height: 24)
+            .overlay {
+                Capsule().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+            }
+    }
+}
+
+/// Basis chip: white fill + near-black text when selected, 1 pt outline otherwise.
+private struct FoodDetailChip: View {
+    let title: String
+    let isSelected: Bool
+
+    var body: some View {
+        Text(title)
+            .font(Theme.font(13, isSelected ? .bold : .medium, relativeTo: .subheadline))
+            .foregroundStyle(isSelected ? Theme.onAccent : Theme.textSecondary)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background {
+                if isSelected {
+                    Capsule().fill(Theme.accent)
+                } else {
+                    Capsule().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+                }
+            }
+            .contentShape(Capsule())
+    }
+}
+
+/// Section title row: Theme.label, uppercase, textTertiary.
+private struct FoodDetailSectionTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(Theme.label)
+            .tracking(0.6)
+            .foregroundStyle(Theme.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Full-width hairline (Theme.separator).
+private struct FoodDetailHairline: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.separator)
+            .frame(height: Theme.hairline)
+    }
+}
+
+/// Plain list row on the app background, without system separators (hairlines are drawn
+/// explicitly where the design wants them).
+private struct FoodDetailRowStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowBackground(Theme.background)
+            .listRowSeparator(.hidden)
     }
 }
 
@@ -279,17 +364,17 @@ struct SearchMacroColumns: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ForEach(SearchMacroColumns.keys) { key in
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(SearchMacroColumns.keys.enumerated()), id: \.element) { index, key in
                 SearchMacroColumn(
                     key: key,
                     amount: values.value(key),
                     fraction: fraction(for: key),
-                    caption: caption(for: key)
+                    caption: caption(for: key),
+                    showsDivider: index > 0
                 )
             }
         }
-        .padding(.vertical, 6)
     }
 
     private func targetValue(for key: NutrientKey) -> Double? {
@@ -318,11 +403,14 @@ struct SearchMacroColumns: View {
     }
 }
 
+/// One column: tiny uppercase label in the macro color, big number (textPrimary), 2 pt bar,
+/// caption in textTertiary; a vertical hairline on its leading edge (except the first).
 private struct SearchMacroColumn: View {
     let key: NutrientKey
     let amount: Double
     let fraction: Double
     let caption: String
+    let showsDivider: Bool
 
     private var title: String {
         key == .calories ? "Kcal" : key.shortLabel
@@ -333,37 +421,55 @@ private struct SearchMacroColumn: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
-            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(number)
-                    .font(.system(size: 22, weight: .bold, design: .default))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.color(for: key))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                if key != .calories {
-                    Text("g")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title.uppercased())
+                .font(Theme.label)
+                .tracking(0.6)
+                .foregroundStyle(Theme.color(for: key))
+                .lineLimit(1)
+            valueLine
+                .padding(.top, 6)
             SearchThinBar(fraction: fraction, color: Theme.color(for: key))
+                .padding(.top, 8)
             Text(caption)
-                .font(.caption2)
+                .font(Theme.font(11, .regular, relativeTo: .caption2))
                 .monospacedDigit()
-                .foregroundStyle(Theme.textSecondary)
+                .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                .padding(.top, 6)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .leading) {
+            if showsDivider {
+                Rectangle()
+                    .fill(Theme.separator)
+                    .frame(width: Theme.hairline)
+            }
+        }
         .accessibilityElement(children: .combine)
+    }
+
+    private var valueLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            Text(number)
+                .font(Theme.numberLarge)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            if key != .calories {
+                Text("g")
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
     }
 }
 
-/// 3 pt bar drawn on a card (track = hairline color so it stays visible on `Theme.card`).
+/// 2 pt bar (macro color on separatorStrong), as in the journal header.
 private struct SearchThinBar: View {
     let fraction: Double
     let color: Color
@@ -372,13 +478,13 @@ private struct SearchThinBar: View {
         GeometryReader { geo in
             let clamped = min(max(fraction, 0), 1)
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.separator)
+                Capsule().fill(Theme.separatorStrong)
                 Capsule()
                     .fill(fraction > 1.05 ? Theme.overTarget : color)
                     .frame(width: geo.size.width * clamped)
             }
         }
-        .frame(height: 3)
+        .frame(height: 2)
         .animation(.snappy, value: fraction)
     }
 }

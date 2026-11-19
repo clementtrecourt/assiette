@@ -57,6 +57,7 @@ struct BarcodeScanView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") { dismiss() }
+                        .tint(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -64,6 +65,7 @@ struct BarcodeScanView: View {
                     } label: {
                         Label("Saisir le code", systemImage: "keyboard")
                     }
+                    .tint(Theme.textPrimary)
                 }
             }
             .navigationDestination(item: $detailItem) { item in
@@ -131,8 +133,13 @@ struct BarcodeScanView: View {
     private var cameraLayer: some View {
         switch cameraState {
         case .checking:
-            ProgressView("Ouverture de la caméra…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ProgressView {
+                Text("Ouverture de la caméra…")
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .tint(Theme.textSecondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             ZStack {
                 ScanDataScanner(
@@ -159,25 +166,41 @@ struct BarcodeScanView: View {
 
     private var unavailableView: some View {
         ContentUnavailableView {
-            Label(cameraState.title, systemImage: cameraState.systemImage)
+            Label {
+                Text(cameraState.title)
+                    .font(Theme.title)
+                    .foregroundStyle(Theme.textPrimary)
+            } icon: {
+                Image(systemName: cameraState.systemImage)
+                    .foregroundStyle(Theme.textTertiary)
+            }
         } description: {
             Text(cameraState.message)
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textSecondary)
         } actions: {
-            Button {
-                showManualEntry = true
-            } label: {
-                Label("Saisir le code-barres", systemImage: "keyboard")
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accent)
+            unavailableActions
+        }
+    }
 
-            if cameraState == .denied {
-                Button("Ouvrir les Réglages") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(url)
-                    }
+    @ViewBuilder
+    private var unavailableActions: some View {
+        Button {
+            showManualEntry = true
+        } label: {
+            Label("Saisir le code-barres", systemImage: "keyboard")
+                .padding(.horizontal, 20)
+        }
+        .buttonStyle(ScanPrimaryButtonStyle(fillsWidth: false))
+
+        if cameraState == .denied {
+            Button("Ouvrir les Réglages") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
                 }
             }
+            .font(Theme.font(15, .medium, relativeTo: .body))
+            .tint(Theme.textSecondary)
         }
     }
 
@@ -216,7 +239,12 @@ struct BarcodeScanView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+        }
+        .foregroundStyle(Theme.textPrimary)
         .tint(Theme.accent)
     }
 
@@ -493,15 +521,15 @@ private struct ScanDataScanner: UIViewControllerRepresentable {
 
 // MARK: - Overlay & cards
 
-/// Dark overlay with a transparent window and an accent reticle.
+/// Dark overlay with a transparent window and a thin white frame.
 private struct ScanViewfinder: View {
     private let width: CGFloat = 280
     private let height: CGFloat = 160
-    private let radius: CGFloat = 18
+    private let radius: CGFloat = 12
 
     var body: some View {
         ZStack {
-            Theme.background.opacity(0.55)
+            Theme.background.opacity(0.6)
                 .ignoresSafeArea()
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .frame(width: width, height: height)
@@ -511,7 +539,7 @@ private struct ScanViewfinder: View {
         .compositingGroup()
         .overlay {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(Theme.accent, lineWidth: 3)
+                .strokeBorder(Theme.accent, lineWidth: 2)
                 .frame(width: width, height: height)
                 .padding(.bottom, 120)
         }
@@ -526,21 +554,23 @@ private struct ScanHintCard: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "barcode.viewfinder")
-                .font(.title2)
-                .foregroundStyle(Theme.accent)
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(Theme.textPrimary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Visez le code-barres du produit")
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.headline)
+                    .foregroundStyle(Theme.textPrimary)
                 Text("EAN-13, EAN-8 ou UPC-E")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
             }
             Spacer(minLength: 8)
             Button(action: onManual) {
                 Image(systemName: "keyboard")
-                    .font(.body.weight(.semibold))
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 22)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ScanSecondaryButtonStyle(fillsWidth: false))
             .accessibilityLabel("Saisir le code manuellement")
         }
     }
@@ -554,15 +584,18 @@ private struct ScanSearchingCard: View {
         HStack(spacing: 14) {
             ProgressView()
                 .controlSize(.regular)
+                .tint(Theme.textSecondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Recherche en cours…")
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.headline)
+                    .foregroundStyle(Theme.textPrimary)
                 Text(step)
-                    .font(.caption)
+                    .font(Theme.caption)
                     .foregroundStyle(Theme.textSecondary)
                 Text(code)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textTertiary)
             }
             Spacer(minLength: 0)
         }
@@ -591,16 +624,15 @@ private struct ScanFoundCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Theme.fiber)
+                FoodIconView(item: item, size: 48)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name)
-                        .font(.headline)
+                        .font(Theme.font(17, .bold, relativeTo: .headline))
+                        .foregroundStyle(Theme.textPrimary)
                         .lineLimit(2)
                     if let brand = item.brand {
                         Text(brand)
-                            .font(.subheadline)
+                            .font(Theme.callout)
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                     }
@@ -609,27 +641,17 @@ private struct ScanFoundCard: View {
                         Text("·")
                         Text(code).monospacedDigit()
                     }
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
                 }
                 Spacer(minLength: 0)
             }
 
             if hasNutrition {
-                VStack(spacing: 6) {
-                    HStack(spacing: 0) {
-                        ScanNutrientColumn(title: "kcal", value: item.per100[.calories], key: .calories)
-                        ScanNutrientColumn(title: "Protéines", value: item.per100[.protein], key: .protein)
-                        ScanNutrientColumn(title: "Glucides", value: item.per100[.carbohydrates], key: .carbohydrates)
-                        ScanNutrientColumn(title: "Lipides", value: item.per100[.totalFat], key: .totalFat)
-                    }
-                    Text("Pour 100 \(item.unitSymbol)")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textSecondary)
-                }
+                nutritionGrid
             } else {
                 Label("Valeurs nutritionnelles manquantes pour ce produit.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
+                    .font(Theme.callout)
                     .foregroundStyle(Theme.fat)
             }
 
@@ -638,8 +660,7 @@ private struct ScanFoundCard: View {
                       systemImage: hasNutrition ? "plus.circle.fill" : "square.and.pencil")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ScanPrimaryButtonStyle())
 
             HStack(spacing: 10) {
                 Button(action: onDetail) {
@@ -651,10 +672,26 @@ private struct ScanFoundCard: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.bordered)
-            .font(.subheadline)
+            .buttonStyle(ScanSecondaryButtonStyle())
 
             AttributionFooter(includeOpenFoodFacts: item.source == .openFoodFacts)
+        }
+    }
+
+    /// Per-100 g values, 4 columns separated by hairlines like the journal header.
+    private var nutritionGrid: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 0) {
+                ScanNutrientColumn(title: "Kcal", value: item.per100[.calories], key: .calories, showsLeadingHairline: false)
+                ScanNutrientColumn(title: "Prot.", value: item.per100[.protein], key: .protein, showsLeadingHairline: true)
+                ScanNutrientColumn(title: "Gluc.", value: item.per100[.carbohydrates], key: .carbohydrates, showsLeadingHairline: true)
+                ScanNutrientColumn(title: "Lip.", value: item.per100[.totalFat], key: .totalFat, showsLeadingHairline: true)
+            }
+            .overlay(alignment: .top) { ScanHairline() }
+            .overlay(alignment: .bottom) { ScanHairline() }
+            Text("Pour 100 \(item.unitSymbol)")
+                .font(Theme.caption)
+                .foregroundStyle(Theme.textTertiary)
         }
     }
 }
@@ -663,23 +700,98 @@ private struct ScanNutrientColumn: View {
     let title: String
     let value: Double?
     let key: NutrientKey
+    let showsLeadingHairline: Bool
 
     private var formatted: String {
         guard let value else { return "–" }
         if key == .calories { return Formatters.number(value, maxFractionDigits: 0) }
-        return "\(Formatters.number(value, maxFractionDigits: 1)) g"
+        return Formatters.number(value, maxFractionDigits: 1)
     }
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text(formatted)
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Theme.color(for: key))
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.font(10, .bold, relativeTo: .caption2))
+                .textCase(.uppercase)
+                .tracking(0.7)
+                .foregroundStyle(Theme.color(for: key))
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(formatted)
+                    .font(Theme.font(18, .bold, relativeTo: .title3))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if key != .calories && value != nil {
+                    Text("g")
+                        .font(Theme.font(11, .medium, relativeTo: .caption2))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .leading) {
+            if showsLeadingHairline {
+                Rectangle()
+                    .fill(Theme.separator)
+                    .frame(width: Theme.hairline)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct ScanHairline: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.separator)
+            .frame(height: Theme.hairline)
+    }
+}
+
+/// Primary action: white fill (`Theme.accent`) with near-black content.
+private struct ScanPrimaryButtonStyle: ButtonStyle {
+    var fillsWidth: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    init(fillsWidth: Bool = true) {
+        self.fillsWidth = fillsWidth
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.font(16, .bold, relativeTo: .headline))
+            .foregroundStyle(isEnabled ? Theme.onAccent : Theme.textTertiary)
+            .frame(maxWidth: fillsWidth ? CGFloat.infinity : nil)
+            .frame(minHeight: 48)
+            .background(isEnabled ? Theme.accent : Theme.separatorStrong,
+                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+    }
+}
+
+/// Secondary action: transparent with a 1 px `separatorStrong` outline.
+private struct ScanSecondaryButtonStyle: ButtonStyle {
+    var fillsWidth: Bool = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.font(14, .medium, relativeTo: .subheadline))
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: fillsWidth ? CGFloat.infinity : nil)
+            .frame(minHeight: 40)
+            .background(configuration.isPressed ? Theme.separator : Color.clear,
+                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                    .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 }
 
@@ -691,14 +803,15 @@ private struct ScanNotFoundCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "questionmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Theme.fat)
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.textSecondary)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Produit introuvable")
-                        .font(.headline)
+                        .font(Theme.font(17, .bold, relativeTo: .headline))
+                        .foregroundStyle(Theme.textPrimary)
                     Text("Le code \(code) n'est ni dans la base OpenNutrition, ni dans vos aliments, ni sur Open Food Facts.")
-                        .font(.subheadline)
+                        .font(Theme.callout)
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -709,14 +822,13 @@ private struct ScanNotFoundCard: View {
                 Label("Créer cet aliment", systemImage: "plus.square.on.square")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ScanPrimaryButtonStyle())
 
             Button(action: onRescan) {
                 Label("Scanner un autre produit", systemImage: "barcode.viewfinder")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ScanSecondaryButtonStyle())
         }
     }
 }
@@ -732,18 +844,20 @@ private struct ScanFailedCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "wifi.exclamationmark")
-                    .font(.title2)
+                    .font(.system(size: 22, weight: .regular))
                     .foregroundStyle(Theme.overTarget)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Recherche en ligne impossible")
-                        .font(.headline)
+                        .font(Theme.font(17, .bold, relativeTo: .headline))
+                        .foregroundStyle(Theme.textPrimary)
                     Text(message)
-                        .font(.subheadline)
+                        .font(Theme.callout)
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("Code \(code) absent de la base locale.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
                 }
                 Spacer(minLength: 0)
             }
@@ -752,8 +866,7 @@ private struct ScanFailedCard: View {
                 Label("Réessayer", systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ScanPrimaryButtonStyle())
 
             HStack(spacing: 10) {
                 Button(action: onCreate) {
@@ -765,8 +878,7 @@ private struct ScanFailedCard: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.bordered)
-            .font(.subheadline)
+            .buttonStyle(ScanSecondaryButtonStyle())
         }
     }
 }
@@ -794,17 +906,32 @@ private struct ScanManualEntrySheet: View {
                     TextField("Ex. 3017620422003", text: $code)
                         .keyboardType(.numberPad)
                         .autocorrectionDisabled()
-                        .font(.title3.monospacedDigit())
+                        .font(Theme.font(20, .medium, relativeTo: .title3))
+                        .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
+                        .tint(Theme.textPrimary)
                         .focused($isFocused)
                         .onSubmit(submit)
-                        .listRowBackground(Theme.card)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 48)
+                        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                                .strokeBorder(isFocused ? Theme.textTertiary : Theme.separatorStrong,
+                                              lineWidth: Theme.hairline)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                 } header: {
                     Text("Code-barres")
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.label)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(Theme.textTertiary)
                 } footer: {
                     Text("Saisissez les 8 à 13 chiffres imprimés sous le code-barres.")
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
             .themedBackground()
@@ -813,9 +940,12 @@ private struct ScanManualEntrySheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
+                        .tint(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Rechercher", action: submit)
+                        .font(Theme.font(17, .bold, relativeTo: .body))
+                        .tint(Theme.textPrimary)
                         .disabled(!isValid)
                 }
             }

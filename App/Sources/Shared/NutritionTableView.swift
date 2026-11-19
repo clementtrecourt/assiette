@@ -59,8 +59,8 @@ struct NutritionTableView: View {
                 HStack {
                     Spacer()
                     Text("% AR*")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.textTertiary)
                 }
                 .padding(.bottom, 4)
             }
@@ -84,9 +84,9 @@ struct NutritionTableView: View {
                         Image(systemName: "chevron.down")
                             .rotationEffect(.degrees(showAll ? 180 : 0))
                     }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.accent)
-                    .padding(.vertical, 10)
+                    .font(Theme.font(14, .medium, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.vertical, 11)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -94,10 +94,11 @@ struct NutritionTableView: View {
                 if showAll {
                     ForEach(groups) { entry in
                         Text(entry.group.label.uppercased())
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.textSecondary)
-                            .padding(.top, 12)
-                            .padding(.bottom, 4)
+                            .font(Theme.label)
+                            .tracking(0.6)
+                            .foregroundStyle(Theme.textTertiary)
+                            .padding(.top, 14)
+                            .padding(.bottom, 6)
                         ForEach(Array(entry.keys.enumerated()), id: \.element) { index, key in
                             if index > 0 { NutritionTableHairline() }
                             nutrientRow(key, indent: false, emphasized: false)
@@ -109,9 +110,9 @@ struct NutritionTableView: View {
 
             if showDailyPercent {
                 Text("* % des apports de référence pour un adulte (2 000 kcal).")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.top, 8)
+                    .font(Theme.font(11, .regular, relativeTo: .caption2))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.top, 10)
             }
         }
     }
@@ -123,22 +124,23 @@ struct NutritionTableView: View {
             if key.group == .macros || key == .calories {
                 Circle()
                     .fill(Theme.color(for: key))
-                    .frame(width: 7, height: 7)
+                    .frame(width: 6, height: 6)
             }
             Text(indent ? "dont \(key.label.lowercased())" : key.label)
-                .font(emphasized ? .subheadline.weight(.medium) : .subheadline)
-                .foregroundStyle(indent ? Theme.textSecondary : Theme.textPrimary)
-                .padding(.leading, indent ? 15 : 0)
+                .font(emphasized ? Theme.font(14, .medium, relativeTo: .subheadline) : Theme.callout)
+                .foregroundStyle(indent ? Theme.textTertiary : Theme.textBody)
+                .padding(.leading, indent ? 14 : 0)
             Spacer(minLength: 8)
             amountLabel(key, amount)
             if showDailyPercent {
                 Text(percentText(key, amount))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textTertiary)
                     .frame(width: 44, alignment: .trailing)
             }
         }
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
     }
 
@@ -148,17 +150,17 @@ struct NutritionTableView: View {
         if let amount {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(amountNumber(amount, of: key))
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.font(14, .medium, relativeTo: .subheadline))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                 Text(key.unit)
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
             }
         } else {
             Text("—")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textQuaternary)
         }
     }
 
@@ -176,11 +178,11 @@ struct NutritionTableView: View {
     }
 }
 
-/// Thin separator matching the dark theme hairline.
+/// Hairline (Theme.separator), as everywhere in the "Minimal pro" design.
 private struct NutritionTableHairline: View {
     var body: some View {
         Rectangle()
             .fill(Theme.separator)
-            .frame(height: 0.5)
+            .frame(height: Theme.hairline)
     }
 }

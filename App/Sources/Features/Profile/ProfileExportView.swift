@@ -25,13 +25,13 @@ struct ProfileExportView: View {
                     }
                     .disabled(files.entryCount == 0)
                 } header: {
-                    Text("Tableur")
+                    ProfileSectionHeader("Tableur")
                 } footer: {
-                    Text(files.entryCount == 0
+                    ProfileSectionFooter(files.entryCount == 0
                          ? "Votre journal est vide."
                          : "\(ProfileBackup.plural(files.entryCount, "entrée", "entrées")), séparateur point-virgule, compatible Excel et Numbers. Colonnes : date, repas, aliment, marque, quantité, kcal, protéines, glucides, lipides, fibres.")
                 }
-                .listRowBackground(Theme.card)
+                .profileListRow()
 
                 Section {
                     ShareLink(item: files.json) {
@@ -39,31 +39,39 @@ struct ProfileExportView: View {
                                   systemImage: "externaldrive")
                     }
                 } header: {
-                    Text("Sauvegarde")
+                    ProfileSectionHeader("Sauvegarde")
                 } footer: {
-                    Text("Contenu : \(files.summary). Restaurez-la depuis Profil › Importer une sauvegarde, ou lors de la configuration initiale.")
+                    ProfileSectionFooter("Contenu : \(files.summary). Restaurez-la depuis Profil › Importer une sauvegarde, ou lors de la configuration initiale.")
                 }
-                .listRowBackground(Theme.card)
+                .profileListRow()
             } else if let errorMessage {
                 Section {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
+                        .font(Theme.body)
                         .foregroundStyle(Theme.overTarget)
                     Button("Réessayer") { generate() }
-                        .foregroundStyle(Theme.accent)
+                        .font(Theme.font(15, .medium, relativeTo: .body))
+                        .foregroundStyle(Theme.textPrimary)
                 }
-                .listRowBackground(Theme.card)
+                .profileListRow()
             } else {
                 Section {
                     HStack {
                         Spacer()
-                        ProgressView("Préparation des fichiers…")
+                        ProgressView {
+                            Text("Préparation des fichiers…")
+                                .font(Theme.callout)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        .tint(Theme.textTertiary)
                         Spacer()
                     }
                     .padding(.vertical)
                 }
-                .listRowBackground(Theme.card)
+                .profileListRow()
             }
         }
+        .listSectionSpacing(.compact)
         .themedBackground()
         .navigationTitle("Exporter")
         .navigationBarTitleDisplayMode(.inline)
@@ -74,21 +82,25 @@ struct ProfileExportView: View {
     private func exportRow(title: String, detail: String, systemImage: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
-                .font(.title2)
-                .foregroundStyle(Theme.accent)
-                .frame(width: 36)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 32, height: 32)
+                .background(Theme.raised, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(Theme.separator, lineWidth: Theme.hairline))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.headline)
+                    .font(Theme.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
                     .lineLimit(1)
             }
             Spacer()
             Image(systemName: "square.and.arrow.up")
-                .foregroundStyle(Theme.accent)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Theme.textPrimary)
         }
         .padding(.vertical, 4)
     }
@@ -122,41 +134,50 @@ struct ProfileAboutView: View {
         List {
             Section {
                 VStack(spacing: 8) {
-                    Image(systemName: "fork.knife.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(Theme.accent)
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(Theme.onAccent)
+                        .frame(width: 60, height: 60)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     Text("Assiette")
-                        .font(.title2.bold())
+                        .font(Theme.title)
+                        .foregroundStyle(Theme.textPrimary)
                     Text("Version \(Self.appVersion)")
-                        .font(.subheadline)
+                        .font(Theme.callout)
+                        .monospacedDigit()
                         .foregroundStyle(Theme.textSecondary)
                     Text("Suivi nutritionnel personnel, hors ligne et sans compte.")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
-            .listRowBackground(Theme.card)
+            .profileListRow()
 
-            Section("Base de données") {
+            Section {
                 if database.isAvailable {
-                    LabeledContent("Jeu de données", value: database.datasetVersion)
-                    LabeledContent("Aliments", value: Formatters.number(Double(database.count), maxFractionDigits: 0))
+                    aboutValueRow("Jeu de données", database.datasetVersion)
+                    aboutValueRow("Aliments", Formatters.number(Double(database.count), maxFractionDigits: 0))
                 } else {
                     Label(database.openError ?? "Base d'aliments indisponible.",
                           systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(Theme.fat)
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.overTarget)
                 }
+            } header: {
+                ProfileSectionHeader("Base de données")
             }
-            .listRowBackground(Theme.card)
+            .profileListRow()
 
             Section {
                 Text("Les données nutritionnelles proviennent d'OpenNutrition, mises à disposition sous la licence Open Database License (ODbL) v1.0. Vous êtes libre de partager, modifier et utiliser cette base, à condition de citer la source, de partager à l'identique les bases dérivées et de les garder ouvertes.")
-                    .font(.footnote)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textBody)
                 Text("Les produits récupérés en ligne par code-barres proviennent d'Open Food Facts (© contributeurs Open Food Facts), également sous licence ODbL ; les images et contenus éventuels sont sous licence CC BY-SA.")
-                    .font(.footnote)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textBody)
                 Link(destination: URL(string: "https://www.opennutrition.app")!) {
                     Label("opennutrition.app", systemImage: "safari")
                 }
@@ -167,27 +188,42 @@ struct ProfileAboutView: View {
                     Label("Texte de la licence ODbL", systemImage: "doc.text")
                 }
             } header: {
-                Text("Sources & licences")
+                ProfileSectionHeader("Sources & licences")
             }
-            .listRowBackground(Theme.card)
-            .tint(Theme.accent)
+            .profileListRow()
+            .font(Theme.body)
+            .tint(Theme.textPrimary)
 
             Section {
                 Text("Les objectifs sont des estimations (formule de Mifflin-St Jeor) et ne remplacent pas l'avis d'un professionnel de santé.")
-                    .font(.footnote)
+                    .font(Theme.callout)
                     .foregroundStyle(Theme.textSecondary)
             } header: {
-                Text("Avertissement")
+                ProfileSectionHeader("Avertissement")
             }
-            .listRowBackground(Theme.card)
+            .profileListRow()
 
             Section {
                 AttributionFooter(includeOpenFoodFacts: true)
                     .listRowBackground(Color.clear)
             }
         }
+        .listSectionSpacing(.compact)
         .themedBackground()
         .navigationTitle("À propos")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func aboutValueRow(_ title: String, _ value: String) -> some View {
+        LabeledContent {
+            Text(value)
+                .font(Theme.callout)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
+        } label: {
+            Text(title)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textBody)
+        }
     }
 }

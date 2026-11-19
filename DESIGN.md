@@ -1,54 +1,50 @@
-# Assiette — design spec (validated by the user, 2026-11-19)
+# Assiette — design spec "Minimal pro" (validated 2026-11-19)
 
-Mockups: `design/directions-v2.html` (header #02), `design/directions-v3.html` (log #02),
-`design/directions-v4.html` (theme #02 "Graphite" with background of #04).
-Inspiration: MacroFactor — flat, data-dense, one color per macro, numbers first.
+Reference mockup: `design/v5/proposal-05.html` (phone 1 = Journal, phone 2 = Ajouter un aliment).
+OpenNutrition-inspired (opennutrition.app) × MacroFactor density. Always dark.
 
-## Theme — always dark
+## Principles
+- **Monochrome UI**: zinc greys on near-black. **Only the macro colors carry color**
+  (+ the small orange flame before kcal, + red when over target). No blue accent.
+- **Hairlines instead of cards**: 1 px `Theme.separator` lines between rows/groups. Cards only
+  where unavoidable (sheets, input fields) with `Theme.raised`, radius 8, 1 px `separatorStrong` border.
+- **DM Sans** everywhere (`Theme.font(size, weight)`, presets `Theme.numberLarge/title/headline/body/callout/caption/label`).
+  Numbers always `.monospacedDigit()` and right-aligned in a column.
+- **Food icons** (OpenNutrition illustrations via `FoodIconView`) small (24–32 pt in lists, 56–64 in
+  headers), full color, on a subtle tile.
+- Controls: primary buttons and FAB = white fill (`Theme.accent`) with near-black content
+  (`Theme.onAccent`). Secondary = text button in `textPrimary` / outline `separatorStrong`.
+  Selected chip = white fill + black text; unselected = outline + `textSecondary`.
+- kcal is shown with `KcalLabel` (orange flame + "105 kcal") in lists and search results.
 
-App forces dark mode: `.preferredColorScheme(.dark)` at the root.
-
-| Token | Hex | Use |
+## Tokens (Shared/Theme.swift)
+| token | value | use |
 |---|---|---|
-| background | `#0A0A0A` | every screen background (lists too: `.scrollContentBackground(.hidden)` + this) |
-| card | `#2C2C2E` | cards, grouped rows, timeline blocks, pills |
-| separator | `#2C2C2E` / hairline `#3A3A3C` | dividers |
-| text | `#F2F2F7` | primary |
-| secondary text | `#98989F` | labels, quantities, units |
-| accent | `#0A84FF` | buttons, FAB, selected tab, links, "Maintenant" dot |
-| calories | `#E5E5EA` | kcal bar |
-| protein | `#FF6482` | |
-| carbs | `#5EB1FF` | |
-| fat | `#FFC94D` | |
-| fiber | `#4CD38A` | |
-| water | `#40C8E0` | |
-| over target | `#FF453A` | bar turns red when > 105 % |
+| background | #050505 | every screen |
+| raised | #0F0F11 | sheets, fields, rare cards |
+| separator / separatorStrong | #1F1F23 / #2C2C31 | hairlines / inputs, chips, dashed rows |
+| textPrimary / textBody | #FAFAFA / #D4D4D8 | titles, values / row text |
+| textSecondary / textTertiary / textQuaternary | #A1A1AA / #71717A / #52525B | labels, quantities, times, disabled |
+| calories / protein / carbs / fat | #4EC2B8 / #A1B0E8 / #F3BC52 / #E08B92 | macro data only |
+| flame / overTarget | #F97316 / #E45A5A | kcal flame / over target |
 
-Typography: system SF. Big numbers `.system(size: 22, weight: .bold, design: .default)` +
-`.monospacedDigit()`. Labels `.caption2`/`.caption` secondary. No serif, no rounded design.
-Corner radius 12 (cards), 999 (pills), bars 3. No shadows (dark), separation by card color.
+## Journal
+1. Nav: large title "Journal" + small date line; day chevrons; "…" menu.
+2. **Pinned header**: 4 columns Kcal / Prot. / Gluc. / Lip. — tiny uppercase label in the macro color,
+   big remaining number (numberLarge, textPrimary), 2 pt bar (macro color on separatorStrong), "sur 2 200"
+   in textTertiary. Hairline below. Tap toggles remaining ↔ consumed.
+3. **Timeline**: fixed left time column (textTertiary, 36 pt), rows: small icon, name (textBody) +
+   quantity (textTertiary), kcal right column (monospaced). Group footer: P/G/L in their colors +
+   group kcal. Groups separated by hairlines, no cards. "Maintenant" row: dashed outline + "+ Ajouter".
+4. FAB: white circle, black "+".
 
-## Journal screen (TodayView)
+## Ajouter un aliment (search)
+Search field: raised fill, 1 px separatorStrong border, radius 8, white text. Chips row (Tout / Récents /
+Favoris / Plats…). Result rows separated by hairlines: icon tile 32 pt, name with the typed part in
+textPrimary bold and the rest textBody, second line `KcalLabel` • portion in textTertiary, trailing
+"+" circle button outlined. Results count line in textTertiary.
 
-1. **Day bar**: `‹  Aujourd'hui  ›` (title tappable → date picker; swipe left/right changes day).
-2. **Header, pinned (stays visible while scrolling)** — 4 equal columns: Kcal, Prot., Gluc., Lip.
-   Each column: small label (secondary), **remaining** value big (bold, monospaced digits),
-   thin 4–6 pt progress bar in the macro color (consumed/target), "sur 2 200" caption.
-   Tap header → toggle remaining ↔ consumed.
-3. **Log = timeline (no meal boxes in the UI)**: vertical line on the left with time labels
-   (`7:45`), a dot per group; entries logged within the same ~30 min are grouped into one
-   card (`#2C2C2E`): each row "Name  qty(secondary)  kcal(right)", then a footer row with
-   P/G/L colored dots + group total kcal. Last item: accent dot "Maintenant : + Ajouter"
-   dashed card.
-   (Meals still exist in the data model — the meal is inferred from the time and shown as a
-   small secondary label on the group, e.g. "Déjeuner", and remains editable in AddEntrySheet.)
-4. **FAB** bottom-right, accent circle "+", opens a menu: Rechercher, Scanner un code-barres,
-   Ajout rapide. Tabs: Journal · Progrès · Profil (search is reached via the FAB, not a tab —
-   keep the "Ajouter" tab only if trivial; preferred: 3 tabs + FAB).
-5. Water and micronutrients: compact rows below the timeline (not above the header).
-
-## Everywhere else
-
-Same tokens. Lists/forms: dark background `#0A0A0A`, rows `#2C2C2E`. Macro values always
-shown with their color dot. Numbers French-formatted (`Formatters`). Search results rows:
-name, brand/qty secondary, kcal right + P/G/L dots row (same as timeline rows).
+## Everything else
+Same rules: Lists with `.themedBackground()`, `.listRowBackground(Theme.background)`,
+`.listRowSeparatorTint(Theme.separator)`; section headers = `Theme.label` uppercase textTertiary.
+Charts: lines/bars in macro colors, axes textTertiary, grid separator.

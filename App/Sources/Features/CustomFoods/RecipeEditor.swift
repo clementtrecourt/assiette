@@ -81,14 +81,14 @@ struct RecipeEditor: View {
         NavigationStack {
             Form {
                 infoSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 ingredientsSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 weightSection
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 if !ingredients.isEmpty {
                     totalsSection
-                        .listRowBackground(Theme.card)
+                        .customFoodsRow()
                 }
                 if isEditing {
                     Section {
@@ -96,29 +96,33 @@ struct RecipeEditor: View {
                             showDeleteConfirm = true
                         } label: {
                             Label("Supprimer la recette", systemImage: "trash")
+                                .font(Theme.headline)
                                 .foregroundStyle(Theme.overTarget)
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 }
                 Section {
                     AttributionFooter()
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(Theme.background)
+                .listRowSeparator(.hidden)
             }
             .themedBackground()
-            .tint(Theme.accent)
+            .tint(Theme.textPrimary)
+            .font(Theme.body)
             .navigationTitle(isEditing ? "Modifier la recette" : "Nouvelle recette")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") { save() }
-                        .fontWeight(.semibold)
+                        .font(Theme.headline)
                         .disabled(trimmedName.isEmpty && ingredients.isEmpty)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -169,16 +173,20 @@ struct RecipeEditor: View {
             TextField("Nom de la recette (obligatoire)", text: $name)
                 .focused($focused, equals: .name)
                 .textInputAutocapitalization(.sentences)
-            HStack {
+                .customFoodsInputField(minHeight: 40)
+                .padding(.vertical, 4)
+            HStack(spacing: 8) {
                 Text("Nombre de portions")
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.body)
+                    .foregroundStyle(Theme.textBody)
                 Spacer()
                 TextField("1", text: $servingsText)
                     .focused($focused, equals: .servings)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .font(.body.monospacedDigit())
-                    .frame(maxWidth: 60)
+                    .monospacedDigit()
+                    .customFoodsInputField(minHeight: 34)
+                    .frame(maxWidth: 64)
                 Stepper("Nombre de portions", onIncrement: {
                     servingsText = CustomFoodsNumber.text((servings + 1).rounded(.down), maxFractionDigits: 1)
                 }, onDecrement: {
@@ -189,11 +197,13 @@ struct RecipeEditor: View {
             }
             TextField("Libellé d'une portion (ex. 1 part, 1 bol)", text: $servingLabel)
                 .focused($focused, equals: .servingLabel)
+                .customFoodsInputField(minHeight: 40)
+                .padding(.vertical, 4)
         } header: {
-            Text("Recette")
+            CustomFoodsSectionHeader("Recette")
         } footer: {
             if showValidation && trimmedName.isEmpty {
-                Text("Le nom est obligatoire.").foregroundStyle(Theme.overTarget)
+                CustomFoodsFooterText("Le nom est obligatoire.", color: Theme.overTarget)
             }
         }
     }
@@ -203,14 +213,14 @@ struct RecipeEditor: View {
             if ingredients.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "basket")
-                        .font(.title2)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(Theme.textTertiary)
                     Text("Aucun ingrédient")
-                        .font(.subheadline.weight(.medium))
+                        .font(Theme.headline)
                         .foregroundStyle(Theme.textPrimary)
                     Text("Ajoutez les ingrédients et leur quantité crue.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -236,51 +246,52 @@ struct RecipeEditor: View {
                 focused = nil
                 showPicker = true
             } label: {
-                Label("Ajouter un ingrédient", systemImage: "plus.circle.fill")
-                    .foregroundStyle(Theme.accent)
+                CustomFoodsAddLabel(title: "Ajouter un ingrédient")
             }
+            .buttonStyle(.plain)
         } header: {
-            HStack {
-                Text("Ingrédients")
-                Spacer()
-                if !ingredients.isEmpty {
-                    Text("\(Formatters.number(rawGrams, maxFractionDigits: 0)) g")
-                        .monospacedDigit()
-                }
-            }
+            CustomFoodsSectionHeader(
+                "Ingrédients",
+                trailing: ingredients.isEmpty ? nil : "\(Formatters.number(rawGrams, maxFractionDigits: 0)) g"
+            )
         } footer: {
             if showValidation && ingredients.isEmpty {
-                Text("Ajoutez au moins un ingrédient.").foregroundStyle(Theme.overTarget)
+                CustomFoodsFooterText("Ajoutez au moins un ingrédient.", color: Theme.overTarget)
             } else if !ingredients.isEmpty {
-                Text("Touchez un ingrédient pour modifier sa quantité, balayez pour le supprimer.")
+                CustomFoodsFooterText("Touchez un ingrédient pour modifier sa quantité, balayez pour le supprimer.")
             }
         }
     }
 
     private var weightSection: some View {
         Section {
-            HStack {
+            HStack(spacing: 8) {
                 Text("Poids total cuit")
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.body)
+                    .foregroundStyle(Theme.textBody)
                 Spacer()
                 TextField(Formatters.number(rawGrams, maxFractionDigits: 0), text: $cookedWeightText)
                     .focused($focused, equals: .cookedWeight)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .font(.body.monospacedDigit())
+                    .monospacedDigit()
+                    .customFoodsInputField(minHeight: 34)
                     .frame(maxWidth: 110)
                 Text("g")
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textTertiary)
             }
             if cookedWeight != nil {
                 Button("Utiliser la somme des ingrédients") {
                     cookedWeightText = ""
                 }
+                .font(Theme.callout)
+                .foregroundStyle(Theme.textPrimary)
             }
         } header: {
-            Text("Cuisson")
+            CustomFoodsSectionHeader("Cuisson")
         } footer: {
-            Text("Facultatif. La cuisson fait varier le poids (évaporation, absorption d'eau) : pesez le plat fini pour des valeurs pour 100 g exactes. Par défaut : somme des ingrédients.")
+            CustomFoodsFooterText("Facultatif. La cuisson fait varier le poids (évaporation, absorption d'eau) : pesez le plat fini pour des valeurs pour 100 g exactes. Par défaut : somme des ingrédients.")
         }
     }
 
@@ -289,33 +300,40 @@ struct RecipeEditor: View {
         let total = totalGrams
         let perServingGrams = total / servings
         return Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Par portion · \(CustomFoodsText.nilIfBlank(servingLabel) ?? "1 portion") (\(Formatters.number(perServingGrams, maxFractionDigits: 0)) g)")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
-                CustomFoodsMacroSummary(values: sum.scaled(by: 1 / servings))
-            }
+            summaryBlock(
+                "Par portion · \(CustomFoodsText.nilIfBlank(servingLabel) ?? "1 portion") (\(Formatters.number(perServingGrams, maxFractionDigits: 0)) g)",
+                values: sum.scaled(by: 1 / servings)
+            )
             if total > 0 {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Pour 100 g")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                    CustomFoodsMacroSummary(values: sum.scaled(by: 100 / total))
-                }
+                summaryBlock("Pour 100 g", values: sum.scaled(by: 100 / total))
             }
             HStack {
                 Text("Recette entière")
+                    .font(Theme.callout)
                     .foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Text("\(Formatters.kcal(sum.calories)) · \(Formatters.number(total, maxFractionDigits: 0)) g")
+                KcalLabel(kcal: sum.calories, font: Theme.font(14, .medium, relativeTo: .callout), color: Theme.textPrimary)
+                Text("· \(Formatters.number(total, maxFractionDigits: 0)) g")
+                    .font(Theme.callout)
                     .monospacedDigit()
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Theme.textPrimary)
+                    .foregroundStyle(Theme.textTertiary)
             }
-            .font(.subheadline)
         } header: {
-            Text("Valeurs nutritionnelles")
+            CustomFoodsSectionHeader("Valeurs nutritionnelles")
         }
+    }
+
+    /// Caption line + 4-column summary, edge to edge between hairlines.
+    private func summaryBlock(_ title: String, values: NutrientValues) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(Theme.caption)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+            CustomFoodsMacroSummary(values: values)
+                .padding(.horizontal, -8)
+        }
+        .padding(.vertical, 4)
     }
 
     // MARK: - Actions
@@ -366,29 +384,32 @@ private struct RecipeIngredientRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(ingredient.name)
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.font(15, .medium, relativeTo: .body))
+                    .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
-                HStack(spacing: 8) {
+                HStack(spacing: 9) {
                     Text("\(Formatters.number(ingredient.grams, maxFractionDigits: 1)) g")
-                        .foregroundStyle(Theme.textSecondary)
-                    macroDot(values.protein, Theme.protein)
-                    macroDot(values.carbs, Theme.carbs)
-                    macroDot(values.fat, Theme.fat)
+                        .foregroundStyle(Theme.textTertiary)
+                    macroValue("P", values.protein, Theme.protein)
+                    macroValue("G", values.carbs, Theme.carbs)
+                    macroValue("L", values.fat, Theme.fat)
                 }
-                .font(.caption.monospacedDigit())
+                .font(Theme.caption)
+                .monospacedDigit()
             }
             Spacer(minLength: 8)
-            Text(Formatters.number(values.calories, maxFractionDigits: 0))
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Theme.textPrimary)
+            KcalLabel(kcal: values.calories, font: Theme.font(14, .medium, relativeTo: .callout), color: Theme.textBody)
         }
+        .padding(.vertical, 2)
     }
 
-    private func macroDot(_ grams: Double, _ color: Color) -> some View {
-        HStack(spacing: 3) {
-            Circle().fill(color).frame(width: 6, height: 6)
+    private func macroValue(_ letter: String, _ grams: Double, _ color: Color) -> some View {
+        HStack(spacing: 2) {
+            Text(letter)
+                .font(Theme.font(12, .bold, relativeTo: .caption))
+                .foregroundStyle(color)
             Text(Formatters.number(grams, maxFractionDigits: grams < 10 ? 1 : 0))
-                .foregroundStyle(Theme.textSecondary)
+                .foregroundStyle(Theme.textTertiary)
         }
     }
 }
@@ -426,50 +447,70 @@ private struct RecipeIngredientPicker: View {
             List {
                 let custom = matchingCustom
                 if !custom.isEmpty {
-                    Section(trimmedQuery.isEmpty ? "Mes aliments & recettes" : "Mes aliments") {
+                    Section {
                         ForEach(custom) { item in
                             resultButton(item)
                         }
+                    } header: {
+                        CustomFoodsSectionHeader(trimmedQuery.isEmpty ? "Mes aliments & recettes" : "Mes aliments")
                     }
-                    .listRowBackground(Theme.card)
+                    .customFoodsRow()
                 }
 
                 if !trimmedQuery.isEmpty {
                     if !FoodDatabase.shared.isAvailable {
                         Section {
                             Label(FoodDatabase.shared.openError ?? "Base d'aliments indisponible.", systemImage: "exclamationmark.triangle")
+                                .font(Theme.callout)
                                 .foregroundStyle(Theme.textSecondary)
                         }
-                        .listRowBackground(Theme.card)
+                        .customFoodsRow()
                     } else if !results.isEmpty {
-                        Section("OpenNutrition") {
+                        Section {
                             ForEach(results) { item in
                                 resultButton(item)
                             }
+                        } header: {
+                            CustomFoodsSectionHeader("OpenNutrition", trailing: results.count == 1 ? "1 résultat" : "\(results.count) résultats")
                         }
-                        .listRowBackground(Theme.card)
+                        .customFoodsRow()
                     } else if !isSearching && custom.isEmpty {
-                        ContentUnavailableView.search(text: trimmedQuery)
-                            .listRowBackground(Color.clear)
+                        ThemedUnavailableView.search(text: trimmedQuery)
+                            .listRowBackground(Theme.background)
+                            .listRowSeparator(.hidden)
                     }
                 } else if custom.isEmpty {
-                    ContentUnavailableView(
-                        "Rechercher un ingrédient",
-                        systemImage: "magnifyingglass",
-                        description: Text("Tapez le nom d'un aliment, par exemple « riz basmati » ou « poulet ».")
-                    )
-                    .listRowBackground(Color.clear)
+                    ContentUnavailableView {
+                        Label {
+                            Text("Rechercher un ingrédient")
+                                .font(Theme.title)
+                                .foregroundStyle(Theme.textPrimary)
+                        } icon: {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                    } description: {
+                        Text("Tapez le nom d'un aliment, par exemple « riz basmati » ou « poulet ».")
+                            .font(Theme.callout)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .listRowBackground(Theme.background)
+                    .listRowSeparator(.hidden)
                 }
 
                 Section {
                     AttributionFooter()
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(Theme.background)
+                .listRowSeparator(.hidden)
             }
+            .listStyle(.plain)
             .themedBackground()
+            .tint(Theme.textPrimary)
             .overlay(alignment: .top) {
                 if isSearching && results.isEmpty {
                     ProgressView()
+                        .tint(Theme.textSecondary)
                         .padding(.top, 24)
                 }
             }
@@ -480,6 +521,7 @@ private struct RecipeIngredientPicker: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fermer") { dismiss() }
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
             .task(id: trimmedQuery) {
@@ -552,32 +594,39 @@ private struct RecipePickerRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: item.source == .custom ? "person.crop.circle" : (item.kind?.systemImage ?? "leaf"))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 10) {
+            FoodIconView(item: item, size: 32)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(item.name)
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.font(15, .medium, relativeTo: .body))
+                    .foregroundStyle(Theme.textBody)
                     .lineLimit(2)
-                if !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(1)
-                }
+                detailLine
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(Formatters.number(item.per100.calories, maxFractionDigits: 0))
-                    .font(.callout.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(Theme.textPrimary)
-                Text("kcal/100 \(item.unitSymbol)")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            }
+            Image(systemName: "plus")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 26, height: 26)
+                .overlay(Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline))
         }
         .padding(.vertical, 2)
+    }
+
+    private var detailLine: some View {
+        HStack(spacing: 4) {
+            KcalLabel(kcal: item.per100.calories, color: Theme.textBody)
+            Text("/ 100 \(item.unitSymbol)")
+                .foregroundStyle(Theme.textTertiary)
+            if !subtitle.isEmpty {
+                Text("·")
+                    .foregroundStyle(Theme.textQuaternary)
+                Text(subtitle)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .font(Theme.caption)
+        .lineLimit(1)
     }
 }
 
@@ -639,44 +688,37 @@ private struct RecipeIngredientAmountView: View {
         Form {
             Section {
                 Text(name)
-                    .font(.headline)
+                    .font(Theme.title)
                     .foregroundStyle(Theme.textPrimary)
-                HStack {
+                HStack(spacing: 8) {
                     Text("Quantité")
-                        .foregroundStyle(Theme.textPrimary)
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.textBody)
                     Spacer()
                     TextField("100", text: $gramsText)
                         .focused($fieldFocused)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
-                        .font(.body.monospacedDigit())
+                        .monospacedDigit()
+                        .customFoodsInputField()
                         .frame(maxWidth: 110)
                     Text(unitSymbol)
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.callout)
+                        .foregroundStyle(Theme.textTertiary)
                 }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(chips) { chip in
-                            Button(chip.label) {
-                                gramsText = CustomFoodsNumber.text(chip.grams, maxFractionDigits: 1)
-                            }
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.small)
-                            .tint(Theme.accent)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
+                chipsRow
             } footer: {
-                Text("Quantité crue / telle qu'utilisée dans la recette.")
+                CustomFoodsFooterText("Quantité crue / telle qu'utilisée dans la recette.")
             }
-            .listRowBackground(Theme.card)
+            .customFoodsRow()
 
-            Section("Apport") {
+            Section {
                 CustomFoodsMacroSummary(values: per100.forGrams(grams ?? 0))
+                    .padding(.horizontal, -8)
+            } header: {
+                CustomFoodsSectionHeader("Apport")
             }
-            .listRowBackground(Theme.card)
+            .customFoodsRow()
 
             Section {
                 Button {
@@ -687,25 +729,45 @@ private struct RecipeIngredientAmountView: View {
                 .buttonStyle(CustomFoodsPrimaryButtonStyle())
                 .disabled(grams == nil)
             }
-            .listRowBackground(Color.clear)
+            .listRowBackground(Theme.background)
             .listRowInsets(EdgeInsets())
         }
         .themedBackground()
+        .tint(Theme.textPrimary)
         .navigationTitle("Quantité")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if showsCancel {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(confirmTitle) { confirm() }
-                    .fontWeight(.semibold)
+                    .font(Theme.headline)
                     .disabled(grams == nil)
             }
         }
         .onAppear { fieldFocused = true }
+    }
+
+    private var chipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(chips) { chip in
+                    CustomFoodsChip(title: chip.label, isSelected: isSelected(chip)) {
+                        gramsText = CustomFoodsNumber.text(chip.grams, maxFractionDigits: 1)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func isSelected(_ chip: RecipeAmountChip) -> Bool {
+        guard let grams else { return false }
+        return abs(grams - chip.grams) < 0.05
     }
 
     private func confirm() {

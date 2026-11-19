@@ -58,28 +58,28 @@ struct ProgressRangeContent: View {
 
         List {
             Section {
-                Picker("Période", selection: $rangeRaw) {
-                    ForEach(ProgressRange.allCases) { r in
-                        Text(r.label).tag(r.rawValue)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                ProgressRangeChips(rangeRaw: $rangeRaw)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
 
                 overviewGrid(stats: stats, logged: logged, points: rangePoints)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
             }
+            .listRowBackground(Theme.background)
 
             weightSection(points: rangePoints)
-                .listRowBackground(Theme.card)
+                .listRowBackground(Theme.background)
+                .listRowSeparatorTint(Theme.separator)
             caloriesSection(stats: stats, logged: logged)
-                .listRowBackground(Theme.card)
+                .listRowBackground(Theme.background)
+                .listRowSeparatorTint(Theme.separator)
             macrosSection(stats: stats, logged: logged)
-                .listRowBackground(Theme.card)
+                .listRowBackground(Theme.background)
+                .listRowSeparatorTint(Theme.separator)
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.custom(28))
         .themedBackground()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -106,9 +106,6 @@ struct ProgressRangeContent: View {
 
     // MARK: Overview
 
-    private static let overviewColumns = [GridItem(.flexible(), spacing: 10),
-                                          GridItem(.flexible(), spacing: 10)]
-
     private func overviewGrid(stats: [ProgressDayStat], logged: [ProgressDayStat],
                               points: [ProgressWeightPoint]) -> some View {
         let average = logged.isEmpty ? 0 : logged.reduce(0) { $0 + $1.calories } / Double(logged.count)
@@ -116,19 +113,25 @@ struct ProgressRangeContent: View {
         let averageDetail: String = target > 0 ? "objectif \(Formatters.kcal(target))" : "par jour suivi"
         let trend = points.last.map { ProgressStats.kg($0.average) } ?? "–"
         let delta = weightDelta(points).map { ProgressStats.signedKg($0) } ?? "–"
-        return LazyVGrid(columns: Self.overviewColumns, spacing: 10) {
-            ProgressOverviewTile(title: "Série", color: Theme.fat,
-                                 value: "\(streak)",
-                                 detail: streak > 1 ? "jours d'affilée" : "jour d'affilée")
-            ProgressOverviewTile(title: "Jours suivis", color: Theme.accent,
-                                 value: "\(logged.count)/\(stats.count)",
-                                 detail: range.longLabel.lowercased())
-            ProgressOverviewTile(title: "Kcal moyennes", color: Theme.calories,
-                                 value: logged.isEmpty ? "–" : Formatters.number(average, maxFractionDigits: 0),
-                                 detail: averageDetail)
-            ProgressOverviewTile(title: "Poids tendance", color: Theme.weight,
-                                 value: trend,
-                                 detail: "évolution \(delta)")
+        let streakTile = ProgressOverviewTile(title: "Série", color: Theme.textTertiary,
+                                              value: "\(streak)",
+                                              detail: streak > 1 ? "jours d'affilée" : "jour d'affilée")
+        let daysTile = ProgressOverviewTile(title: "Jours suivis", color: Theme.textTertiary,
+                                            value: "\(logged.count)/\(stats.count)",
+                                            detail: range.longLabel.lowercased())
+        let kcalTile = ProgressOverviewTile(title: "Kcal moyennes", color: Theme.calories,
+                                            value: logged.isEmpty ? "–" : Formatters.number(average, maxFractionDigits: 0),
+                                            detail: averageDetail)
+        let weightTile = ProgressOverviewTile(title: "Poids tendance", color: Theme.weight,
+                                              value: trend,
+                                              detail: "évolution \(delta)")
+        // 2×2 grid separated by hairlines (no cards).
+        return VStack(spacing: 0) {
+            ProgressHairline()
+            ProgressOverviewRow(leading: streakTile, trailing: daysTile)
+            ProgressHairline()
+            ProgressOverviewRow(leading: kcalTile, trailing: weightTile)
+            ProgressHairline()
         }
     }
 
@@ -142,12 +145,24 @@ struct ProgressRangeContent: View {
             if weights.isEmpty {
                 ContentUnavailableView {
                     Label("Aucune pesée", systemImage: "scalemass")
+                        .font(Theme.title)
+                        .foregroundStyle(Theme.textPrimary)
                 } description: {
                     Text("Enregistrez votre poids régulièrement pour voir la tendance.")
+                        .font(Theme.callout)
+                        .foregroundStyle(Theme.textSecondary)
                 } actions: {
-                    Button("Ajouter une pesée") { showingAddWeight = true }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme.accent)
+                    Button {
+                        showingAddWeight = true
+                    } label: {
+                        Text("Ajouter une pesée")
+                            .font(Theme.headline)
+                            .foregroundStyle(Theme.onAccent)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                    }
+                    .buttonStyle(.plain)
                 }
             } else {
                 HStack(spacing: 0) {
@@ -165,7 +180,7 @@ struct ProgressRangeContent: View {
 
                 if points.isEmpty {
                     Text("Aucune pesée sur les \(range.longLabel.lowercased()).")
-                        .font(.subheadline)
+                        .font(Theme.callout)
                         .foregroundStyle(Theme.textSecondary)
                 } else {
                     ProgressWeightChart(points: points, targetKg: target,
@@ -180,10 +195,14 @@ struct ProgressRangeContent: View {
                     Label {
                         HStack {
                             Text("Objectif \(ProgressStats.kg(target))")
+                                .font(Theme.body)
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.textBody)
                             Spacer()
                             Text(remainingText)
+                                .font(Theme.callout)
                                 .monospacedDigit()
-                                .foregroundStyle(Theme.textSecondary)
+                                .foregroundStyle(Theme.textTertiary)
                         }
                     } icon: {
                         Image(systemName: "target")
@@ -200,18 +219,20 @@ struct ProgressRangeContent: View {
                     ProgressWeightHistoryView()
                 } label: {
                     Label("Toutes les pesées (\(weights.count))", systemImage: "list.bullet")
-                        .foregroundStyle(Theme.textPrimary)
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.textBody)
                 }
 
                 Button {
                     showingAddWeight = true
                 } label: {
                     Label("Ajouter une pesée", systemImage: "plus.circle.fill")
-                        .foregroundStyle(Theme.accent)
+                        .font(Theme.headline)
+                        .foregroundStyle(Theme.textPrimary)
                 }
             }
         } header: {
-            Label("Poids", systemImage: "scalemass")
+            ProgressSectionHeader(title: "Poids")
         }
     }
 
@@ -252,9 +273,9 @@ struct ProgressRangeContent: View {
     private func caloriesSection(stats: [ProgressDayStat], logged: [ProgressDayStat]) -> some View {
         Section {
             if logged.isEmpty {
-                ContentUnavailableView("Aucun repas enregistré",
-                                       systemImage: "fork.knife",
-                                       description: Text("Les calories des \(range.longLabel.lowercased()) apparaîtront ici."))
+                ThemedUnavailableView(title: "Aucun repas enregistré",
+                                      systemImage: "fork.knife",
+                                      description: "Les calories des \(range.longLabel.lowercased()) apparaîtront ici.")
             } else {
                 ProgressCaloriesChart(stats: stats, target: profile?.calorieTarget ?? 0,
                                       startDate: startDate, endDate: endDate)
@@ -262,20 +283,21 @@ struct ProgressRangeContent: View {
                     let onTarget = logged.filter { abs($0.calories - target) <= target * 0.1 }.count
                     LabeledContent {
                         Text("\(onTarget)/\(logged.count)")
+                            .font(Theme.headline)
                             .monospacedDigit()
-                            .fontWeight(.semibold)
                             .foregroundStyle(Theme.textPrimary)
                     } label: {
                         Text("Jours dans l'objectif (± 10 %)")
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(Theme.body)
+                            .foregroundStyle(Theme.textBody)
                     }
                 }
             }
         } header: {
-            Label("Calories", systemImage: "flame")
+            ProgressSectionHeader(title: "Calories")
         } footer: {
             if !logged.isEmpty {
-                Text("Touchez ou faites glisser sur le graphique pour voir un jour précis.")
+                ProgressSectionFooter(text: "Touchez ou faites glisser sur le graphique pour voir un jour précis.")
             }
         }
     }
@@ -304,9 +326,9 @@ struct ProgressRangeContent: View {
                                         energyShare: share(fat * 9))
                 ProgressMacrosChart(stats: stats, startDate: startDate, endDate: endDate)
             } header: {
-                Label("Macronutriments", systemImage: "chart.bar.fill")
+                ProgressSectionHeader(title: "Macronutriments")
             } footer: {
-                Text("Moyennes par jour suivi. Pourcentages de l'énergie apportée par les protéines, glucides et lipides.")
+                ProgressSectionFooter(text: "Moyennes par jour suivi. Pourcentages de l'énergie apportée par les protéines, glucides et lipides.")
             }
         }
     }
@@ -314,7 +336,95 @@ struct ProgressRangeContent: View {
 
 // MARK: - Small components
 
-/// KPI tile: small secondary label with a colored dot, big monospaced number, caption.
+/// Section header: small uppercase label in textTertiary (DESIGN.md).
+struct ProgressSectionHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(Theme.label)
+            .textCase(.uppercase)
+            .tracking(0.6)
+            .foregroundStyle(Theme.textTertiary)
+    }
+}
+
+/// Section footer: caption in textTertiary.
+struct ProgressSectionFooter: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(Theme.caption)
+            .foregroundStyle(Theme.textTertiary)
+    }
+}
+
+/// 1 px horizontal hairline.
+struct ProgressHairline: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.separator)
+            .frame(height: Theme.hairline)
+    }
+}
+
+/// Range selector as chips: selected = white fill + near-black text,
+/// unselected = 1 px separatorStrong outline + textSecondary.
+struct ProgressRangeChips: View {
+    @Binding var rangeRaw: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(ProgressRange.allCases) { r in
+                chip(r)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func chip(_ r: ProgressRange) -> some View {
+        let selected = r.rawValue == rangeRaw
+        return Button {
+            rangeRaw = r.rawValue
+        } label: {
+            Text(r.label)
+                .font(Theme.font(13, selected ? .bold : .medium, relativeTo: .subheadline))
+                .monospacedDigit()
+                .foregroundStyle(selected ? Theme.onAccent : Theme.textSecondary)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 30)
+                .background(Capsule().fill(selected ? Theme.accent : Color.clear))
+                .overlay(Capsule().strokeBorder(selected ? Theme.accent : Theme.separatorStrong,
+                                                lineWidth: Theme.hairline))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(r.longLabel)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// One row of the 2×2 KPI grid: two tiles split by a vertical hairline.
+struct ProgressOverviewRow: View {
+    let leading: ProgressOverviewTile
+    let trailing: ProgressOverviewTile
+
+    var body: some View {
+        HStack(spacing: 0) {
+            leading
+                .overlay(alignment: .trailing) {
+                    Rectangle()
+                        .fill(Theme.separator)
+                        .frame(width: Theme.hairline)
+                }
+            trailing
+                .padding(.leading, 16)
+        }
+    }
+}
+
+/// KPI tile (no card): tiny uppercase label (in `color`), big monospaced number, caption.
 struct ProgressOverviewTile: View {
     let title: String
     let color: Color
@@ -323,29 +433,28 @@ struct ProgressOverviewTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-            }
+            Text(title)
+                .font(Theme.label)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(color)
+                .lineLimit(1)
             Text(value)
-                .font(.system(size: 22, weight: .bold).monospacedDigit())
+                .font(Theme.numberLarge)
+                .monospacedDigit()
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(detail)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        .padding(.vertical, 14)
+        .padding(.trailing, 12)
     }
 }
 
@@ -357,12 +466,14 @@ struct ProgressWeightStat: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(title)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
+                .font(Theme.label)
+                .textCase(.uppercase)
+                .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Text(value)
-                .font(.headline.monospacedDigit())
+                .font(Theme.headline)
+                .monospacedDigit()
                 .foregroundStyle(valueColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

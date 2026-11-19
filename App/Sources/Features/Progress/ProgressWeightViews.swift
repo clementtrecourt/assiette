@@ -23,28 +23,39 @@ struct ProgressAddWeightSheet: View {
                 Section {
                     DatePicker("Date", selection: $date, in: ...Date.now,
                                displayedComponents: [.date, .hourAndMinute])
+                        .tint(Theme.calories)
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.textBody)
                     HStack {
                         Label("Poids", systemImage: "scalemass")
-                            .foregroundStyle(Theme.textPrimary)
+                            .font(Theme.body)
+                            .foregroundStyle(Theme.textBody)
                         Spacer()
                         TextField("0,0", text: $text)
+                            .font(Theme.font(17, .bold, relativeTo: .body))
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.textPrimary)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .focused($fieldFocused)
                             .frame(maxWidth: 120)
                         Text("kg")
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(Theme.body)
+                            .foregroundStyle(Theme.textTertiary)
                     }
                 } footer: {
                     if !text.isEmpty && parsedKg == nil {
                         Text("Saisissez un poids entre 20 et 400 kg.")
+                            .font(Theme.caption)
                             .foregroundStyle(Theme.overTarget)
                     } else {
                         Text("Pour des mesures comparables, pesez-vous le matin, à jeun.")
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(Theme.caption)
+                            .foregroundStyle(Theme.textTertiary)
                     }
                 }
-                .listRowBackground(Theme.card)
+                .listRowBackground(Theme.raised)
+                .listRowSeparatorTint(Theme.separator)
             }
             .themedBackground()
             .navigationTitle("Nouvelle pesée")
@@ -55,7 +66,7 @@ struct ProgressAddWeightSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") { save() }
-                        .fontWeight(.semibold)
+                        .font(Theme.headline)
                         .disabled(parsedKg == nil)
                 }
             }
@@ -82,22 +93,24 @@ struct ProgressWeightRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Formatters.dayTitle(entry.date))
-                    .font(.body)
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(Theme.body)
+                    .foregroundStyle(Theme.textBody)
                 Text(entry.date.formatted(.dateTime.hour().minute().locale(Formatters.locale)))
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textTertiary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(ProgressStats.kg(entry.kg))
-                    .font(.body.monospacedDigit())
-                    .fontWeight(.semibold)
+                    .font(Theme.headline)
+                    .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                 if let previousKg {
                     Text(ProgressStats.signedKg(entry.kg - previousKg))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
         }
@@ -113,10 +126,10 @@ struct ProgressWeightHistoryView: View {
     var body: some View {
         List {
             if weights.isEmpty {
-                ContentUnavailableView("Aucune pesée",
-                                       systemImage: "scalemass",
-                                       description: Text("Ajoutez votre première pesée pour suivre votre évolution."))
-                    .listRowBackground(Color.clear)
+                ThemedUnavailableView(title: "Aucune pesée",
+                                      systemImage: "scalemass",
+                                      description: "Ajoutez votre première pesée pour suivre votre évolution.")
+                    .listRowBackground(Theme.background)
             } else {
                 Section {
                     ForEach(Array(weights.enumerated()), id: \.element.persistentModelID) { index, entry in
@@ -126,9 +139,11 @@ struct ProgressWeightHistoryView: View {
                     .onDelete(perform: delete)
                 } footer: {
                     Text(weights.count > 1 ? "\(weights.count) pesées" : "1 pesée")
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
                 }
-                .listRowBackground(Theme.card)
+                .listRowBackground(Theme.background)
+                .listRowSeparatorTint(Theme.separator)
             }
         }
         .themedBackground()

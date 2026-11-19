@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Rounded-square tile showing the OpenNutrition illustration of a food (webp with alpha,
+/// Rounded-square tile (Theme.raised + 1 pt Theme.separator border) showing the OpenNutrition illustration of a food (webp with alpha,
 /// loaded from the OpenNutrition CDN and cached in memory + on disk). Shows a subtle SF Symbol
 /// while loading, when the food has no icon, or offline.
 ///
@@ -48,7 +48,13 @@ struct FoodIconView: View {
         }
     }
 
-    private var imageSide: CGFloat { (size * 0.8).rounded() }
+    /// Tile shape: radius proportional to the size (7 pt at 32 pt, as in the mockup).
+    private var tileShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: (size * 0.22).rounded(), style: .continuous)
+    }
+
+    /// Illustration inside the tile (~72 % of the side, leaving a margin around it).
+    private var imageSide: CGFloat { (size * 0.72).rounded() }
 
     private var pixelSide: Int { max(Int((imageSide * max(displayScale, 1)).rounded()), 1) }
 
@@ -70,8 +76,10 @@ struct FoodIconView: View {
     var body: some View {
         let image = cachedImage ?? (loadedKey == taskKey ? loadedImage : nil)
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .fill(Color.white.opacity(0.07)) // contrasts with both Theme.card rows and Theme.background headers
+            tileShape
+                .fill(Theme.raised)
+            tileShape
+                .strokeBorder(Theme.separator, lineWidth: Theme.hairline)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -81,7 +89,7 @@ struct FoodIconView: View {
             } else {
                 Image(systemName: placeholder ?? kind?.systemImage ?? "fork.knife")
                     .font(.system(size: size * 0.4, weight: .regular))
-                    .foregroundStyle(Theme.textSecondary.opacity(0.55))
+                    .foregroundStyle(Theme.textTertiary)
             }
         }
         .frame(width: size, height: size)
