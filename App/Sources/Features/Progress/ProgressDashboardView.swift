@@ -67,14 +67,20 @@ struct ProgressRangeContent: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
 
-                overviewRow(stats: stats, logged: logged)
+                overviewGrid(stats: stats, logged: logged, points: rangePoints)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
 
             weightSection(points: rangePoints)
+                .listRowBackground(Theme.card)
             caloriesSection(stats: stats, logged: logged)
+                .listRowBackground(Theme.card)
             macrosSection(stats: stats, logged: logged)
+                .listRowBackground(Theme.card)
         }
         .listStyle(.insetGrouped)
+        .themedBackground()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -100,22 +106,30 @@ struct ProgressRangeContent: View {
 
     // MARK: Overview
 
-    private func overviewRow(stats: [ProgressDayStat], logged: [ProgressDayStat]) -> some View {
+    private static let overviewColumns = [GridItem(.flexible(), spacing: 10),
+                                          GridItem(.flexible(), spacing: 10)]
+
+    private func overviewGrid(stats: [ProgressDayStat], logged: [ProgressDayStat],
+                              points: [ProgressWeightPoint]) -> some View {
         let average = logged.isEmpty ? 0 : logged.reduce(0) { $0 + $1.calories } / Double(logged.count)
-        return HStack(spacing: 0) {
-            ProgressOverviewTile(systemImage: "flame.fill", color: .orange,
+        let target = profile?.calorieTarget ?? 0
+        let averageDetail: String = target > 0 ? "objectif \(Formatters.kcal(target))" : "par jour suivi"
+        let trend = points.last.map { ProgressStats.kg($0.average) } ?? "–"
+        let delta = weightDelta(points).map { ProgressStats.signedKg($0) } ?? "–"
+        return LazyVGrid(columns: Self.overviewColumns, spacing: 10) {
+            ProgressOverviewTile(title: "Série", color: Theme.fat,
                                  value: "\(streak)",
-                                 caption: streak > 1 ? "jours d'affilée" : "jour d'affilée")
-            Divider().frame(height: 44)
-            ProgressOverviewTile(systemImage: "calendar", color: Theme.carbs,
+                                 detail: streak > 1 ? "jours d'affilée" : "jour d'affilée")
+            ProgressOverviewTile(title: "Jours suivis", color: Theme.accent,
                                  value: "\(logged.count)/\(stats.count)",
-                                 caption: "jours suivis")
-            Divider().frame(height: 44)
-            ProgressOverviewTile(systemImage: "bolt.fill", color: Theme.calories,
+                                 detail: range.longLabel.lowercased())
+            ProgressOverviewTile(title: "Kcal moyennes", color: Theme.calories,
                                  value: logged.isEmpty ? "–" : Formatters.number(average, maxFractionDigits: 0),
-                                 caption: "kcal / jour")
+                                 detail: averageDetail)
+            ProgressOverviewTile(title: "Poids tendance", color: Theme.weight,
+                                 value: trend,
+                                 detail: "évolution \(delta)")
         }
-        .padding(.vertical, 6)
     }
 
     // MARK: Weight
@@ -133,15 +147,16 @@ struct ProgressRangeContent: View {
                 } actions: {
                     Button("Ajouter une pesée") { showingAddWeight = true }
                         .buttonStyle(.borderedProminent)
+                        .tint(Theme.accent)
                 }
             } else {
                 HStack(spacing: 0) {
                     ProgressWeightStat(title: "Actuel",
                                        value: current.map { ProgressStats.kg($0.kg) } ?? "–",
-                                       valueColor: .primary)
+                                       valueColor: Theme.textPrimary)
                     ProgressWeightStat(title: "Début période",
                                        value: points.first.map { ProgressStats.kg($0.kg) } ?? "–",
-                                       valueColor: .primary)
+                                       valueColor: Theme.textPrimary)
                     ProgressWeightStat(title: "Évolution",
                                        value: weightDelta(points).map { ProgressStats.signedKg($0) } ?? "–",
                                        valueColor: deltaColor(weightDelta(points)))
@@ -151,7 +166,7 @@ struct ProgressRangeContent: View {
                 if points.isEmpty {
                     Text("Aucune pesée sur les \(range.longLabel.lowercased()).")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 } else {
                     ProgressWeightChart(points: points, targetKg: target,
                                         startDate: startDate, endDate: endDate)
@@ -167,11 +182,12 @@ struct ProgressRangeContent: View {
                             Text("Objectif \(ProgressStats.kg(target))")
                             Spacer()
                             Text(remainingText)
-                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.textSecondary)
                         }
                     } icon: {
                         Image(systemName: "target")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Theme.weight)
                     }
                 }
 
@@ -184,12 +200,14 @@ struct ProgressRangeContent: View {
                     ProgressWeightHistoryView()
                 } label: {
                     Label("Toutes les pesées (\(weights.count))", systemImage: "list.bullet")
+                        .foregroundStyle(Theme.textPrimary)
                 }
 
                 Button {
                     showingAddWeight = true
                 } label: {
                     Label("Ajouter une pesée", systemImage: "plus.circle.fill")
+                        .foregroundStyle(Theme.accent)
                 }
             }
         } header: {
@@ -212,11 +230,11 @@ struct ProgressRangeContent: View {
     }
 
     private func deltaColor(_ delta: Double?) -> Color {
-        guard let delta, abs(delta) >= 0.05, let goal = profile?.goal else { return .primary }
+        guard let delta, abs(delta) >= 0.05, let goal = profile?.goal else { return Theme.textPrimary }
         switch goal {
-        case .lose: return delta < 0 ? .green : .orange
-        case .gain: return delta > 0 ? .green : .orange
-        case .maintain: return abs(delta) <= 1 ? .green : .orange
+        case .lose: return delta < 0 ? Theme.fiber : Theme.fat
+        case .gain: return delta > 0 ? Theme.fiber : Theme.fat
+        case .maintain: return abs(delta) <= 1 ? Theme.fiber : Theme.fat
         }
     }
 
@@ -242,9 +260,14 @@ struct ProgressRangeContent: View {
                                       startDate: startDate, endDate: endDate)
                 if let target = profile?.calorieTarget, target > 0 {
                     let onTarget = logged.filter { abs($0.calories - target) <= target * 0.1 }.count
-                    LabeledContent("Jours dans l'objectif (± 10 %)") {
+                    LabeledContent {
                         Text("\(onTarget)/\(logged.count)")
                             .monospacedDigit()
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Theme.textPrimary)
+                    } label: {
+                        Text("Jours dans l'objectif (± 10 %)")
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
@@ -291,28 +314,38 @@ struct ProgressRangeContent: View {
 
 // MARK: - Small components
 
+/// KPI tile: small secondary label with a colored dot, big monospaced number, caption.
 struct ProgressOverviewTile: View {
-    let systemImage: String
+    let title: String
     let color: Color
     let value: String
-    let caption: String
+    let detail: String
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.subheadline)
-                .foregroundStyle(color)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 6, height: 6)
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
             Text(value)
-                .font(.title3.weight(.semibold).monospacedDigit())
+                .font(.system(size: 22, weight: .bold).monospacedDigit())
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(caption)
+                .minimumScaleFactor(0.6)
+            Text(detail)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
     }
 }
 
@@ -324,8 +357,8 @@ struct ProgressWeightStat: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption2)
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Text(value)

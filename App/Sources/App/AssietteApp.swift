@@ -10,36 +10,60 @@ struct AssietteApp: App {
             RootView()
                 .environment(appState)
                 .environment(\.locale, Formatters.locale)
+                .preferredColorScheme(.dark)
+                .tint(Theme.accent)
         }
         .modelContainer(for: AppSchema.models)
     }
 }
 
+/// Dark tab bar shared by every tab.
+private extension View {
+    func rootTabBarStyle() -> some View {
+        toolbarBackground(Theme.background, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+    }
+}
+
+/// Tabs: Journal · Progrès · Profil. Adding food goes through the Journal floating "+" button.
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
+    @State private var didSetUpDemo = false
 
     var body: some View {
         @Bindable var appState = appState
         TabView(selection: $appState.selectedTab) {
             TodayView()
+                .rootTabBarStyle()
                 .tabItem { Label("Journal", systemImage: "book.closed") }
                 .tag(AppTab.today)
 
-            NavigationStack {
-                FoodSearchView(context: appState.addTabContext, isSheet: false)
-            }
-            .tabItem { Label("Ajouter", systemImage: "plus.circle") }
-            .tag(AppTab.add)
-
             ProgressDashboardView()
+                .rootTabBarStyle()
                 .tabItem { Label("Progrès", systemImage: "chart.xyaxis.line") }
                 .tag(AppTab.progress)
 
             ProfileView()
+                .rootTabBarStyle()
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(AppTab.profile)
+        }
+        .tint(Theme.accent)
+        .onChange(of: appState.selectedTab) { _, newValue in
+            // The former "Ajouter" tab no longer exists: adding lives in the journal.
+            if newValue == .add {
+                appState.selectedTab = .today
+            }
+        }
+        .task {
+            guard !didSetUpDemo else { return }
+            didSetUpDemo = true
+            await DemoSupport.seedIfNeeded(modelContext)
+            if let tab = DemoSupport.startTab {
+                appState.selectedTab = tab
+            }
         }
         .fullScreenCover(isPresented: needsOnboarding) {
             OnboardingView()

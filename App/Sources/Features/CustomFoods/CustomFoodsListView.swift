@@ -104,7 +104,7 @@ struct CustomFoodsListView: View {
                                     } label: {
                                         Label("Modifier", systemImage: "pencil")
                                     }
-                                    .tint(.blue)
+                                    .tint(Theme.accent)
                                 }
                             }
                             .contextMenu {
@@ -113,13 +113,17 @@ struct CustomFoodsListView: View {
                     }
                 } header: {
                     Text(countLabel(foods.count))
+                        .foregroundStyle(Theme.textSecondary)
                 } footer: {
                     if let pickContext {
                         Text("Touchez un élément pour l'ajouter à « \(pickContext.meal.label) ». Le crayon permet de le modifier.")
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
+                .listRowBackground(Theme.card)
             }
         }
+        .themedBackground()
         .navigationTitle("Mes aliments")
         .searchable(text: $searchText, prompt: segment == .recipes ? "Rechercher une recette" : "Rechercher un aliment")
         .autocorrectionDisabled()
@@ -173,7 +177,7 @@ struct CustomFoodsListView: View {
                 } label: {
                     Image(systemName: "pencil.circle")
                         .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
@@ -231,6 +235,7 @@ struct CustomFoodsListView: View {
             } actions: {
                 Button("Nouvelle recette") { sheet = .newRecipe }
                     .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
             }
         } else {
             ContentUnavailableView {
@@ -240,6 +245,7 @@ struct CustomFoodsListView: View {
             } actions: {
                 Button("Nouvel aliment") { sheet = .newFood }
                     .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
             }
         }
     }
@@ -345,21 +351,21 @@ private struct CustomFoodsListRow: View {
                 .font(.body)
                 .foregroundStyle(Theme.accent)
                 .frame(width: 34, height: 34)
-                .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(Theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(food.name)
                     .font(.body)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Theme.textPrimary)
                     .lineLimit(2)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)
                 HStack(spacing: 8) {
-                    macro("P", values.protein, color: Theme.protein)
-                    macro("G", values.carbs, color: Theme.carbs)
-                    macro("L", values.fat, color: Theme.fat)
+                    macroDot("P", values.protein, color: Theme.protein)
+                    macroDot("G", values.carbs, color: Theme.carbs)
+                    macroDot("L", values.fat, color: Theme.fat)
                 }
             }
 
@@ -368,21 +374,21 @@ private struct CustomFoodsListRow: View {
             VStack(alignment: .trailing, spacing: 1) {
                 Text(Formatters.number(values.calories, maxFractionDigits: 0))
                     .font(.callout.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Theme.textPrimary)
                 Text("kcal")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
         .padding(.vertical, 2)
     }
 
-    private func macro(_ letter: String, _ value: Double, color: Color) -> some View {
+    private func macroDot(_ letter: String, _ value: Double, color: Color) -> some View {
         HStack(spacing: 3) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text("\(letter) \(Formatters.number(value, maxFractionDigits: value < 10 ? 1 : 0)) g")
                 .font(.caption2.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 }

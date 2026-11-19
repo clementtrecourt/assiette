@@ -65,7 +65,9 @@ struct OnboardingView: View {
             .clipped()
             footer
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .background(Theme.background.ignoresSafeArea())
+        .foregroundStyle(Theme.textPrimary)
+        .tint(Theme.accent)
         .sensoryFeedback(.selection, trigger: selectionTrigger)
         .sensoryFeedback(.success, trigger: finishTrigger)
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
@@ -82,29 +84,28 @@ struct OnboardingView: View {
     // MARK: - Chrome
 
     private var header: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Button {
-                    go(to: Step(rawValue: step.rawValue - 1) ?? .welcome)
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Retour")
-                Spacer()
-                Text("Étape \(step.rawValue) sur \(Step.allCases.count - 1)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Color.clear.frame(width: 44, height: 44)
+        HStack(spacing: 12) {
+            Button {
+                go(to: Step(rawValue: step.rawValue - 1) ?? .welcome)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.card, in: Circle())
             }
-            ProgressView(value: Double(step.rawValue), total: Double(Step.allCases.count - 1))
-                .tint(Theme.accent)
-                .padding(.horizontal)
+            .accessibilityLabel("Retour")
+            ProgressBar(value: Double(step.rawValue), total: Double(Step.allCases.count - 1),
+                        color: Theme.accent, height: 4)
+            Text("\(step.rawValue)/\(Step.allCases.count - 1)")
+                .font(.footnote.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Theme.textSecondary)
+                .frame(minWidth: 28, alignment: .trailing)
+                .accessibilityLabel("Étape \(step.rawValue) sur \(Step.allCases.count - 1)")
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var footer: some View {
@@ -113,16 +114,13 @@ struct OnboardingView: View {
                 advance()
             } label: {
                 Text(primaryTitle)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ProfilePrimaryButtonStyle())
 
             if step == .welcome {
                 Button("Restaurer une sauvegarde") { showImporter = true }
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.accent)
             }
         }
         .padding(.horizontal, 24)
@@ -182,7 +180,7 @@ struct OnboardingView: View {
                         .multilineTextAlignment(.center)
                     Text("Suivez vos repas, vos calories et vos macronutriments, simplement et en privé.")
                         .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 VStack(alignment: .leading, spacing: 16) {
@@ -194,10 +192,11 @@ struct OnboardingView: View {
                                "Aucun compte, aucun serveur. Exportez quand vous voulez.")
                 }
                 .padding()
-                .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
                 Text("Quelques questions pour calculer vos objectifs quotidiens.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 24)
@@ -211,8 +210,8 @@ struct OnboardingView: View {
                 .foregroundStyle(Theme.accent)
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                Text(title).font(.headline).foregroundStyle(Theme.textPrimary)
+                Text(detail).font(.subheadline).foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -225,7 +224,7 @@ struct OnboardingView: View {
             if let subtitle {
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -271,7 +270,8 @@ struct OnboardingView: View {
         VStack(spacing: 16) {
             stepTitle("Votre taille")
             Text("\(heightCm) cm")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(size: 48, weight: .bold, design: .default))
+                .foregroundStyle(Theme.textPrimary)
                 .monospacedDigit()
                 .contentTransition(.numericText())
             Picker("Taille", selection: $heightCm) {
@@ -290,7 +290,8 @@ struct OnboardingView: View {
         VStack(spacing: 16) {
             stepTitle("Votre poids actuel", "Il sera enregistré comme première pesée.")
             Text("\(Formatters.number(weightKg, maxFractionDigits: 1)) kg")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(size: 48, weight: .bold, design: .default))
+                .foregroundStyle(Theme.weight)
                 .monospacedDigit()
             HStack(spacing: 0) {
                 Picker("Kilogrammes", selection: $weightWhole) {
@@ -312,7 +313,7 @@ struct OnboardingView: View {
                 .labelsHidden()
                 .frame(maxWidth: 80)
                 .clipped()
-                Text("kg").font(.title3).foregroundStyle(.secondary)
+                Text("kg").font(.title3).foregroundStyle(Theme.textSecondary)
             }
             .padding(.horizontal, 24)
             Spacer()
@@ -386,7 +387,7 @@ struct OnboardingView: View {
                             .pickerStyle(.segmented)
                             Text(rateHint)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                         Divider()
                         Toggle("Définir un poids cible", isOn: $hasTargetWeight.animation())
@@ -399,12 +400,12 @@ struct OnboardingView: View {
                             if let weeks = weeksToTarget {
                                 Text("Environ \(weeks) semaines à ce rythme.")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Theme.textSecondary)
                             }
                         }
                     }
                     .padding()
-                    .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
                     .padding(.horizontal, 24)
                     .transition(.opacity)
                 }
@@ -437,20 +438,21 @@ struct OnboardingView: View {
                 VStack(spacing: 4) {
                     Text("Votre objectif quotidien")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text(Formatters.kcal(calories))
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .font(.system(size: 44, weight: .bold, design: .default))
                         .foregroundStyle(Theme.calories)
                         .monospacedDigit()
                     Text("Métabolisme de base \(Formatters.kcal(computed.bmr)) · Dépense estimée \(Formatters.kcal(computed.tdee))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 ProfileMacroSplitView(protein: protein, carbs: carbs, fat: fat)
             }
+            .listRowBackground(Theme.card)
 
             Section {
                 Toggle("Ajuster moi-même", isOn: $customizeTargets)
@@ -468,12 +470,16 @@ struct OnboardingView: View {
                 ProfileNumberField("Eau", value: $waterMl, unit: "ml", maxFractionDigits: 0)
             } header: {
                 Text("Objectifs")
+                    .foregroundStyle(Theme.textSecondary)
             } footer: {
                 Text(customizeTargets
                      ? "Vos objectifs ne seront plus recalculés automatiquement. Vous pourrez les modifier dans Profil."
                      : "Calculés avec la formule de Mifflin-St Jeor. Vous pourrez les modifier à tout moment dans Profil.")
+                .foregroundStyle(Theme.textSecondary)
             }
+            .listRowBackground(Theme.card)
         }
+        .themedBackground()
         .scrollDismissesKeyboard(.interactively)
         .onChange(of: customizeTargets) {
             if !customizeTargets { refreshComputedTargets() }
@@ -487,16 +493,9 @@ struct OnboardingView: View {
     }
 
     private func targetRow(_ key: NutrientKey, _ grams: Double) -> some View {
-        LabeledContent {
-            Text("\(Formatters.number(grams, maxFractionDigits: 0)) g")
-                .monospacedDigit()
-        } label: {
-            Label {
-                Text(key.label)
-            } icon: {
-                Circle().fill(Theme.color(for: key)).frame(width: 10, height: 10)
-            }
-        }
+        ProfileTargetRow(title: key.label,
+                         value: "\(Formatters.number(grams, maxFractionDigits: 0)) g",
+                         color: Theme.color(for: key))
     }
 
     private func refreshComputedTargets() {
@@ -575,25 +574,26 @@ private struct OnboardingChoiceRow: View {
                     .font(.title3)
                     .foregroundStyle(isSelected ? Color.white : Theme.accent)
                     .frame(width: 40, height: 40)
-                    .background(isSelected ? Theme.accent : Theme.accent.opacity(0.12), in: Circle())
+                    .background(isSelected ? Theme.accent : Theme.accent.opacity(0.15), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.textPrimary)
                     if let detail {
                         Text(detail)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .multilineTextAlignment(.leading)
                     }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isSelected ? Theme.accent : Color.secondary)
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.textSecondary)
             }
             .padding(14)
-            .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .background(isSelected ? Theme.accent.opacity(0.18) : Theme.card,
+                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.cornerRadius)
                     .strokeBorder(isSelected ? Theme.accent : Color.clear, lineWidth: 2)

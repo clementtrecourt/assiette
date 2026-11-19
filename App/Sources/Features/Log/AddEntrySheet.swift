@@ -147,7 +147,9 @@ struct AddEntrySheet: View {
                             showDeleteConfirm = true
                         } label: {
                             Label("Supprimer du journal", systemImage: "trash")
+                                .foregroundStyle(Theme.overTarget)
                         }
+                        .listRowBackground(Theme.card)
                     }
                 }
 
@@ -158,6 +160,9 @@ struct AddEntrySheet: View {
                     }
                 }
             }
+            .listSectionSpacing(.compact)
+            .themedBackground()
+            .safeAreaInset(edge: .bottom) { primaryButton }
             .navigationTitle(entry == nil ? "Ajouter" : "Modifier")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -191,39 +196,63 @@ struct AddEntrySheet: View {
 
     // MARK: - Sections
 
+    private var primaryButton: some View {
+        Button {
+            save()
+        } label: {
+            Text(entry == nil ? "Ajouter au journal" : "Enregistrer")
+                .font(.headline)
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+                .opacity(grams == nil ? 0.4 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(grams == nil)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background {
+            Theme.background.opacity(0.96).ignoresSafeArea(edges: .bottom)
+        }
+    }
+
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.name)
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 if let brand = item.brand, !brand.isEmpty {
                     Text(brand)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 HStack(spacing: 8) {
                     Label(item.kind?.label ?? item.source.label,
                           systemImage: item.kind?.systemImage ?? sourceSymbol)
                         .font(.caption.weight(.medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Theme.accent.opacity(0.12), in: Capsule())
-                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Theme.card, in: Capsule())
+                        .foregroundStyle(Theme.textSecondary)
                     if !isQuickAdd {
                         Text("\(Formatters.kcal(item.per100.calories)) / 100 \(item.unitSymbol)")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .monospacedDigit()
                     }
                 }
                 if !isQuickAdd, let label = item.servingLabel, let servingGrams {
                     Text("1 portion = \(label) (\(Formatters.number(servingGrams, maxFractionDigits: 0)) \(item.unitSymbol))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
             .padding(.vertical, 4)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
         }
     }
 
@@ -244,55 +273,70 @@ struct AddEntrySheet: View {
                     Text(item.unitSymbol).tag(AddEntryUnit.base)
                 }
                 .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
-            Stepper {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    TextField("Quantité", text: $quantityText)
-                        .keyboardType(.decimalPad)
-                        .focused($quantityFocused)
-                        .font(.title2.weight(.semibold))
-                        .monospacedDigit()
-                        .fixedSize()
-                    Text(unitSuffix)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { quantityFocused = true }
-            } onIncrement: {
-                adjust(by: step)
-            } onDecrement: {
-                adjust(by: -step)
-            }
+            quantityRow
+                .listRowBackground(Theme.card)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(chips, id: \.self) { chip in
-                        Button {
-                            quantityText = AddEntrySheet.format(chip.value)
-                            quantityFocused = false
-                        } label: {
-                            Text(chip.label)
-                                .font(.subheadline.weight(.medium))
-                                .monospacedDigit()
-                                .padding(.horizontal, 4)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(isSelected(chip.value) ? Theme.accent : Color.secondary)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
+            chipsRow
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
         } header: {
             Text("Quantité")
+                .foregroundStyle(Theme.textSecondary)
         } footer: {
             if let equivalence {
                 Text(equivalence)
+                    .foregroundStyle(Theme.textSecondary)
             } else if quantity == nil {
                 Text("Saisissez une quantité supérieure à 0.")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.overTarget)
             }
+        }
+    }
+
+    private var quantityRow: some View {
+        Stepper {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("0", text: $quantityText)
+                    .keyboardType(.decimalPad)
+                    .focused($quantityFocused)
+                    .font(.system(size: 34, weight: .bold, design: .default))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .fixedSize()
+                Text(unitSuffix)
+                    .font(.body)
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { quantityFocused = true }
+        } onIncrement: {
+            adjust(by: step)
+        } onDecrement: {
+            adjust(by: -step)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var chipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(chips, id: \.self) { chip in
+                    Button {
+                        quantityText = AddEntrySheet.format(chip.value)
+                        quantityFocused = false
+                    } label: {
+                        AddEntryChipLabel(label: chip.label, isSelected: isSelected(chip.value))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
         }
     }
 
@@ -344,42 +388,17 @@ struct AddEntrySheet: View {
                 Label("Jour", systemImage: "calendar")
             }
         }
+        .listRowBackground(Theme.card)
+        .listRowSeparatorTint(Theme.separator)
     }
 
     private var previewSection: some View {
-        let values = portion
-        let calorieTarget = profiles.first?.calorieTarget ?? 0
-        return Section {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Formatters.number(values.calories, maxFractionDigits: 0))
-                        .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.calories)
-                        .contentTransition(.numericText())
-                        .animation(.snappy, value: values.calories)
-                    Text(calorieTarget > 0
-                         ? "kcal · \(Formatters.percent(values.calories / calorieTarget)) de l'objectif"
-                         : "kcal")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                ForEach(NutrientKey.macros) { key in
-                    VStack(spacing: 2) {
-                        Text(Formatters.number(values.value(key), maxFractionDigits: 1))
-                            .font(.headline)
-                            .monospacedDigit()
-                        Text("\(key.shortLabel) (g)")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.color(for: key))
-                    }
-                    .frame(minWidth: 44)
-                }
-            }
-            .padding(.vertical, 4)
+        Section {
+            SearchMacroColumns(values: portion, targets: profiles.first?.targets)
+                .listRowBackground(Theme.card)
         } header: {
             Text("Apport")
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 
@@ -436,5 +455,21 @@ struct AddEntrySheet: View {
         try? modelContext.save()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         dismiss()
+    }
+}
+
+/// Quick quantity pill: card fill, accent fill when it matches the current quantity.
+private struct AddEntryChipLabel: View {
+    let label: String
+    let isSelected: Bool
+
+    var body: some View {
+        Text(label)
+            .font(.subheadline.weight(.medium))
+            .monospacedDigit()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .foregroundStyle(isSelected ? Color.white : Theme.textPrimary)
+            .background(isSelected ? Theme.accent : Theme.card, in: Capsule())
     }
 }

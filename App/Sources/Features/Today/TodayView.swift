@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Journal tab: day switcher + the content of the selected day.
+/// Journal tab: day bar "‹ Aujourd'hui ›" + the content of the selected day
+/// (pinned macro header, timeline log, floating add button).
 struct TodayView: View {
     @Environment(AppState.self) private var appState
     @State private var showDatePicker = false
@@ -11,6 +12,8 @@ struct TodayView: View {
             TodayDayContent(day: appState.selectedDay)
                 .navigationTitle("Journal")
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(Theme.background, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         daySwitcher
@@ -44,6 +47,7 @@ struct TodayView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
@@ -55,13 +59,13 @@ struct TodayView: View {
                 VStack(spacing: 0) {
                     Text(TodayDayFormat.title(for: appState.selectedDay))
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     if let subtitle = TodayDayFormat.subtitle(for: appState.selectedDay) {
                         Text(subtitle)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -76,6 +80,7 @@ struct TodayView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
@@ -99,6 +104,7 @@ struct TodayView: View {
                 .padding(.horizontal)
                 Spacer(minLength: 0)
             }
+            .background(Theme.background.ignoresSafeArea())
             .navigationTitle("Choisir un jour")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -115,6 +121,8 @@ struct TodayView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Theme.background)
+        .tint(Theme.accent)
     }
 
     private func go(to date: Date) {

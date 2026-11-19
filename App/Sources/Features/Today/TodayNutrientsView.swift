@@ -21,11 +21,11 @@ struct TodayNutrientsView: View {
                         energyCard
                         NutritionTableView(values: totals, showDailyPercent: true)
                             .padding()
-                            .background(Theme.cardBackground,
+                            .background(Theme.card,
                                         in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
                         Text("Les pourcentages se basent sur les apports de référence pour un adulte. Les valeurs inconnues de certains aliments ne sont pas comptées.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                         AttributionFooter(includeOpenFoodFacts: true)
@@ -34,7 +34,9 @@ struct TodayNutrientsView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.background.ignoresSafeArea())
+        .toolbarBackground(Theme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle("Nutriments")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -63,7 +65,7 @@ struct TodayNutrientsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(TodayDayFormat.title(for: day))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text(Formatters.kcal(totals.calories))
                         .font(.title.weight(.bold))
                         .monospacedDigit()
@@ -72,7 +74,7 @@ struct TodayNutrientsView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Objectif")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text(Formatters.kcal(targets.calories))
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
@@ -107,7 +109,7 @@ struct TodayNutrientsView: View {
                                 .monospacedDigit()
                             Text("\(Formatters.percent(part.kcal / macroKcal)) de l'énergie")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -115,7 +117,7 @@ struct TodayNutrientsView: View {
             }
         }
         .padding()
-        .background(Theme.cardBackground,
+        .background(Theme.card,
                     in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 }

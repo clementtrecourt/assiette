@@ -1,121 +1,437 @@
 import SwiftData
 import SwiftUI
 
-// MARK: - Summary card
+// MARK: - Pinned macro header
 
-/// Calorie ring + macro bars for the day.
-struct TodaySummaryCard: View {
+/// Pinned header: 4 equal columns Kcal / Prot. / Gluc. / Lip. with the remaining (or consumed)
+/// value, a thin progress bar and the target.
+struct TodayMacroHeader: View {
     let totals: NutrientValues
     let targets: TodayTargets
-    var isEmpty: Bool = false
-
-    private var consumed: Double { totals.calories }
-    private var remaining: Double { targets.calories - consumed }
-    private var progress: Double { targets.calories > 0 ? consumed / targets.calories : 0 }
+    let showsConsumed: Bool
 
     var body: some View {
-        VStack(spacing: 18) {
-            HStack(spacing: 20) {
-                ring
-                VStack(alignment: .leading, spacing: 10) {
-                    stat(title: "Consommé", value: Formatters.kcal(consumed),
-                         systemImage: "fork.knife", color: Theme.calories)
-                    stat(title: "Objectif", value: Formatters.kcal(targets.calories),
-                         systemImage: "target", color: .secondary)
-                    stat(title: remaining >= 0 ? "Restant" : "Dépassement",
-                         value: Formatters.kcal(abs(remaining)),
-                         systemImage: remaining >= 0 ? "flame" : "exclamationmark.triangle",
-                         color: remaining >= 0 ? Theme.fiber : .red)
-                }
-                Spacer(minLength: 0)
-            }
-
-            HStack(alignment: .top, spacing: 12) {
-                TodayMacroColumn(key: .protein, value: totals.protein, target: targets.protein)
-                TodayMacroColumn(key: .carbohydrates, value: totals.carbs, target: targets.carbs)
-                TodayMacroColumn(key: .totalFat, value: totals.fat, target: targets.fat)
-                TodayMacroColumn(key: .dietaryFiber, value: totals.value(.dietaryFiber), target: targets.fiber)
-            }
-
-            if isEmpty {
-                Label("Rien de noté pour l'instant. Touchez « + » pour ajouter un aliment.",
-                      systemImage: "hand.tap")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+        HStack(alignment: .top, spacing: 12) {
+            TodayMacroHeaderColumn(label: "Kcal", consumed: totals.calories,
+                                   target: targets.calories, color: Theme.calories,
+                                   unit: "kcal", showsConsumed: showsConsumed)
+            TodayMacroHeaderColumn(label: "Prot.", consumed: totals.protein,
+                                   target: targets.protein, color: Theme.protein,
+                                   unit: "g", showsConsumed: showsConsumed)
+            TodayMacroHeaderColumn(label: "Gluc.", consumed: totals.carbs,
+                                   target: targets.carbs, color: Theme.carbs,
+                                   unit: "g", showsConsumed: showsConsumed)
+            TodayMacroHeaderColumn(label: "Lip.", consumed: totals.fat,
+                                   target: targets.fat, color: Theme.fat,
+                                   unit: "g", showsConsumed: showsConsumed)
         }
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var ring: some View {
-        ZStack {
-            RingView(progress: progress, color: Theme.calories, lineWidth: 12)
-            VStack(spacing: 0) {
-                Text(Formatters.number(abs(remaining), maxFractionDigits: 0))
-                    .font(.title2.weight(.bold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(remaining >= 0 ? "kcal restantes" : "kcal en trop")
-                    .font(.caption2)
-                    .foregroundStyle(remaining >= 0 ? Color.secondary : Color.red)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+        .background(Theme.background)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Theme.separator)
+                .frame(height: 0.5)
         }
-        .frame(width: 118, height: 118)
-        .animation(.snappy, value: consumed)
-    }
-
-    private func stat(title: String, value: String, systemImage: String, color: Color) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(color)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-            }
-        }
+        .accessibilityElement(children: .contain)
+        .accessibilityHint(showsConsumed ? "Touchez pour afficher le restant" : "Touchez pour afficher le consommé")
     }
 }
 
-/// One macro: label, progress bar and "x / y g".
-struct TodayMacroColumn: View {
-    let key: NutrientKey
-    let value: Double
+struct TodayMacroHeaderColumn: View {
+    let label: String
+    let consumed: Double
     let target: Double
+    let color: Color
+    let unit: String
+    let showsConsumed: Bool
+
+    private var remaining: Double { target - consumed }
+    private var displayed: Double { showsConsumed ? consumed : remaining }
+    private var isNegative: Bool { !showsConsumed && remaining.rounded() < 0 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(key.shortLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.color(for: key))
-                .lineLimit(1)
-            ProgressBar(value: value, total: target, color: Theme.color(for: key))
-            Text("\(Formatters.number(value, maxFractionDigits: 0)) / \(Formatters.number(target, maxFractionDigits: 0)) g")
+        VStack(alignment: .leading, spacing: 4) {
+            Text(showsConsumed ? "\(label) · mangé" : label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.8)
+            Text(Formatters.number(displayed, maxFractionDigits: 0))
+                .font(.system(size: 22, weight: .bold, design: .default))
+                .monospacedDigit()
+                .foregroundStyle(isNegative ? Theme.overTarget : Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .contentTransition(.numericText())
+            ProgressBar(value: consumed, total: target, color: color, height: 4)
+            Text("sur \(Formatters.number(target, maxFractionDigits: 0))")
+                .font(.caption2)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(key.label) : \(Formatters.number(value, maxFractionDigits: 0)) sur \(Formatters.number(target, maxFractionDigits: 0)) grammes")
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        let c = Formatters.number(consumed, maxFractionDigits: 0)
+        let t = Formatters.number(target, maxFractionDigits: 0)
+        let r = Formatters.number(remaining, maxFractionDigits: 0)
+        return "\(label) : \(c) sur \(t) \(unit), reste \(r)"
     }
 }
 
-// MARK: - Water card
+// MARK: - Timeline model
+
+/// Entries logged within 30 minutes of the previous one form one group.
+struct TodayTimelineGroup: Identifiable {
+    let id: String
+    let start: Date
+    let entries: [JournalEntry]
+
+    var totals: NutrientValues { NutrientValues.sum(entries.map(\.nutrients)) }
+
+    /// Distinct meals of the group, e.g. "Déjeuner" or "Déjeuner · Collation".
+    var mealLabel: String {
+        var meals: [Meal] = []
+        for entry in entries where !meals.contains(entry.meal) {
+            meals.append(entry.meal)
+        }
+        return meals.map(\.label).joined(separator: " · ")
+    }
+
+    static func make(from entries: [JournalEntry], gap: TimeInterval = 30 * 60) -> [TodayTimelineGroup] {
+        let sorted = entries.sorted { $0.createdAt < $1.createdAt }
+        var groups: [TodayTimelineGroup] = []
+        var current: [JournalEntry] = []
+        var previous: Date?
+        for entry in sorted {
+            if let previous, entry.createdAt.timeIntervalSince(previous) > gap, !current.isEmpty {
+                groups.append(makeGroup(current))
+                current = []
+            }
+            current.append(entry)
+            previous = entry.createdAt
+        }
+        if !current.isEmpty {
+            groups.append(makeGroup(current))
+        }
+        return groups
+    }
+
+    private static func makeGroup(_ entries: [JournalEntry]) -> TodayTimelineGroup {
+        TodayTimelineGroup(id: entries[0].id.uuidString, start: entries[0].createdAt, entries: entries)
+    }
+}
+
+enum TodayTimeFormat {
+    /// "7:45", "12:05".
+    static func short(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+        return "\(hour):" + (minute < 10 ? "0\(minute)" : "\(minute)")
+    }
+}
+
+enum TodayTimelineMetrics {
+    static let gutterWidth: CGFloat = 64
+    static let timeWidth: CGFloat = 34
+    static let lineColumnWidth: CGFloat = 18
+    static let contentLeading: CGFloat = 68
+    static let trailing: CGFloat = 16
+    static let groupGap: CGFloat = 14
+    /// Center of the dot in a group header row (gap + top padding + half a caption line).
+    static let headerDotY: CGFloat = 30
+}
+
+// MARK: - Timeline building blocks
+
+/// Left gutter: time label, vertical line and an optional dot.
+struct TodayTimelineGutter: View {
+    var time: String?
+    var dotColor: Color?
+    var dotY: CGFloat
+    var lineAbove: Bool
+    var lineBelow: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 4) {
+            timeLabel
+            lineColumn
+        }
+        .padding(.leading, 8)
+        .frame(width: TodayTimelineMetrics.gutterWidth, alignment: .leading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .accessibilityHidden(true)
+    }
+
+    private var timeLabel: some View {
+        Text(time ?? "")
+            .font(.caption2)
+            .monospacedDigit()
+            .foregroundStyle(Theme.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .frame(width: TodayTimelineMetrics.timeWidth, alignment: .trailing)
+            .padding(.top, max(dotY - 7, 0))
+    }
+
+    private var lineColumn: some View {
+        ZStack(alignment: .top) {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(lineAbove ? Theme.separator : Color.clear)
+                    .frame(width: 2, height: dotY)
+                Rectangle()
+                    .fill(lineBelow ? Theme.separator : Color.clear)
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
+            }
+            if let dotColor {
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 9, height: 9)
+                    .padding(3)
+                    .background(Circle().fill(Theme.background))
+                    .offset(y: dotY - 7.5)
+            }
+        }
+        .frame(width: TodayTimelineMetrics.lineColumnWidth)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// One list row of the timeline: content shifted right of the gutter.
+struct TodayTimelineRow<Content: View>: View {
+    let time: String?
+    let dotColor: Color?
+    let dotY: CGFloat
+    let lineAbove: Bool
+    let lineBelow: Bool
+    let content: Content
+
+    init(time: String? = nil, dotColor: Color? = nil, dotY: CGFloat = 0,
+         lineAbove: Bool = true, lineBelow: Bool = true,
+         @ViewBuilder content: () -> Content) {
+        self.time = time
+        self.dotColor = dotColor
+        self.dotY = dotY
+        self.lineAbove = lineAbove
+        self.lineBelow = lineBelow
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(.leading, TodayTimelineMetrics.contentLeading)
+            .padding(.trailing, TodayTimelineMetrics.trailing)
+            .background(alignment: .topLeading) {
+                TodayTimelineGutter(time: time, dotColor: dotColor, dotY: dotY,
+                                    lineAbove: lineAbove, lineBelow: lineBelow)
+            }
+    }
+}
+
+/// Top of a group card: small secondary meal label.
+struct TodayGroupHeaderContent: View {
+    let group: TodayTimelineGroup
+
+    var body: some View {
+        Text(group.mealLabel)
+            .font(.caption)
+            .foregroundStyle(Theme.textSecondary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.top, 9)
+            .padding(.bottom, 3)
+            .background(Theme.card,
+                        in: UnevenRoundedRectangle(topLeadingRadius: Theme.cornerRadius,
+                                                   topTrailingRadius: Theme.cornerRadius,
+                                                   style: .continuous))
+            .padding(.top, TodayTimelineMetrics.groupGap)
+    }
+}
+
+/// "Name  qty        kcal" inside a group card.
+struct TodayTimelineEntryContent: View {
+    let entry: JournalEntry
+    let showsDivider: Bool
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if entry.source == .quickAdd {
+                Image(systemName: "bolt.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Text(entry.name)
+                .font(.subheadline)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .layoutPriority(1)
+            Text(quantity)
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(Formatters.number(entry.nutrients.calories, maxFractionDigits: 0))
+                .font(.subheadline)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+                .layoutPriority(2)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card)
+        .overlay(alignment: .top) {
+            if showsDivider {
+                Rectangle()
+                    .fill(Theme.separator)
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 12)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(entry.name), \(entry.quantityDescription), \(Formatters.kcal(entry.nutrients.calories))")
+        .accessibilityHint("Modifier la quantité")
+    }
+
+    private var quantity: String {
+        entry.source == .quickAdd ? "" : entry.quantityDescription
+    }
+}
+
+/// Bottom of a group card: P/G/L dots + total kcal.
+struct TodayGroupFooterContent: View {
+    let totals: NutrientValues
+
+    var body: some View {
+        HStack(spacing: 8) {
+            TodayMacroDots(values: totals)
+            Spacer(minLength: 8)
+            Text(Formatters.kcal(totals.calories))
+                .font(.caption.weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 7)
+        .padding(.bottom, 9)
+        .background(Theme.card,
+                    in: UnevenRoundedRectangle(bottomLeadingRadius: Theme.cornerRadius,
+                                               bottomTrailingRadius: Theme.cornerRadius,
+                                               style: .continuous))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.separator)
+                .frame(height: 0.5)
+                .padding(.horizontal, 12)
+        }
+    }
+}
+
+/// "● 12  ● 30  ● 5" for protein / carbs / fat (grams).
+struct TodayMacroDots: View {
+    let values: NutrientValues
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(NutrientKey.macros) { key in
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Theme.color(for: key))
+                        .frame(width: 6, height: 6)
+                    Text(Formatters.number(values.value(key), maxFractionDigits: 0))
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        NutrientKey.macros
+            .map { "\($0.label) \(Formatters.number(values.value($0), maxFractionDigits: 0)) g" }
+            .joined(separator: ", ")
+    }
+}
+
+/// Last timeline item: accent dot + dashed "Maintenant : + Ajouter" card.
+struct TodayNowRow: View {
+    let isToday: Bool
+    let hasGroups: Bool
+    let onAdd: () -> Void
+
+    var body: some View {
+        TimelineView(.everyMinute) { context in
+            TodayTimelineRow(time: isToday ? TodayTimeFormat.short(context.date) : nil,
+                             dotColor: Theme.accent,
+                             dotY: TodayTimelineMetrics.groupGap + 22,
+                             lineAbove: hasGroups,
+                             lineBelow: false) {
+                button
+            }
+        }
+    }
+
+    private var button: some View {
+        Button(action: onAdd) {
+            Text(isToday ? "Maintenant : + Ajouter" : "+ Ajouter")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background {
+                    RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                        .strokeBorder(Theme.separator, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, TodayTimelineMetrics.groupGap)
+        .accessibilityLabel("Ajouter un aliment")
+    }
+}
+
+/// Friendly message when nothing is logged on the day.
+struct TodayEmptyState: View {
+    let isToday: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "fork.knife")
+                .font(.title2)
+                .foregroundStyle(Theme.textSecondary)
+            Text(isToday ? "Votre journée commence ici" : "Rien de noté ce jour-là")
+                .font(.headline)
+                .foregroundStyle(Theme.textPrimary)
+            Text("Touchez « + » pour rechercher un aliment, scanner un code-barres ou faire un ajout rapide.")
+                .font(.footnote)
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
+        .padding(.top, 28)
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Below the timeline
 
 struct TodayWaterCard: View {
     let totalMl: Double
@@ -124,72 +440,58 @@ struct TodayWaterCard: View {
     let onAdd: (Double) -> Void
     let onUndo: () -> Void
 
-    private var dropCount: Int {
-        guard targetMl > 0 else { return 8 }
-        return min(max(Int((targetMl / 250).rounded(.up)), 1), 10)
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "drop.fill")
                     .foregroundStyle(Theme.water)
                 Text("Eau")
-                    .font(.headline)
-                Spacer()
-                Text("\(liters(totalMl)) / \(liters(targetMl)) L")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("\(liters(totalMl)) / \(liters(targetMl)) L")
+                    .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(totalMl >= targetMl && targetMl > 0 ? Theme.water : Color.secondary)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
                     .contentTransition(.numericText())
+                Spacer(minLength: 4)
+                undoButton
+                addButton(250)
+                addButton(500)
             }
-
-            HStack(spacing: 4) {
-                ForEach(0..<dropCount, id: \.self) { index in
-                    let threshold = targetMl / Double(dropCount) * Double(index + 1)
-                    Image(systemName: "drop.fill")
-                        .font(.title3)
-                        .foregroundStyle(totalMl + 0.5 >= threshold ? Theme.water : Theme.water.opacity(0.18))
-                        .frame(maxWidth: .infinity)
-                        .scaleEffect(totalMl + 0.5 >= threshold ? 1 : 0.85)
-                }
-            }
-            .animation(.snappy, value: totalMl)
-            .accessibilityHidden(true)
-
-            HStack(spacing: 10) {
-                Button {
-                    onAdd(250)
-                } label: {
-                    Label("250 ml", systemImage: "plus")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.bordered)
-                .tint(Theme.water)
-
-                Button {
-                    onAdd(500)
-                } label: {
-                    Label("500 ml", systemImage: "plus")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.bordered)
-                .tint(Theme.water)
-
-                Spacer()
-
-                Button {
-                    onUndo()
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(!canUndo)
-                .accessibilityLabel("Annuler le dernier ajout d'eau")
-            }
+            TodayWaterBar(fraction: targetMl > 0 ? totalMl / targetMl : 0)
         }
-        .padding(.vertical, 6)
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+    }
+
+    private var undoButton: some View {
+        Button(action: onUndo) {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(canUndo ? Theme.textSecondary : Theme.textSecondary.opacity(0.35))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .disabled(!canUndo)
+        .accessibilityLabel("Annuler le dernier ajout d'eau")
+    }
+
+    private func addButton(_ ml: Double) -> some View {
+        Button {
+            onAdd(ml)
+        } label: {
+            Text("+\(Formatters.number(ml, maxFractionDigits: 0))")
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.water)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Theme.water.opacity(0.16), in: Capsule())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Ajouter \(Formatters.number(ml, maxFractionDigits: 0)) ml d'eau")
     }
 
     private func liters(_ ml: Double) -> String {
@@ -197,74 +499,71 @@ struct TodayWaterCard: View {
     }
 }
 
-// MARK: - Entry row
-
-struct TodayEntryRow: View {
-    let entry: JournalEntry
+/// Water bar (never turns red: drinking more than the target is fine).
+private struct TodayWaterBar: View {
+    let fraction: Double
 
     var body: some View {
-        let values = entry.nutrients
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    if entry.source == .quickAdd {
-                        Image(systemName: "bolt.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.calories)
-                    }
-                    Text(entry.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                }
-                Text(detailLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                TodayMacroLine(values: values)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 0) {
-                Text(Formatters.number(values.calories, maxFractionDigits: 0))
-                    .font(.body.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-                Text("kcal")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.separator)
+                Capsule()
+                    .fill(Theme.water)
+                    .frame(width: geo.size.width * min(max(fraction, 0), 1))
             }
         }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Modifier la quantité")
-    }
-
-    private var detailLine: String {
-        if let brand = entry.brand, !brand.isEmpty, entry.source != .quickAdd {
-            return "\(entry.quantityDescription) · \(brand)"
-        }
-        return entry.quantityDescription
+        .frame(height: 4)
+        .animation(.snappy, value: fraction)
     }
 }
 
-/// "● 12 g ● 30 g ● 5 g" for protein / carbs / fat.
-struct TodayMacroLine: View {
-    let values: NutrientValues
-
+/// Compact row linking to the day's micronutrients.
+struct TodayNutrientsLinkLabel: View {
     var body: some View {
         HStack(spacing: 10) {
-            ForEach(NutrientKey.macros) { key in
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(Theme.color(for: key))
-                        .frame(width: 6, height: 6)
-                    Text("\(String(key.shortLabel.prefix(1))) \(Formatters.number(values.value(key), maxFractionDigits: 0)) g")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            }
+            Image(systemName: "chart.bar.doc.horizontal")
+                .foregroundStyle(Theme.accent)
+            Text("Nutriments du jour")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.textSecondary)
         }
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Floating add button
+
+struct TodayAddButton: View {
+    let onSearch: () -> Void
+    let onScan: () -> Void
+    let onQuickAdd: () -> Void
+
+    var body: some View {
+        Menu {
+            Button(action: onSearch) {
+                Label("Rechercher", systemImage: "magnifyingglass")
+            }
+            Button(action: onScan) {
+                Label("Scanner un code-barres", systemImage: "barcode.viewfinder")
+            }
+            Button(action: onQuickAdd) {
+                Label("Ajout rapide", systemImage: "bolt")
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(Theme.accent))
+                .contentShape(Circle())
+        }
+        .menuOrder(.fixed)
+        .accessibilityLabel("Ajouter")
     }
 }

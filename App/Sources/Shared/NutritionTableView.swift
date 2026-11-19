@@ -60,21 +60,21 @@ struct NutritionTableView: View {
                     Spacer()
                     Text("% AR*")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 .padding(.bottom, 4)
             }
 
             ForEach(Array(Self.primaryRows.enumerated()), id: \.offset) { index, row in
                 if values[row.key] != nil || Self.alwaysShownKeys.contains(row.key) {
-                    if index > 0 { Divider() }
+                    if index > 0 { NutritionTableHairline() }
                     nutrientRow(row.key, indent: row.indent, emphasized: !row.indent)
                 }
             }
 
             let groups = extraGroups
             if !groups.isEmpty {
-                Divider().padding(.top, 2)
+                NutritionTableHairline().padding(.top, 2)
                 Button {
                     withAnimation(.snappy) { showAll.toggle() }
                 } label: {
@@ -95,11 +95,11 @@ struct NutritionTableView: View {
                     ForEach(groups) { entry in
                         Text(entry.group.label.uppercased())
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .padding(.top, 12)
                             .padding(.bottom, 4)
                         ForEach(Array(entry.keys.enumerated()), id: \.element) { index, key in
-                            if index > 0 { Divider() }
+                            if index > 0 { NutritionTableHairline() }
                             nutrientRow(key, indent: false, emphasized: false)
                         }
                     }
@@ -110,7 +110,7 @@ struct NutritionTableView: View {
             if showDailyPercent {
                 Text("* % des apports de référence pour un adulte (2 000 kcal).")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .padding(.top, 8)
             }
         }
@@ -127,16 +127,14 @@ struct NutritionTableView: View {
             }
             Text(indent ? "dont \(key.label.lowercased())" : key.label)
                 .font(emphasized ? .subheadline.weight(.medium) : .subheadline)
-                .foregroundStyle(indent ? .secondary : .primary)
+                .foregroundStyle(indent ? Theme.textSecondary : Theme.textPrimary)
                 .padding(.leading, indent ? 15 : 0)
             Spacer(minLength: 8)
-            Text(amount.map { Formatters.amount($0, of: key) } ?? "—")
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(amount == nil ? .secondary : .primary)
+            amountLabel(key, amount)
             if showDailyPercent {
                 Text(percentText(key, amount))
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .frame(width: 44, alignment: .trailing)
             }
         }
@@ -144,8 +142,45 @@ struct NutritionTableView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Value in primary text, unit in secondary text ("12,3" + "g").
+    @ViewBuilder
+    private func amountLabel(_ key: NutrientKey, _ amount: Double?) -> some View {
+        if let amount {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(amountNumber(amount, of: key))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                Text(key.unit)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        } else {
+            Text("—")
+                .font(.subheadline)
+                .foregroundStyle(Theme.textSecondary)
+        }
+    }
+
+    /// Number part of `Formatters.amount` (same precision rules), without the unit.
+    private func amountNumber(_ amount: Double, of key: NutrientKey) -> String {
+        let full = Formatters.amount(amount, of: key)
+        let suffix = " \(key.unit)"
+        guard !key.unit.isEmpty, full.hasSuffix(suffix) else { return full }
+        return String(full.dropLast(suffix.count))
+    }
+
     private func percentText(_ key: NutrientKey, _ amount: Double?) -> String {
         guard let amount, let ref = key.dailyReference, ref > 0 else { return "" }
         return Formatters.percent(amount / ref)
+    }
+}
+
+/// Thin separator matching the dark theme hairline.
+private struct NutritionTableHairline: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.separator)
+            .frame(height: 0.5)
     }
 }

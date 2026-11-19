@@ -31,6 +31,7 @@ struct ProfileExportView: View {
                          ? "Votre journal est vide."
                          : "\(ProfileBackup.plural(files.entryCount, "entrée", "entrées")), séparateur point-virgule, compatible Excel et Numbers. Colonnes : date, repas, aliment, marque, quantité, kcal, protéines, glucides, lipides, fibres.")
                 }
+                .listRowBackground(Theme.card)
 
                 Section {
                     ShareLink(item: files.json) {
@@ -42,12 +43,15 @@ struct ProfileExportView: View {
                 } footer: {
                     Text("Contenu : \(files.summary). Restaurez-la depuis Profil › Importer une sauvegarde, ou lors de la configuration initiale.")
                 }
+                .listRowBackground(Theme.card)
             } else if let errorMessage {
                 Section {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.overTarget)
                     Button("Réessayer") { generate() }
+                        .foregroundStyle(Theme.accent)
                 }
+                .listRowBackground(Theme.card)
             } else {
                 Section {
                     HStack {
@@ -57,8 +61,10 @@ struct ProfileExportView: View {
                     }
                     .padding(.vertical)
                 }
+                .listRowBackground(Theme.card)
             }
         }
+        .themedBackground()
         .navigationTitle("Exporter")
         .navigationBarTitleDisplayMode(.inline)
         .task { generate() }
@@ -74,10 +80,10 @@ struct ProfileExportView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Theme.textPrimary)
                 Text(detail)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)
             }
             Spacer()
@@ -123,15 +129,16 @@ struct ProfileAboutView: View {
                         .font(.title2.bold())
                     Text("Version \(Self.appVersion)")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text("Suivi nutritionnel personnel, hors ligne et sans compte.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
+            .listRowBackground(Theme.card)
 
             Section("Base de données") {
                 if database.isAvailable {
@@ -140,9 +147,10 @@ struct ProfileAboutView: View {
                 } else {
                     Label(database.openError ?? "Base d'aliments indisponible.",
                           systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.fat)
                 }
             }
+            .listRowBackground(Theme.card)
 
             Section {
                 Text("Les données nutritionnelles proviennent d'OpenNutrition, mises à disposition sous la licence Open Database License (ODbL) v1.0. Vous êtes libre de partager, modifier et utiliser cette base, à condition de citer la source, de partager à l'identique les bases dérivées et de les garder ouvertes.")
@@ -161,20 +169,24 @@ struct ProfileAboutView: View {
             } header: {
                 Text("Sources & licences")
             }
+            .listRowBackground(Theme.card)
+            .tint(Theme.accent)
 
             Section {
                 Text("Les objectifs sont des estimations (formule de Mifflin-St Jeor) et ne remplacent pas l'avis d'un professionnel de santé.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             } header: {
                 Text("Avertissement")
             }
+            .listRowBackground(Theme.card)
 
             Section {
                 AttributionFooter(includeOpenFoodFacts: true)
                     .listRowBackground(Color.clear)
             }
         }
+        .themedBackground()
         .navigationTitle("À propos")
         .navigationBarTitleDisplayMode(.inline)
     }

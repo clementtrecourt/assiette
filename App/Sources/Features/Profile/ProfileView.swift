@@ -15,6 +15,7 @@ struct ProfileView: View {
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Theme.background.ignoresSafeArea())
                         .task { _ = UserProfile.current(in: modelContext) }
                 }
             }
@@ -64,13 +65,22 @@ private struct ProfileSettingsForm: View {
     var body: some View {
         Form {
             summarySection
+                .listRowBackground(Theme.card)
             personalSection
+                .listRowBackground(Theme.card)
             goalSection
+                .listRowBackground(Theme.card)
             targetsSection
+                .listRowBackground(Theme.card)
             foodsSection
+                .listRowBackground(Theme.card)
             dataSection
+                .listRowBackground(Theme.card)
             aboutSection
+                .listRowBackground(Theme.card)
         }
+        .themedBackground()
+        .tint(Theme.accent)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -117,12 +127,13 @@ private struct ProfileSettingsForm: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(profile.sex.label), \(profile.age) ans")
                         .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
                     Text("\(Formatters.number(profile.heightCm, maxFractionDigits: 0)) cm · \(Formatters.number(profile.weightKg, maxFractionDigits: 1)) kg · IMC \(Formatters.number(bmi, maxFractionDigits: 1))")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text("\(profile.goal.label) · \(Formatters.kcal(profile.calorieTarget)) / jour")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
             .padding(.vertical, 4)
@@ -226,12 +237,17 @@ private struct ProfileSettingsForm: View {
                     successTrigger += 1
                 } label: {
                     Label("Reprendre les valeurs calculées", systemImage: "arrow.counterclockwise")
+                        .foregroundStyle(Theme.accent)
                 }
             } else {
-                targetRow("Calories", Formatters.kcal(profile.calorieTarget), color: Theme.calories)
-                targetRow(NutrientKey.protein.label, grams(profile.proteinTarget), color: Theme.protein)
-                targetRow(NutrientKey.carbohydrates.label, grams(profile.carbsTarget), color: Theme.carbs)
-                targetRow(NutrientKey.totalFat.label, grams(profile.fatTarget), color: Theme.fat)
+                ProfileTargetRow(title: "Calories", value: Formatters.kcal(profile.calorieTarget),
+                                 color: Theme.calories)
+                ProfileTargetRow(title: NutrientKey.protein.label, value: grams(profile.proteinTarget),
+                                 color: Theme.protein)
+                ProfileTargetRow(title: NutrientKey.carbohydrates.label, value: grams(profile.carbsTarget),
+                                 color: Theme.carbs)
+                ProfileTargetRow(title: NutrientKey.totalFat.label, value: grams(profile.fatTarget),
+                                 color: Theme.fat)
             }
 
             ProfileMacroSplitView(protein: profile.proteinTarget, carbs: profile.carbsTarget, fat: profile.fatTarget)
@@ -261,24 +277,13 @@ private struct ProfileSettingsForm: View {
 
     private func grams(_ v: Double) -> String { "\(Formatters.number(v, maxFractionDigits: 0)) g" }
 
-    private func targetRow(_ title: String, _ value: String, color: Color) -> some View {
-        LabeledContent {
-            Text(value).monospacedDigit()
-        } label: {
-            Label {
-                Text(title)
-            } icon: {
-                Circle().fill(color).frame(width: 10, height: 10)
-            }
-        }
-    }
-
     private var foodsSection: some View {
         Section {
             NavigationLink {
                 CustomFoodsListView(pickContext: nil)
             } label: {
                 Label("Mes aliments & recettes", systemImage: "takeoutbag.and.cup.and.straw")
+                    .foregroundStyle(Theme.textPrimary)
             }
         }
     }
@@ -289,18 +294,20 @@ private struct ProfileSettingsForm: View {
                 ProfileExportView()
             } label: {
                 Label("Exporter mes données", systemImage: "square.and.arrow.up")
+                    .foregroundStyle(Theme.textPrimary)
             }
             Button {
                 showImporter = true
             } label: {
                 Label("Importer une sauvegarde", systemImage: "square.and.arrow.down")
+                    .foregroundStyle(Theme.accent)
             }
             Button(role: .destructive) {
                 warningTrigger += 1
                 showEraseConfirm = true
             } label: {
                 Label("Effacer toutes les données", systemImage: "trash")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.overTarget)
             }
         } header: {
             Text("Données")
@@ -316,8 +323,10 @@ private struct ProfileSettingsForm: View {
             } label: {
                 LabeledContent {
                     Text(ProfileAboutView.appVersion)
+                        .foregroundStyle(Theme.textSecondary)
                 } label: {
                     Label("À propos d'Assiette", systemImage: "info.circle")
+                        .foregroundStyle(Theme.textPrimary)
                 }
             }
         } footer: {

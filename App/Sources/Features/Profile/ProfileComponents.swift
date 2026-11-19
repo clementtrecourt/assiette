@@ -42,12 +42,15 @@ struct ProfileNumberField: View {
                     .keyboardType(maxFractionDigits > 0 ? .decimalPad : .numberPad)
                     .multilineTextAlignment(.trailing)
                     .focused($focused)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
                     .frame(minWidth: 60, maxWidth: 120)
                 Text(unit)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
         } label: {
             Text(title)
+                .foregroundStyle(Theme.textPrimary)
         }
         .onAppear { text = Self.format(value, digits: maxFractionDigits) }
         .onChange(of: text) {
@@ -121,7 +124,7 @@ struct ProfileMacroSplitView: View {
                 }
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.textSecondary)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
@@ -129,6 +132,45 @@ struct ProfileMacroSplitView: View {
 
     private func fraction(_ kcal: Double) -> Double {
         totalKcal > 0 ? kcal / totalKcal : 0
+    }
+}
+
+/// Full-width accent button, radius 12 (onboarding & primary actions).
+struct ProfilePrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                    .fill(Theme.accent.opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+    }
+}
+
+/// "● Protéines ....... 120 g" target row with the nutrient color dot.
+struct ProfileTargetRow: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(title)
+                .foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.body.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Theme.textPrimary)
+        }
     }
 }
 

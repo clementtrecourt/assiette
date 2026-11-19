@@ -66,6 +66,17 @@ jobs:
             -destination "id=$SIM" -derivedDataPath build/test CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee build/test.log | xcbeautify --renderer github-actions
 
+      - name: Simulator screenshots
+        run: |
+          SIM=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; ph=[x for k,v in sorted(d.items(), reverse=True) if 'iOS' in k for x in v if x['name'].startswith('iPhone')]; pro=[x for x in ph if 'Pro' in x['name'] and 'Max' not in x['name']]; print((pro or ph)[0]['udid'])")
+          tools/screenshots.sh "$SIM" build/test/Build/Products/Debug-iphonesimulator/Assiette.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: build/screenshots
+          retention-days: 30
+
       - name: Build unsigned IPA
         run: |
           set -o pipefail
@@ -92,7 +103,8 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG=latest; fi
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" build/Assiette.ipa --target "$GITHUB_SHA" \
+          (cd build/screenshots && zip -q ../screenshots.zip *.png) || true
+          gh release create "$TAG" build/Assiette.ipa build/screenshots.zip --target "$GITHUB_SHA" \
             --title "Assiette $TAG" --notes "Build ${GITHUB_SHA::7} — IPA non signé, à signer avant installation." \
             $([[ "$TAG" == latest ]] && echo --prerelease)
 

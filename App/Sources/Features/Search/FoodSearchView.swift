@@ -88,6 +88,8 @@ struct FoodSearchView: View {
                 .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
+        .themedBackground()
         .navigationTitle(isSheet ? "Ajouter un aliment" : "Ajouter")
         .navigationBarTitleDisplayMode(isSheet ? .inline : .large)
         .searchable(text: $query,
@@ -168,12 +170,13 @@ struct FoodSearchView: View {
                         .font(.subheadline.weight(.semibold))
                     Text(FoodDatabase.shared.openError ?? "La base OpenNutrition n'a pas pu être ouverte. Vos aliments personnels restent disponibles.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.overTarget)
             }
+            .listRowBackground(Theme.card)
         }
     }
 
@@ -197,10 +200,13 @@ struct FoodSearchView: View {
             }
         } footer: {
             Text("Ajout au \(context.meal.label.lowercased()) · \(Formatters.dayTitle(context.day).lowercased())")
+                .foregroundStyle(Theme.textSecondary)
         }
+        .listRowBackground(Theme.card)
+        .listRowSeparatorTint(Theme.separator)
 
         if !favorites.isEmpty {
-            Section("Favoris") {
+            Section {
                 ForEach(favorites) { favorite in
                     foodRow(favorite.item)
                         .swipeActions(edge: .trailing) {
@@ -212,15 +218,19 @@ struct FoodSearchView: View {
                             }
                         }
                 }
+            } header: {
+                SearchSectionHeader(title: "Favoris")
             }
         }
 
         let recents = recentItems
         if !recents.isEmpty {
-            Section("Récents") {
+            Section {
                 ForEach(recents) { item in
                     foodRow(item)
                 }
+            } header: {
+                SearchSectionHeader(title: "Récents")
             }
         }
 
@@ -229,12 +239,13 @@ struct FoodSearchView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .font(.largeTitle)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text("Recherchez un aliment")
                         .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
                     Text(databaseHint)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -262,10 +273,12 @@ struct FoodSearchView: View {
 
         let custom = matchingCustomFoods
         if !custom.isEmpty {
-            Section("Mes aliments") {
+            Section {
                 ForEach(custom) { food in
                     foodRow(food.item)
                 }
+            } header: {
+                SearchSectionHeader(title: "Mes aliments")
             }
         }
 
@@ -283,6 +296,7 @@ struct FoodSearchView: View {
                         Text("· \(results.count) résultat\(results.count > 1 ? "s" : "")")
                     }
                 }
+                .foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -294,16 +308,7 @@ struct FoodSearchView: View {
                     Button {
                         filter = option
                     } label: {
-                        Label(option.label, systemImage: option.systemImage)
-                            .labelStyle(.titleAndIcon)
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                filter == option ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Theme.cardBackground),
-                                in: Capsule()
-                            )
-                            .foregroundStyle(filter == option ? Color.white : Color.primary)
+                        SearchFilterPill(option: option, isSelected: filter == option)
                     }
                     .buttonStyle(.plain)
                 }
@@ -339,6 +344,8 @@ struct FoodSearchView: View {
             }
             .tint(Theme.accent)
         }
+        .listRowBackground(Theme.card)
+        .listRowSeparatorTint(Theme.separator)
     }
 
     // MARK: Actions
@@ -444,13 +451,39 @@ private struct SearchShortcutLabel: View {
     var body: some View {
         Label {
             Text(title)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Theme.textPrimary)
         } icon: {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.background)
                 .frame(width: 30, height: 30)
                 .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
+    }
+}
+
+/// Section title in the secondary text color.
+private struct SearchSectionHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .foregroundStyle(Theme.textSecondary)
+    }
+}
+
+/// Filter pill: accent fill when selected, card fill otherwise.
+private struct SearchFilterPill: View {
+    let option: SearchKindFilter
+    let isSelected: Bool
+
+    var body: some View {
+        Label(option.label, systemImage: option.systemImage)
+            .labelStyle(.titleAndIcon)
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .foregroundStyle(isSelected ? Color.white : Theme.textPrimary)
+            .background(isSelected ? Theme.accent : Theme.card, in: Capsule())
     }
 }

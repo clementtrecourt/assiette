@@ -25,6 +25,7 @@ struct ProgressAddWeightSheet: View {
                                displayedComponents: [.date, .hourAndMinute])
                     HStack {
                         Label("Poids", systemImage: "scalemass")
+                            .foregroundStyle(Theme.textPrimary)
                         Spacer()
                         TextField("0,0", text: $text)
                             .keyboardType(.decimalPad)
@@ -32,17 +33,20 @@ struct ProgressAddWeightSheet: View {
                             .focused($fieldFocused)
                             .frame(maxWidth: 120)
                         Text("kg")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 } footer: {
                     if !text.isEmpty && parsedKg == nil {
                         Text("Saisissez un poids entre 20 et 400 kg.")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.overTarget)
                     } else {
                         Text("Pour des mesures comparables, pesez-vous le matin, à jeun.")
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
+                .listRowBackground(Theme.card)
             }
+            .themedBackground()
             .navigationTitle("Nouvelle pesée")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -79,19 +83,21 @@ struct ProgressWeightRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Formatters.dayTitle(entry.date))
                     .font(.body)
+                    .foregroundStyle(Theme.textPrimary)
                 Text(entry.date.formatted(.dateTime.hour().minute().locale(Formatters.locale)))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(ProgressStats.kg(entry.kg))
                     .font(.body.monospacedDigit())
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Theme.textPrimary)
                 if let previousKg {
                     Text(ProgressStats.signedKg(entry.kg - previousKg))
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
         }
@@ -120,9 +126,12 @@ struct ProgressWeightHistoryView: View {
                     .onDelete(perform: delete)
                 } footer: {
                     Text(weights.count > 1 ? "\(weights.count) pesées" : "1 pesée")
+                        .foregroundStyle(Theme.textSecondary)
                 }
+                .listRowBackground(Theme.card)
             }
         }
+        .themedBackground()
         .navigationTitle("Pesées")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

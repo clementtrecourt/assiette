@@ -26,8 +26,11 @@ struct TodayTargets {
 private struct TodaySheet: Identifiable {
     enum Kind {
         case search(LogContext)
+        case scan(LogContext)
         case quickAdd(LogContext)
         case edit(JournalEntry)
+        case detail(FoodItem, LogContext)
+        case add(FoodItem, LogContext)
     }
 
     let id: String
@@ -37,6 +40,10 @@ private struct TodaySheet: Identifiable {
         TodaySheet(id: "search-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .search(context))
     }
 
+    static func scan(_ context: LogContext) -> TodaySheet {
+        TodaySheet(id: "scan-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .scan(context))
+    }
+
     static func quickAdd(_ context: LogContext) -> TodaySheet {
         TodaySheet(id: "quick-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .quickAdd(context))
     }
@@ -44,10 +51,27 @@ private struct TodaySheet: Identifiable {
     static func edit(_ entry: JournalEntry) -> TodaySheet {
         TodaySheet(id: "edit-\(entry.id.uuidString)", kind: .edit(entry))
     }
+
+    static func detail(_ item: FoodItem, _ context: LogContext) -> TodaySheet {
+        TodaySheet(id: "detail-\(item.id)", kind: .detail(item, context))
+    }
+
+    static func add(_ item: FoodItem, _ context: LogContext) -> TodaySheet {
+        TodaySheet(id: "add-\(item.id)", kind: .add(item, context))
+    }
 }
 
-/// Content of one journal day. The queries are built from `day` in the initializer,
-/// so a new day re-creates them.
+private extension View {
+    /// Full-bleed, transparent, separator-less List row.
+    func todayListRow() -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}
+
+/// Content of one journal day: pinned macro header, timeline log, water, micronutrients.
+/// The queries are built from `day` in the initializer, so a new day re-creates them.
 struct TodayDayContent: View {
     let day: Date
 
@@ -58,15 +82,18 @@ struct TodayDayContent: View {
     @Query private var waterEntries: [WaterEntry]
     @Query private var profiles: [UserProfile]
 
+    @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
+
     @State private var sheet: TodaySheet?
-    @State private var mealToClear: Meal?
     @State private var showClearDialog = false
     @State private var recipeMeal: Meal?
     @State private var recipeName = ""
     @State private var showRecipeAlert = false
+    @State private var showNutrients = false
     @State private var toast: String?
     @State private var successTick = 0
     @State private var impactTick = 0
+    @State private var didRunDemoSheet = false
 
     init(day: Date) {
         let start = Calendar.current.startOfDay(for: day)
@@ -91,134 +118,341 @@ struct TodayDayContent: View {
 
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
+    private var addContext: LogContext { LogContext(day: day, meal: Meal.suggested()) }
+
     var body: some View {
         let totals = NutrientValues.sum(entries.map(\.nutrients))
-        let byMeal = Dictionary(grouping: entries, by: \.mealRaw)
-        let currentTargets = targets
+        let groups = TodayTimelineGroup.make(from: entries)
 
-        List {
-            Section {
-                TodaySummaryCard(totals: totals, targets: currentTargets, isEmpty: entries.isEmpty)
-                    .contentShape(Rectangle())
-                    .simultaneousGesture(daySwipe)
+        logList(groups: groups)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header(totals: totals)
             }
-
-            Section {
-                TodayWaterCard(
-                    totalMl: waterEntries.reduce(0) { $0 + $1.ml },
-                    targetMl: currentTargets.water,
-                    canUndo: !waterEntries.isEmpty,
-                    onAdd: addWater,
-                    onUndo: undoWater
-                )
+            .overlay(alignment: .bottomTrailing) {
+                fab
             }
-
-            ForEach(Meal.allCases) { meal in
-                mealSection(meal, entries: byMeal[meal.rawValue] ?? [])
+            .overlay(alignment: .bottom) {
+                toastView
             }
-
-            Section {
-                NavigationLink {
-                    TodayNutrientsView(day: day, totals: totals, targets: currentTargets, entryCount: entries.count)
-                } label: {
-                    Label("Nutriments du jour", systemImage: "chart.bar.doc.horizontal")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    moreMenu
                 }
-            } footer: {
-                AttributionFooter(includeOpenFoodFacts: entries.contains { $0.sourceRaw == FoodSource.openFoodFacts.rawValue })
-                    .padding(.top, 8)
             }
-        }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(.compact)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                addMenu
+            .navigationDestination(isPresented: $showNutrients) {
+                TodayNutrientsView(day: day, totals: totals, targets: targets, entryCount: entries.count)
             }
-        }
-        .sheet(item: $sheet) { destination in
-            switch destination.kind {
-            case .search(let context):
-                NavigationStack {
-                    FoodSearchView(context: context, isSheet: true)
+            .sheet(item: $sheet) { destination in
+                sheetContent(destination)
+            }
+            .confirmationDialog(
+                "Supprimer tous les aliments de ce jour ?",
+                isPresented: $showClearDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Tout supprimer", role: .destructive) { clearDay() }
+                Button("Annuler", role: .cancel) {}
+            }
+            .alert("Enregistrer comme recette", isPresented: $showRecipeAlert) {
+                TextField("Nom de la recette", text: $recipeName)
+                Button("Annuler", role: .cancel) { recipeMeal = nil }
+                Button("Enregistrer") {
+                    saveRecipe(meal: recipeMeal, name: recipeName)
+                    recipeMeal = nil
                 }
-            case .quickAdd(let context):
-                QuickAddSheet(context: context)
-            case .edit(let entry):
-                AddEntrySheet(editing: entry)
+            } message: {
+                Text("Les aliments seront regroupés en une recette réutilisable dans « Mes aliments ».")
             }
-        }
-        .confirmationDialog(
-            "Supprimer tous les aliments de ce repas ?",
-            isPresented: $showClearDialog,
-            titleVisibility: .visible,
-            presenting: mealToClear
-        ) { meal in
-            Button("Tout supprimer (\(meal.label))", role: .destructive) {
-                clear(meal)
+            .task(id: toast) {
+                guard toast != nil else { return }
+                try? await Task.sleep(for: .seconds(2.2))
+                guard !Task.isCancelled else { return }
+                withAnimation(.snappy) { toast = nil }
             }
-            Button("Annuler", role: .cancel) {}
-        }
-        .alert("Enregistrer comme recette", isPresented: $showRecipeAlert) {
-            TextField("Nom de la recette", text: $recipeName)
-            Button("Annuler", role: .cancel) { recipeMeal = nil }
-            Button("Enregistrer") {
-                if let meal = recipeMeal { saveRecipe(from: meal, name: recipeName) }
-                recipeMeal = nil
+            .task {
+                await presentDemoSheetIfNeeded()
             }
-        } message: {
-            Text("Les aliments de ce repas seront regroupés en une recette réutilisable dans « Mes aliments ».")
-        }
-        .overlay(alignment: .bottom) {
-            if let toast {
-                Text(toast)
-                    .font(.subheadline.weight(.medium))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.regularMaterial, in: Capsule())
-                    .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onTapGesture { withAnimation(.snappy) { self.toast = nil } }
-            }
-        }
-        .task(id: toast) {
-            guard toast != nil else { return }
-            try? await Task.sleep(for: .seconds(2.2))
-            guard !Task.isCancelled else { return }
-            withAnimation(.snappy) { toast = nil }
-        }
-        .sensoryFeedback(.success, trigger: successTick)
-        .sensoryFeedback(.impact(weight: .light), trigger: impactTick)
+            .sensoryFeedback(.success, trigger: successTick)
+            .sensoryFeedback(.impact(weight: .light), trigger: impactTick)
     }
 
-    // MARK: - Toolbar
+    // MARK: - Layout pieces
 
-    private var addMenu: some View {
+    private func logList(groups: [TodayTimelineGroup]) -> some View {
+        List {
+            timelineRows(groups)
+            TodayNowRow(isToday: isToday, hasGroups: !groups.isEmpty) {
+                sheet = .search(addContext)
+            }
+            .todayListRow()
+            waterRow
+            nutrientsRow
+            AttributionFooter(includeOpenFoodFacts: entries.contains { $0.sourceRaw == FoodSource.openFoodFacts.rawValue })
+                .padding(.top, 12)
+                .todayListRow()
+            Color.clear
+                .frame(height: 88)
+                .todayListRow()
+                .accessibilityHidden(true)
+        }
+        .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 0)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background.ignoresSafeArea())
+    }
+
+    private func header(totals: NutrientValues) -> some View {
+        TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.snappy) { showsConsumed.toggle() }
+            }
+            .gesture(daySwipe)
+    }
+
+    private var fab: some View {
+        TodayAddButton(
+            onSearch: { sheet = .search(addContext) },
+            onScan: { sheet = .scan(addContext) },
+            onQuickAdd: { sheet = .quickAdd(addContext) }
+        )
+        .padding(.trailing, 16)
+        .padding(.bottom, 16)
+    }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast {
+            Text(toast)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.card, in: Capsule())
+                .padding(.horizontal, 24)
+                .padding(.bottom, 84)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onTapGesture { withAnimation(.snappy) { self.toast = nil } }
+        }
+    }
+
+    @ViewBuilder
+    private func sheetContent(_ destination: TodaySheet) -> some View {
+        switch destination.kind {
+        case .search(let context):
+            NavigationStack {
+                FoodSearchView(context: context, isSheet: true)
+            }
+        case .scan(let context):
+            BarcodeScanView(context: context)
+        case .quickAdd(let context):
+            QuickAddSheet(context: context)
+        case .edit(let entry):
+            AddEntrySheet(editing: entry)
+        case .detail(let item, let context):
+            NavigationStack {
+                FoodDetailView(item: item, context: context)
+            }
+        case .add(let item, let context):
+            AddEntrySheet(item: item, context: context)
+        }
+    }
+
+    // MARK: - Timeline rows
+
+    @ViewBuilder
+    private func timelineRows(_ groups: [TodayTimelineGroup]) -> some View {
+        if groups.isEmpty {
+            TodayEmptyState(isToday: isToday)
+                .todayListRow()
+        } else {
+            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                groupHeaderRow(group, isFirst: index == 0)
+                ForEach(Array(group.entries.enumerated()), id: \.element.persistentModelID) { entryIndex, entry in
+                    entryRow(entry, showsDivider: entryIndex > 0)
+                }
+                groupFooterRow(group)
+            }
+        }
+    }
+
+    private func groupHeaderRow(_ group: TodayTimelineGroup, isFirst: Bool) -> some View {
+        TodayTimelineRow(time: TodayTimeFormat.short(group.start),
+                         dotColor: Theme.calories,
+                         dotY: TodayTimelineMetrics.headerDotY,
+                         lineAbove: !isFirst) {
+            TodayGroupHeaderContent(group: group)
+        }
+        .todayListRow()
+    }
+
+    private func groupFooterRow(_ group: TodayTimelineGroup) -> some View {
+        TodayTimelineRow {
+            TodayGroupFooterContent(totals: group.totals)
+        }
+        .todayListRow()
+    }
+
+    private func entryRow(_ entry: JournalEntry, showsDivider: Bool) -> some View {
+        TodayTimelineRow {
+            Button {
+                sheet = .edit(entry)
+            } label: {
+                TodayTimelineEntryContent(entry: entry, showsDivider: showsDivider)
+            }
+            .buttonStyle(.plain)
+        }
+        .todayListRow()
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                delete(entry)
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button {
+                duplicate(entry, to: day)
+            } label: {
+                Label("Dupliquer", systemImage: "plus.square.on.square")
+            }
+            .tint(Theme.accent)
+        }
+        .contextMenu {
+            entryContextMenu(entry)
+        }
+    }
+
+    @ViewBuilder
+    private func entryContextMenu(_ entry: JournalEntry) -> some View {
+        Button {
+            sheet = .edit(entry)
+        } label: {
+            Label("Modifier", systemImage: "pencil")
+        }
+        Button {
+            duplicate(entry, to: day)
+        } label: {
+            Label("Dupliquer", systemImage: "plus.square.on.square")
+        }
+        if !isToday {
+            Button {
+                duplicate(entry, to: Date.now.startOfDay)
+                showToast("Ajouté à aujourd'hui")
+            } label: {
+                Label("Copier vers aujourd'hui", systemImage: "calendar.badge.plus")
+            }
+        }
         Menu {
-            Section("Ajouter à…") {
-                ForEach(Meal.allCases) { meal in
-                    Button {
-                        sheet = .search(LogContext(day: day, meal: meal))
-                    } label: {
-                        Label(meal.label, systemImage: meal.systemImage)
-                    }
+            ForEach(Meal.allCases.filter { $0 != entry.meal }) { target in
+                Button {
+                    move(entry, to: target)
+                } label: {
+                    Label(target.label, systemImage: target.systemImage)
                 }
             }
-            Button {
-                sheet = .quickAdd(LogContext(day: day, meal: Meal.suggested()))
+        } label: {
+            Label("Déplacer vers", systemImage: "arrow.right.circle")
+        }
+        Divider()
+        Button(role: .destructive) {
+            delete(entry)
+        } label: {
+            Label("Supprimer", systemImage: "trash")
+        }
+    }
+
+    // MARK: - Below the timeline
+
+    private var waterRow: some View {
+        TodayWaterCard(
+            totalMl: waterEntries.reduce(0) { $0 + $1.ml },
+            targetMl: targets.water,
+            canUndo: !waterEntries.isEmpty,
+            onAdd: addWater,
+            onUndo: undoWater
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 28)
+        .todayListRow()
+    }
+
+    private var nutrientsRow: some View {
+        Button {
+            showNutrients = true
+        } label: {
+            TodayNutrientsLinkLabel()
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .todayListRow()
+    }
+
+    // MARK: - Toolbar "…" menu
+
+    private var mealsPresent: [Meal] {
+        Meal.allCases.filter { meal in entries.contains { $0.mealRaw == meal.rawValue } }
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            copyMenu
+            recipeMenu
+            Divider()
+            Button(role: .destructive) {
+                showClearDialog = true
             } label: {
-                Label("Ajout rapide", systemImage: "bolt")
+                Label("Tout supprimer", systemImage: "trash")
+            }
+            .disabled(entries.isEmpty)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .accessibilityLabel("Options du jour")
+        }
+    }
+
+    private var copyMenu: some View {
+        Menu {
+            Button {
+                copyFromPreviousDay(meal: nil)
+            } label: {
+                Label("Toute la journée", systemImage: "calendar")
+            }
+            ForEach(Meal.allCases) { meal in
+                Button {
+                    copyFromPreviousDay(meal: meal)
+                } label: {
+                    Label(meal.label, systemImage: meal.systemImage)
+                }
             }
         } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.title3)
-                .symbolRenderingMode(.hierarchical)
-                .accessibilityLabel("Ajouter un aliment")
-        } primaryAction: {
-            sheet = .search(LogContext(day: day, meal: Meal.suggested()))
+            Label(isToday ? "Copier depuis hier" : "Copier depuis la veille",
+                  systemImage: "arrow.uturn.backward.circle")
         }
+    }
+
+    private var recipeMenu: some View {
+        Menu {
+            if mealsPresent.count > 1 {
+                Button {
+                    askRecipe(meal: nil)
+                } label: {
+                    Label("Toute la journée", systemImage: "calendar")
+                }
+            }
+            ForEach(mealsPresent) { meal in
+                Button {
+                    askRecipe(meal: meal)
+                } label: {
+                    Label(meal.label, systemImage: meal.systemImage)
+                }
+            }
+        } label: {
+            Label("Enregistrer comme recette", systemImage: "book")
+        }
+        .disabled(entries.isEmpty)
     }
 
     // MARK: - Swipe between days
@@ -236,154 +470,6 @@ struct TodayDayContent: View {
     private func shiftDay(_ delta: Int) {
         withAnimation(.snappy) {
             appState.selectedDay = day.adding(days: delta).startOfDay
-        }
-    }
-
-    // MARK: - Meal sections
-
-    private func mealSection(_ meal: Meal, entries mealEntries: [JournalEntry]) -> some View {
-        Section {
-            ForEach(mealEntries, id: \.persistentModelID) { entry in
-                entryRow(entry, meal: meal)
-            }
-            Button {
-                sheet = .search(LogContext(day: day, meal: meal))
-            } label: {
-                Label(mealEntries.isEmpty ? "Ajouter un aliment" : "Ajouter", systemImage: "plus.circle.fill")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.accent)
-            }
-        } header: {
-            mealHeader(meal, entries: mealEntries)
-        }
-    }
-
-    private func mealHeader(_ meal: Meal, entries mealEntries: [JournalEntry]) -> some View {
-        let values = NutrientValues.sum(mealEntries.map(\.nutrients))
-        return HStack(alignment: .center, spacing: 8) {
-            Image(systemName: meal.systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 22)
-            Text(meal.label)
-                .font(.headline)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 8)
-            if !mealEntries.isEmpty {
-                Text(Formatters.kcal(values.calories))
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.numericText())
-            }
-            mealMenu(meal, isEmpty: mealEntries.isEmpty)
-        }
-        .textCase(nil)
-        .padding(.top, 4)
-    }
-
-    private func mealMenu(_ meal: Meal, isEmpty: Bool) -> some View {
-        Menu {
-            Button {
-                sheet = .search(LogContext(day: day, meal: meal))
-            } label: {
-                Label("Ajouter un aliment", systemImage: "magnifyingglass")
-            }
-            Button {
-                sheet = .quickAdd(LogContext(day: day, meal: meal))
-            } label: {
-                Label("Ajout rapide", systemImage: "bolt")
-            }
-            Button {
-                copyFromPreviousDay(meal)
-            } label: {
-                Label(isToday ? "Copier depuis hier" : "Copier depuis la veille",
-                      systemImage: "arrow.uturn.backward.circle")
-            }
-            Button {
-                recipeMeal = meal
-                recipeName = "\(meal.label) du \(Formatters.shortDate(day))"
-                showRecipeAlert = true
-            } label: {
-                Label("Enregistrer comme recette", systemImage: "book")
-            }
-            .disabled(isEmpty)
-            Divider()
-            Button(role: .destructive) {
-                mealToClear = meal
-                showClearDialog = true
-            } label: {
-                Label("Tout supprimer", systemImage: "trash")
-            }
-            .disabled(isEmpty)
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(.title3)
-                .foregroundStyle(Theme.accent)
-                .frame(width: 32, height: 28)
-                .contentShape(Rectangle())
-                .accessibilityLabel("Options du repas \(meal.label)")
-        }
-    }
-
-    private func entryRow(_ entry: JournalEntry, meal: Meal) -> some View {
-        Button {
-            sheet = .edit(entry)
-        } label: {
-            TodayEntryRow(entry: entry)
-        }
-        .buttonStyle(.plain)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                delete(entry)
-            } label: {
-                Label("Supprimer", systemImage: "trash")
-            }
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button {
-                duplicate(entry, to: day)
-            } label: {
-                Label("Dupliquer", systemImage: "plus.square.on.square")
-            }
-            .tint(Theme.accent)
-        }
-        .contextMenu {
-            Button {
-                sheet = .edit(entry)
-            } label: {
-                Label("Modifier", systemImage: "pencil")
-            }
-            Button {
-                duplicate(entry, to: day)
-            } label: {
-                Label("Dupliquer", systemImage: "plus.square.on.square")
-            }
-            if !isToday {
-                Button {
-                    duplicate(entry, to: Date.now.startOfDay)
-                    showToast("Ajouté à aujourd'hui")
-                } label: {
-                    Label("Copier vers aujourd'hui", systemImage: "calendar.badge.plus")
-                }
-            }
-            Menu {
-                ForEach(Meal.allCases.filter { $0 != meal }) { target in
-                    Button {
-                        move(entry, to: target)
-                    } label: {
-                        Label(target.label, systemImage: target.systemImage)
-                    }
-                }
-            } label: {
-                Label("Déplacer vers", systemImage: "arrow.right.circle")
-            }
-            Divider()
-            Button(role: .destructive) {
-                delete(entry)
-            } label: {
-                Label("Supprimer", systemImage: "trash")
-            }
         }
     }
 
@@ -414,36 +500,38 @@ struct TodayDayContent: View {
         impactTick += 1
     }
 
-    private func clear(_ meal: Meal) {
-        let raw = meal.rawValue
+    private func clearDay() {
         withAnimation {
-            for entry in entries where entry.mealRaw == raw {
+            for entry in entries {
                 modelContext.delete(entry)
             }
             try? modelContext.save()
         }
-        mealToClear = nil
         impactTick += 1
     }
 
-    private func copyFromPreviousDay(_ meal: Meal) {
+    private func copyFromPreviousDay(meal: Meal?) {
         let start = day.adding(days: -1).startOfDay
         let end = day
-        let raw = meal.rawValue
         let descriptor = FetchDescriptor<JournalEntry>(
             predicate: #Predicate<JournalEntry> { entry in
-                entry.day >= start && entry.day < end && entry.mealRaw == raw
+                entry.day >= start && entry.day < end
             },
             sortBy: [SortDescriptor(\JournalEntry.createdAt)]
         )
-        let previous = (try? modelContext.fetch(descriptor)) ?? []
+        let all = (try? modelContext.fetch(descriptor)) ?? []
+        let previous = meal.map { target in all.filter { $0.mealRaw == target.rawValue } } ?? all
         guard !previous.isEmpty else {
-            showToast("Aucun aliment pour « \(meal.label) » la veille")
+            if let meal {
+                showToast("Aucun aliment pour « \(meal.label) » la veille")
+            } else {
+                showToast("Aucun aliment la veille")
+            }
             return
         }
         withAnimation {
             for entry in previous {
-                modelContext.insert(JournalEntry(item: entry.item, grams: entry.grams, day: day, meal: meal))
+                modelContext.insert(JournalEntry(item: entry.item, grams: entry.grams, day: day, meal: entry.meal))
             }
             try? modelContext.save()
         }
@@ -451,17 +539,27 @@ struct TodayDayContent: View {
         showToast(previous.count == 1 ? "1 aliment copié" : "\(previous.count) aliments copiés")
     }
 
-    private func saveRecipe(from meal: Meal, name: String) {
-        let raw = meal.rawValue
-        let mealEntries = entries.filter { $0.mealRaw == raw }
-        let ingredients = mealEntries.map {
+    private func defaultRecipeName(meal: Meal?) -> String {
+        let label = meal?.label ?? "Journée"
+        return "\(label) du \(Formatters.shortDate(day))"
+    }
+
+    private func askRecipe(meal: Meal?) {
+        recipeMeal = meal
+        recipeName = defaultRecipeName(meal: meal)
+        showRecipeAlert = true
+    }
+
+    private func saveRecipe(meal: Meal?, name: String) {
+        let selected = meal.map { target in entries.filter { $0.mealRaw == target.rawValue } } ?? entries
+        let ingredients = selected.map {
             RecipeIngredient(name: $0.name, grams: $0.grams, per100: $0.per100)
         }
         let totalGrams = ingredients.reduce(0) { $0 + $1.grams }
         guard !ingredients.isEmpty, totalGrams > 0 else { return }
-        let sum = NutrientValues.sum(mealEntries.map(\.nutrients))
+        let sum = NutrientValues.sum(selected.map(\.nutrients))
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let finalName = trimmed.isEmpty ? "\(meal.label) du \(Formatters.shortDate(day))" : trimmed
+        let finalName = trimmed.isEmpty ? defaultRecipeName(meal: meal) : trimmed
 
         let recipe = CustomFood(name: finalName, per100: sum.scaled(by: 100 / totalGrams))
         recipe.ingredients = ingredients
@@ -493,5 +591,24 @@ struct TodayDayContent: View {
 
     private func showToast(_ message: String) {
         withAnimation(.snappy) { toast = message }
+    }
+
+    // MARK: - CI demo mode
+
+    /// Presents the sheet requested with `-startSheet` once, for CI screenshots.
+    private func presentDemoSheetIfNeeded() async {
+        guard !didRunDemoSheet else { return }
+        didRunDemoSheet = true
+        guard let name = DemoSupport.startSheet else { return }
+        try? await Task.sleep(for: .milliseconds(500))
+        let context = LogContext(day: appState.selectedDay, meal: Meal.suggested())
+        switch name {
+        case "search": sheet = .search(context)
+        case "scan": sheet = .scan(context)
+        case "quickadd": sheet = .quickAdd(context)
+        case "detail": sheet = .detail(DemoSupport.sampleItem, context)
+        case "add": sheet = .add(DemoSupport.sampleItem, context)
+        default: break
+        }
     }
 }

@@ -44,36 +44,64 @@ enum CustomFoodsText {
     }
 }
 
-/// Four-column kcal / protein / carbs / fat summary.
+/// Four-column Kcal / Prot. / Gluc. / Lip. summary (journal header style).
 struct CustomFoodsMacroSummary: View {
     let values: NutrientValues
 
     var body: some View {
-        HStack(spacing: 0) {
-            column(Formatters.number(values.calories, maxFractionDigits: 0), label: "kcal", color: Theme.calories)
-            column(grams(values.protein), label: "Protéines", color: Theme.protein)
-            column(grams(values.carbs), label: "Glucides", color: Theme.carbs)
-            column(grams(values.fat), label: "Lipides", color: Theme.fat)
+        HStack(alignment: .top, spacing: 10) {
+            column("Kcal", Formatters.number(values.calories, maxFractionDigits: 0), unit: nil, color: Theme.calories)
+            column("Prot.", grams(values.protein), unit: "g", color: Theme.protein)
+            column("Gluc.", grams(values.carbs), unit: "g", color: Theme.carbs)
+            column("Lip.", grams(values.fat), unit: "g", color: Theme.fat)
         }
         .padding(.vertical, 4)
     }
 
     private func grams(_ value: Double) -> String {
-        "\(Formatters.number(value, maxFractionDigits: value < 10 ? 1 : 0)) g"
+        Formatters.number(value, maxFractionDigits: value < 10 ? 1 : 0)
     }
 
-    private func column(_ value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.headline.monospacedDigit())
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+    private func column(_ label: String, _ value: String, unit: String?, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Theme.textPrimary)
+                if let unit {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            Capsule()
+                .fill(color)
+                .frame(height: 4)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Full-width accent button, radius 12.
+struct CustomFoodsPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                    .fill(Theme.accent.opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
     }
 }

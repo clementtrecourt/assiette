@@ -11,8 +11,21 @@ private extension View {
         chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { _ in
                 AxisGridLine()
-                AxisTick()
+                    .foregroundStyle(Theme.separator)
                 AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
+
+    /// Value y-axis (trailing) with dark grid lines and secondary labels.
+    func progressValueAxis() -> some View {
+        chartYAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Theme.separator)
+                AxisValueLabel()
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -32,7 +45,7 @@ private struct ProgressLegendItem: View {
             Text(text)
         }
         .font(.caption2)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Theme.textSecondary)
     }
 }
 
@@ -58,19 +71,14 @@ struct ProgressWeightChart: View {
             Chart {
                 if let targetKg {
                     RuleMark(y: .value("Objectif", targetKg))
-                        .foregroundStyle(Color.green.opacity(0.8))
+                        .foregroundStyle(Theme.textSecondary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 4]))
                 }
                 ForEach(points) { point in
-                    LineMark(x: .value("Date", point.date),
-                             y: .value("Poids", point.kg),
-                             series: .value("Série", "Pesées"))
-                        .foregroundStyle(Theme.weight.opacity(0.3))
-                        .lineStyle(StrokeStyle(lineWidth: 1))
                     PointMark(x: .value("Date", point.date),
                               y: .value("Poids", point.kg))
-                        .foregroundStyle(Theme.weight.opacity(0.6))
-                        .symbolSize(22)
+                        .foregroundStyle(Theme.weight.opacity(0.4))
+                        .symbolSize(18)
                 }
                 ForEach(points) { point in
                     LineMark(x: .value("Date", point.date),
@@ -84,13 +92,14 @@ struct ProgressWeightChart: View {
             .chartXScale(domain: startDate...endDate)
             .chartYScale(domain: yDomain)
             .progressDateAxis()
+            .progressValueAxis()
             .frame(height: 200)
 
             HStack(spacing: 12) {
-                ProgressLegendItem(color: Theme.weight.opacity(0.6), text: "Pesées")
-                ProgressLegendItem(color: Theme.weight, text: "Moyenne 7 j")
+                ProgressLegendItem(color: Theme.weight.opacity(0.4), text: "Pesées")
+                ProgressLegendItem(color: Theme.weight, text: "Tendance 7 j")
                 if targetKg != nil {
-                    ProgressLegendItem(color: .green, text: "Objectif", dashed: true)
+                    ProgressLegendItem(color: Theme.textSecondary, text: "Objectif", dashed: true)
                 }
             }
         }
@@ -127,7 +136,7 @@ struct ProgressCaloriesChart: View {
     }
 
     private func barColor(_ stat: ProgressDayStat) -> Color {
-        if target > 0 && stat.calories > target * 1.1 { return .red.opacity(0.85) }
+        if target > 0 && stat.calories > target * 1.1 { return Theme.overTarget }
         return Theme.calories
     }
 
@@ -145,7 +154,7 @@ struct ProgressCaloriesChart: View {
                 }
                 if target > 0 {
                     RuleMark(y: .value("Objectif", target))
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 }
             }
@@ -153,14 +162,15 @@ struct ProgressCaloriesChart: View {
             .chartYScale(domain: 0...yMax)
             .chartXSelection(value: $selectedDate)
             .progressDateAxis()
+            .progressValueAxis()
             .frame(height: 190)
 
             HStack(spacing: 12) {
                 ProgressLegendItem(color: Theme.calories, text: "Consommé")
                 if target > 0 {
-                    ProgressLegendItem(color: .secondary, text: "Objectif", dashed: true)
+                    ProgressLegendItem(color: Theme.textSecondary, text: "Objectif", dashed: true)
                 }
-                ProgressLegendItem(color: .red.opacity(0.85), text: "> 110 %")
+                ProgressLegendItem(color: Theme.overTarget, text: "> 110 %")
             }
         }
         .padding(.vertical, 6)
@@ -172,22 +182,24 @@ struct ProgressCaloriesChart: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Formatters.dayTitle(stat.day))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 Text(stat.isLogged ? Formatters.kcal(stat.calories) : "Aucune saisie")
-                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .font(.system(size: 22, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Theme.textPrimary)
             }
         } else {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Moyenne par jour suivi")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(Formatters.kcal(average))
-                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .font(.system(size: 22, weight: .bold).monospacedDigit())
+                        .foregroundStyle(Theme.textPrimary)
                     if target > 0 {
                         Text("/ \(Formatters.kcal(target))")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
@@ -203,6 +215,18 @@ struct ProgressMacrosChart: View {
     let endDate: Date
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            chart
+            HStack(spacing: 12) {
+                ProgressLegendItem(color: Theme.protein, text: progressMacroProteinLabel)
+                ProgressLegendItem(color: Theme.carbs, text: progressMacroCarbsLabel)
+                ProgressLegendItem(color: Theme.fat, text: progressMacroFatLabel)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var chart: some View {
         Chart {
             ForEach(stats.filter(\.isLogged)) { stat in
                 BarMark(x: .value("Jour", stat.day, unit: .day),
@@ -222,20 +246,21 @@ struct ProgressMacrosChart: View {
             progressMacroFatLabel: Theme.fat,
         ])
         .chartXScale(domain: startDate...endDate)
-        .chartLegend(position: .bottom, alignment: .leading)
+        .chartLegend(.hidden)
         .chartYAxis {
-            AxisMarks(position: .leading) { value in
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine()
+                    .foregroundStyle(Theme.separator)
                 AxisValueLabel {
                     if let grams = value.as(Double.self) {
                         Text("\(Formatters.number(grams, maxFractionDigits: 0)) g")
                     }
                 }
+                .foregroundStyle(Theme.textSecondary)
             }
         }
         .progressDateAxis()
         .frame(height: 200)
-        .padding(.vertical, 6)
     }
 }
 
@@ -254,18 +279,20 @@ struct ProgressMacroAverageRow: View {
                     .fill(color)
                     .frame(width: 8, height: 8)
                 Text(label)
+                    .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Text("\(Formatters.number(grams, maxFractionDigits: 0)) g")
                     .font(.body.monospacedDigit())
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Theme.textPrimary)
                 if target > 0 {
                     Text("/ \(Formatters.number(target, maxFractionDigits: 0)) g")
                         .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 Text(Formatters.percent(energyShare))
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .frame(minWidth: 40, alignment: .trailing)
             }
             ProgressBar(value: grams, total: target, color: color)

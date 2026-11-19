@@ -47,7 +47,9 @@ struct BarcodeScanView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(cameraState == .ready ? Color.black : Color(.systemGroupedBackground))
+            .background {
+                Theme.background.ignoresSafeArea()
+            }
             .animation(.snappy, value: phase)
             .navigationTitle("Scanner un code-barres")
             .navigationBarTitleDisplayMode(.inline)
@@ -144,7 +146,6 @@ struct BarcodeScanView: View {
 
                 if phase == .scanning {
                     ScanViewfinder()
-                        .padding(.bottom, 120)
                 }
             }
         case .unsupported, .denied, .unavailable:
@@ -168,6 +169,7 @@ struct BarcodeScanView: View {
                 Label("Saisir le code-barres", systemImage: "keyboard")
             }
             .buttonStyle(.borderedProminent)
+            .tint(Theme.accent)
 
             if cameraState == .denied {
                 Button("Ouvrir les Réglages") {
@@ -214,8 +216,8 @@ struct BarcodeScanView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .tint(Theme.accent)
     }
 
     // MARK: - Camera
@@ -491,14 +493,30 @@ private struct ScanDataScanner: UIViewControllerRepresentable {
 
 // MARK: - Overlay & cards
 
+/// Dark overlay with a transparent window and an accent reticle.
 private struct ScanViewfinder: View {
+    private let width: CGFloat = 280
+    private let height: CGFloat = 160
+    private let radius: CGFloat = 18
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .strokeBorder(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 3, dash: [22, 10]))
-            .frame(width: 280, height: 160)
-            .shadow(color: Color.black.opacity(0.4), radius: 6)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        ZStack {
+            Theme.background.opacity(0.55)
+                .ignoresSafeArea()
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .frame(width: width, height: height)
+                .padding(.bottom, 120)
+                .blendMode(.destinationOut)
+        }
+        .compositingGroup()
+        .overlay {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Theme.accent, lineWidth: 3)
+                .frame(width: width, height: height)
+                .padding(.bottom, 120)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -515,7 +533,7 @@ private struct ScanHintCard: View {
                     .font(.subheadline.weight(.semibold))
                 Text("EAN-13, EAN-8 ou UPC-E")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             Spacer(minLength: 8)
             Button(action: onManual) {
@@ -541,10 +559,10 @@ private struct ScanSearchingCard: View {
                     .font(.subheadline.weight(.semibold))
                 Text(step)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 Text(code)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             Spacer(minLength: 0)
         }
@@ -575,7 +593,7 @@ private struct ScanFoundCard: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.fiber)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name)
                         .font(.headline)
@@ -583,7 +601,7 @@ private struct ScanFoundCard: View {
                     if let brand = item.brand {
                         Text(brand)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                     }
                     HStack(spacing: 6) {
@@ -592,7 +610,7 @@ private struct ScanFoundCard: View {
                         Text(code).monospacedDigit()
                     }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -607,12 +625,12 @@ private struct ScanFoundCard: View {
                     }
                     Text("Pour 100 \(item.unitSymbol)")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             } else {
                 Label("Valeurs nutritionnelles manquantes pour ce produit.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.fat)
             }
 
             Button(action: hasNutrition ? onLog : onComplete) {
@@ -659,7 +677,7 @@ private struct ScanNutrientColumn: View {
                 .foregroundStyle(Theme.color(for: key))
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -675,13 +693,13 @@ private struct ScanNotFoundCard: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.fat)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Produit introuvable")
                         .font(.headline)
                     Text("Le code \(code) n'est ni dans la base OpenNutrition, ni dans vos aliments, ni sur Open Food Facts.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -715,17 +733,17 @@ private struct ScanFailedCard: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "wifi.exclamationmark")
                     .font(.title2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.overTarget)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Recherche en ligne impossible")
                         .font(.headline)
                     Text(message)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("Code \(code) absent de la base locale.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -777,14 +795,19 @@ private struct ScanManualEntrySheet: View {
                         .keyboardType(.numberPad)
                         .autocorrectionDisabled()
                         .font(.title3.monospacedDigit())
+                        .foregroundStyle(Theme.textPrimary)
                         .focused($isFocused)
                         .onSubmit(submit)
+                        .listRowBackground(Theme.card)
                 } header: {
                     Text("Code-barres")
+                        .foregroundStyle(Theme.textSecondary)
                 } footer: {
                     Text("Saisissez les 8 à 13 chiffres imprimés sous le code-barres.")
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
+            .themedBackground()
             .navigationTitle("Saisir un code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

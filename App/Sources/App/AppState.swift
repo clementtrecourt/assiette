@@ -2,6 +2,8 @@ import Foundation
 import Observation
 
 enum AppTab: Hashable {
+    /// `add` is kept for source compatibility only: there is no "Ajouter" tab anymore
+    /// (adding goes through the journal's floating "+" button); RootView redirects it to `today`.
     case today, add, progress, profile
 }
 
@@ -21,6 +23,6 @@ final class AppState {
     /// Day shown in the journal (start of day).
     var selectedDay: Date = .now.startOfDay
 
-    /// Context used by the "Ajouter" tab: the selected journal day + meal suggested by the clock.
+    /// Context for adding food: the selected journal day + meal suggested by the clock.
     var addTabContext: LogContext { LogContext(day: selectedDay, meal: .suggested()) }
 }

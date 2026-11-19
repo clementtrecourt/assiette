@@ -66,12 +66,17 @@ struct QuickAddSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Description") {
+                Section {
                     TextField("Nom", text: $name)
                         .focused($focus, equals: .name)
                         .submitLabel(.next)
                         .onSubmit { focus = .calories }
+                        .foregroundStyle(Theme.textPrimary)
+                } header: {
+                    Text("Description")
+                        .foregroundStyle(Theme.textSecondary)
                 }
+                .listRowBackground(Theme.card)
 
                 Section {
                     HStack(alignment: .firstTextBaseline) {
@@ -80,10 +85,11 @@ struct QuickAddSheet: View {
                         TextField("0", text: $caloriesText)
                             .keyboardType(.decimalPad)
                             .focused($focus, equals: .calories)
-                            .font(.title2.weight(.semibold))
+                            .font(.system(size: 34, weight: .bold, design: .default))
                             .monospacedDigit()
+                            .foregroundStyle(Theme.textPrimary)
                         Text("kcal")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                     if macroCalories > 0 {
                         Button {
@@ -93,17 +99,21 @@ struct QuickAddSheet: View {
                             Label("Calculer depuis les macros (≈ \(Formatters.kcal(macroCalories)))",
                                   systemImage: "function")
                                 .font(.subheadline)
+                                .foregroundStyle(Theme.accent)
                         }
                     }
                 } header: {
                     Text("Énergie")
+                        .foregroundStyle(Theme.textSecondary)
                 } footer: {
                     if hasInvalidInput(caloriesText) {
-                        Text("Valeur invalide.").foregroundStyle(.red)
+                        Text("Valeur invalide.").foregroundStyle(Theme.overTarget)
                     } else {
-                        Text("Obligatoire.")
+                        Text("Obligatoire.").foregroundStyle(Theme.textSecondary)
                     }
                 }
+                .listRowBackground(Theme.card)
+                .listRowSeparatorTint(Theme.separator)
 
                 Section {
                     macroRow(.protein, text: $proteinText, field: .protein)
@@ -111,14 +121,12 @@ struct QuickAddSheet: View {
                     macroRow(.totalFat, text: $fatText, field: .fat)
                 } header: {
                     Text("Macronutriments (facultatif)")
+                        .foregroundStyle(Theme.textSecondary)
                 } footer: {
-                    if let calories, macroCalories > 0, abs(macroCalories - calories) > max(30, calories * 0.25) {
-                        Label("Les macros correspondent à environ \(Formatters.kcal(macroCalories)), assez loin des calories saisies.",
-                              systemImage: "exclamationmark.triangle")
-                    } else {
-                        Text("4 kcal par gramme de protéines ou de glucides, 9 kcal par gramme de lipides.")
-                    }
+                    macroFooter
                 }
+                .listRowBackground(Theme.card)
+                .listRowSeparatorTint(Theme.separator)
 
                 Section {
                     Picker(selection: $meal) {
@@ -132,7 +140,12 @@ struct QuickAddSheet: View {
                         Label("Jour", systemImage: "calendar")
                     }
                 }
+                .listRowBackground(Theme.card)
+                .listRowSeparatorTint(Theme.separator)
             }
+            .listSectionSpacing(.compact)
+            .themedBackground()
+            .safeAreaInset(edge: .bottom) { primaryButton }
             .navigationTitle("Ajout rapide")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -156,21 +169,57 @@ struct QuickAddSheet: View {
         }
     }
 
+    @ViewBuilder
+    private var macroFooter: some View {
+        if let calories, macroCalories > 0, abs(macroCalories - calories) > max(30, calories * 0.25) {
+            Label("Les macros correspondent à environ \(Formatters.kcal(macroCalories)), assez loin des calories saisies.",
+                  systemImage: "exclamationmark.triangle")
+                .foregroundStyle(Theme.fat)
+        } else {
+            Text("4 kcal par gramme de protéines ou de glucides, 9 kcal par gramme de lipides.")
+                .foregroundStyle(Theme.textSecondary)
+        }
+    }
+
+    private var primaryButton: some View {
+        Button {
+            save()
+        } label: {
+            Text("Ajouter au journal")
+                .font(.headline)
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+                .opacity(canSave ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSave)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background {
+            Theme.background.opacity(0.96).ignoresSafeArea(edges: .bottom)
+        }
+    }
+
     private func macroRow(_ key: NutrientKey, text: Binding<String>, field: QuickAddField) -> some View {
         HStack {
             Circle()
                 .fill(Theme.color(for: key))
                 .frame(width: 10, height: 10)
             Text(key.label)
+                .foregroundStyle(Theme.textPrimary)
             Spacer()
             TextField("0", text: text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .focused($focus, equals: field)
+                .font(.body.weight(.semibold))
                 .monospacedDigit()
+                .foregroundStyle(Theme.color(for: key))
                 .frame(maxWidth: 110)
             Text("g")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 
