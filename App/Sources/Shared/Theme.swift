@@ -2,9 +2,10 @@ import SwiftUI
 
 import CoreText
 
-/// Design tokens — see DESIGN.md. "Minimal pro" (proposal v5 #05): OpenNutrition-inspired,
-/// monochrome zinc UI on near-black, hairlines instead of cards, DM Sans; only the macro
-/// colors carry color. The app is always dark.
+/// Design tokens — see DESIGN.md ("Coaching" design, 2026-11-20, mockups in
+/// design/coaching-v1/maquettes.html). Dark grey background, slightly lighter cards, DM Sans,
+/// macro color coding: calories blue, carbs green, protein coral, fat yellow.
+/// Macros are ALWAYS listed in the order carbs / protein / fat (`Theme.macroOrder`).
 enum Theme {
     static func hex(_ value: UInt32) -> Color {
         Color(red: Double((value >> 16) & 0xFF) / 255,
@@ -13,15 +14,23 @@ enum Theme {
     }
 
     // Surfaces
-    static let background = hex(0x050505)
-    /// Slightly raised surface (sheets, rare cards, input fields).
-    static let raised = hex(0x0F0F11)
+    static let background = hex(0x0F0F11)
+    /// Cards, sheets, input fields.
+    static let raised = hex(0x232326)
+    /// Controls on top of a card (round buttons, chips, keypad keys, icon tiles).
+    static let raised2 = hex(0x2E2E32)
     static let card = raised
     static let cardBackground = raised
+    /// Card fill: subtle top-to-bottom gradient + `cardBorder` hairline (see `.themedCard()`).
+    static let cardTop = hex(0x26262A)
+    static let cardBottom = hex(0x212124)
+    static let cardBorder = Color.white.opacity(0.045)
     /// Hairline separators (1 px).
-    static let separator = hex(0x1F1F23)
-    /// Stronger hairline (inputs, chips, dashed "add" rows).
-    static let separatorStrong = hex(0x2C2C31)
+    static let separator = hex(0x2A2A2E)
+    /// Stronger hairline (inputs, chips, ring and bar tracks).
+    static let separatorStrong = hex(0x38383D)
+    /// Track behind progress rings and bars.
+    static let track = hex(0x2C2C31)
 
     // Text
     static let textPrimary = hex(0xFAFAFA)
@@ -30,22 +39,41 @@ enum Theme {
     static let textTertiary = hex(0x71717A)
     static let textQuaternary = hex(0x52525B)
 
-    // Accent & semantic — monochrome accent: white controls with near-black content.
+    // Accent & semantic — white controls with near-black content.
     static let accent = textPrimary
-    /// Foreground on top of `accent` fills (buttons, FAB, selected chips).
-    static let onAccent = hex(0x050505)
+    /// Foreground on top of `accent` fills (buttons, "+" tab, selected chips).
+    static let onAccent = hex(0x0F0F11)
     static let overTarget = hex(0xE45A5A)
-    /// Small flame before kcal values (OpenNutrition style).
+    static let good = hex(0x6FCF97)
+    /// Small flame before kcal values; also the expenditure color.
     static let flame = hex(0xF97316)
+    static let expenditure = flame
 
-    // Nutrients (OpenNutrition dark palette)
-    static let calories = hex(0x4EC2B8)
-    static let protein = hex(0xA1B0E8)
-    static let carbs = hex(0xF3BC52)
-    static let fat = hex(0xE08B92)
+    // Nutrients
+    static let calories = hex(0x6EA4F7)
+    static let carbs = hex(0x5FBF8F)
+    static let protein = hex(0xF28C6B)
+    static let fat = hex(0xF5C95A)
     static let fiber = hex(0x7FCF9A)
     static let water = hex(0x6CC4E8)
     static let weight = hex(0xC4B5FD)
+
+    /// Ring gradients (light → dark), used by the calorie ring and the check-in countdown.
+    static let caloriesGradient = [hex(0x9CC2FF), hex(0x4F86EC)]
+    static let goodGradient = [hex(0x8BE0B0), hex(0x43A877)]
+
+    /// Display order of the macros everywhere in the app: carbs, protein, fat.
+    static let macroOrder: [NutrientKey] = [.carbohydrates, .protein, .totalFat]
+
+    /// One-letter macro abbreviation (French): G, P, L.
+    static func letter(for key: NutrientKey) -> String {
+        switch key {
+        case .carbohydrates: "G"
+        case .protein: "P"
+        case .totalFat: "L"
+        default: ""
+        }
+    }
 
     static func color(for key: NutrientKey) -> Color {
         switch key {
@@ -60,6 +88,8 @@ enum Theme {
     }
 
     static let cornerRadius: CGFloat = 8
+    /// Cards (dashboard tiles, food cards, program cards).
+    static let cardRadius: CGFloat = 16
     static let hairline: CGFloat = 1
 
     // MARK: Typography (DM Sans, bundled in Resources/Fonts, registered at launch)
@@ -115,6 +145,18 @@ struct KcalLabel: View {
 }
 
 extension View {
+    /// Card surface: gradient fill, near-invisible border, `Theme.cardRadius` corners.
+    func themedCard(radius: CGFloat = Theme.cardRadius) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(LinearGradient(colors: [Theme.cardTop, Theme.cardBottom], startPoint: .top, endPoint: .bottom))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Theme.cardBorder, lineWidth: 1)
+        )
+    }
+
     /// Dark app background behind List/Form/ScrollView content.
     func themedBackground() -> some View {
         scrollContentBackground(.hidden)
@@ -138,7 +180,7 @@ struct ProgressBar: View {
         GeometryReader { geo in
             let fraction = total > 0 ? min(max(value / total, 0), 1) : 0
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.separatorStrong)
+                Capsule().fill(Theme.track)
                 Capsule()
                     .fill(value > total * 1.05 && total > 0 ? Theme.overTarget : color)
                     .frame(width: geo.size.width * fraction)

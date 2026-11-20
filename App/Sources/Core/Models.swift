@@ -12,6 +12,8 @@ enum AppSchema {
         WaterEntry.self,
         CustomFood.self,
         FavoriteFood.self,
+        ExceptionPeriod.self,
+        CoachingCheckIn.self,
     ]
 }
 
@@ -75,11 +77,13 @@ final class JournalEntry {
     var grams: Double = 100
     var per100Data: Data = Data()
 
-    init(item: FoodItem, grams: Double, day: Date, meal: Meal) {
+    /// - Parameter time: when the food was eaten (journal timeline position). Defaults to now
+    ///   for today, and to the current time of day on `day` for another day.
+    init(item: FoodItem, grams: Double, day: Date, meal: Meal, at time: Date? = nil) {
         self.id = UUID()
         self.day = Calendar.current.startOfDay(for: day)
         self.mealRaw = meal.rawValue
-        self.createdAt = .now
+        self.createdAt = time ?? JournalEntry.defaultTime(on: day)
         self.name = item.name
         self.brand = item.brand
         self.sourceRaw = item.source.rawValue
@@ -90,6 +94,14 @@ final class JournalEntry {
         self.isLiquid = item.isLiquid
         self.grams = grams
         self.per100Data = item.per100.data
+    }
+
+    /// Now if `day` is today, otherwise the current time of day on `day`.
+    static func defaultTime(on day: Date, now: Date = .now) -> Date {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: day)
+        if start == calendar.startOfDay(for: now) { return now }
+        return start.addingTimeInterval(now.timeIntervalSince(calendar.startOfDay(for: now)))
     }
 
     var meal: Meal {
@@ -210,6 +222,17 @@ final class UserProfile {
     /// When true, targets are typed by the user and not recomputed from the profile.
     var manualTargets: Bool = false
 
+    // MARK: Adaptive coaching (App/Sources/Engine, Features/Coaching)
+
+    /// Weekly rate in % of body weight; 0 = derive it from `weeklyRateKg` (profiles created before coaching).
+    var weeklyRatePercent: Double = 0
+    /// Calendar weekday of the weekly check-in (1 = Sunday … 7 = Saturday).
+    var checkInWeekday: Int = 2
+    /// Day of the last check-in (start of day); nil before the first one.
+    var lastCheckInDate: Date?
+    /// Expenditure the engine starts from, frozen at the first check-in; nil = Mifflin-St Jeor × activity.
+    var initialExpenditure: Double?
+
     init() {}
 
     var sex: Sex {
@@ -228,6 +251,12 @@ final class UserProfile {
     }
 
     var age: Int { max(0, Calendar.current.component(.year, from: .now) - birthYear) }
+
+    /// Weekly rate in % of body weight per week (positive; direction given by `goal`).
+    var effectiveRatePercent: Double {
+        if weeklyRatePercent > 0 { return weeklyRatePercent }
+        return weightKg > 0 ? weeklyRateKg / weightKg * 100 : 0
+    }
 
     var targets: NutrientValues {
         NutrientValues([
@@ -256,6 +285,56 @@ final class WeightEntry {
         self.date = date
         self.kg = kg
     }
+}
+
+/// Exception period (surgery, illness, travel…): its days are ignored by the expenditure
+/// estimate, which stays frozen until a full window of normal days is available again.
+@Model
+final class ExceptionPeriod {
+    var id: UUID = UUID()
+    /// First day (start of day).
+    var start: Date = Date.now
+    /// Last day, inclusive (start of day).
+    var end: Date = Date.now
+    var note: String = ""
+
+    init(start: Date, end: Date, note: String = "") {
+        self.id = UUID()
+        self.start = Calendar.current.startOfDay(for: min(start, end))
+        self.end = Calendar.current.startOfDay(for: max(start, end))
+        self.note = note
+    }
+
+    func contains(_ day: Date) -> Bool {
+        let day = Calendar.current.startOfDay(for: day)
+        return day >= start && day <= end
+    }
+}
+
+/// One program update: weekly check-in or goal change, with the values used and the new targets.
+@Model
+final class CoachingCheckIn {
+    var date: Date = Date.now
+    /// "weekly" (check-in) or "program" (goal / rate changed).
+    var kindRaw: String = "weekly"
+    var expenditure: Double = 0
+    var trendKg: Double?
+    var scaleKg: Double?
+    var averageIntake: Double?
+    var goalRaw: String = WeightGoal.maintain.rawValue
+    var ratePercent: Double = 0
+    var calorieTarget: Double = 0
+    var proteinTarget: Double = 0
+    var carbsTarget: Double = 0
+    var fatTarget: Double = 0
+
+    init(date: Date, kindRaw: String) {
+        self.date = date
+        self.kindRaw = kindRaw
+    }
+
+    var isWeekly: Bool { kindRaw == "weekly" }
+    var goal: WeightGoal { WeightGoal(rawValue: goalRaw) ?? .maintain }
 }
 
 @Model

@@ -1,50 +1,69 @@
-# Assiette — design spec "Minimal pro" (validated 2026-11-19)
+# Assiette — design spec "Coaching" (validated 2026-11-20)
 
-Reference mockup: `design/v5/proposal-05.html` (phone 1 = Journal, phone 2 = Ajouter un aliment).
-OpenNutrition-inspired (opennutrition.app) × MacroFactor density. Always dark.
+Reference mockups: `design/coaching-v1/maquettes.html` (11 screens). The app's structure is
+inspired by MacroFactor's information architecture (dashboard, hourly timeline journal,
+quick add flow, weekly coached program). The look is Assiette's own: DM Sans, our own icons
+(SF Symbols, Fluent Emoji, OpenNutrition), our own French copy. Never reuse MacroFactor's
+assets, logo, illustrations or text.
 
-## Principles
-- **Monochrome UI**: zinc greys on near-black. **Only the macro colors carry color**
-  (+ the small orange flame before kcal, + red when over target). No blue accent.
-- **Hairlines instead of cards**: 1 px `Theme.separator` lines between rows/groups. Cards only
-  where unavoidable (sheets, input fields) with `Theme.raised`, radius 8, 1 px `separatorStrong` border.
-- **DM Sans** everywhere (`Theme.font(size, weight)`, presets `Theme.numberLarge/title/headline/body/callout/caption/label`).
-  Numbers always `.monospacedDigit()` and right-aligned in a column.
-- **Food icons** (OpenNutrition illustrations via `FoodIconView`) small (24–32 pt in lists, 56–64 in
-  headers), full color, on a subtle tile.
-- Controls: primary buttons and FAB = white fill (`Theme.accent`) with near-black content
-  (`Theme.onAccent`). Secondary = text button in `textPrimary` / outline `separatorStrong`.
-  Selected chip = white fill + black text; unselected = outline + `textSecondary`.
-- kcal is shown with `KcalLabel` (orange flame + "105 kcal") in lists and search results.
+## Non-negotiable rules
+1. **Macro order is always Glucides / Protéines / Lipides** (G, P, L). Use `Theme.macroOrder`
+   and `Theme.letter(for:)` everywhere: headers, rows, cards, sheets, charts, program, check-in.
+2. **Keyboard first.** Whenever a screen's main job is typing (search, quantity, quick add,
+   weight, manual barcode, any numeric target), the right keyboard is up when the screen appears,
+   with no extra tap. Use `@FocusState` set in `.onAppear`/`.task` (or `defaultFocus`), the right
+   `keyboardType` (`.decimalPad` for quantities, `.numberPad` for barcodes), `submitLabel` and
+   `.onSubmit` to validate. Food quantities use the in-sheet numeric keypad (no system keyboard,
+   instant). Pressing return/validate does the main action. Never make the user dismiss a keyboard
+   to reach the main button: keep it above the keyboard (`safeAreaInset(edge: .bottom)`).
+3. Speed: every add flow is reachable in one tap ("+" tab, floating search bar, per-hour "+").
 
-## Tokens (Shared/Theme.swift)
+## Tokens (`Shared/Theme.swift`)
 | token | value | use |
 |---|---|---|
-| background | #050505 | every screen |
-| raised | #0F0F11 | sheets, fields, rare cards |
-| separator / separatorStrong | #1F1F23 / #2C2C31 | hairlines / inputs, chips, dashed rows |
-| textPrimary / textBody | #FAFAFA / #D4D4D8 | titles, values / row text |
-| textSecondary / textTertiary / textQuaternary | #A1A1AA / #71717A / #52525B | labels, quantities, times, disabled |
-| calories / protein / carbs / fat | #4EC2B8 / #A1B0E8 / #F3BC52 / #E08B92 | macro data only |
-| flame / overTarget | #F97316 / #E45A5A | kcal flame / over target |
+| background | #0F0F11 | every screen |
+| raised (card) | #232326 | cards, sheets, fields; cards use `.themedCard()` (gradient #26262A→#212124, white 4.5 % border, radius 16) |
+| raised2 | #2E2E32 | round buttons, chips, keypad keys, icon tiles on cards |
+| separator / separatorStrong / track | #2A2A2E / #38383D / #2C2C31 | hairlines / inputs / ring & bar tracks |
+| textPrimary / textBody / textSecondary / textTertiary / textQuaternary | #FAFAFA / #D4D4D8 / #A1A1AA / #71717A / #52525B | |
+| calories | #6EA4F7 | kcal (gradient #9CC2FF→#4F86EC on rings) |
+| carbs / protein / fat | #5FBF8F / #F28C6B / #F5C95A | macro data only |
+| flame / expenditure | #F97316 | kcal flame, expenditure charts |
+| weight | #C4B5FD | weight & trend |
+| good / overTarget | #6FCF97 / #E45A5A | goal progress / over target |
 
-## Journal
-1. Nav: large title "Journal" + small date line; day chevrons; "…" menu.
-2. **Pinned header**: 4 columns Kcal / Prot. / Gluc. / Lip. — tiny uppercase label in the macro color,
-   big remaining number (numberLarge, textPrimary), 2 pt bar (macro color on separatorStrong), "sur 2 200"
-   in textTertiary. Hairline below. Tap toggles remaining ↔ consumed.
-3. **Timeline**: fixed left time column (textTertiary, 36 pt), rows: small icon, name (textBody) +
-   quantity (textTertiary), kcal right column (monospaced). Group footer: P/G/L in their colors +
-   group kcal. Groups separated by hairlines, no cards. "Maintenant" row: dashed outline + "+ Ajouter".
-4. FAB: white circle, black "+".
+Primary buttons and the "+" tab: white fill (`accent`) with near-black content (`onAccent`).
+Selected chip/segment: white fill, black text. Numbers always `.monospacedDigit()`.
 
-## Ajouter un aliment (search)
-Search field: raised fill, 1 px separatorStrong border, radius 8, white text. Chips row (Tout / Récents /
-Favoris / Plats…). Result rows separated by hairlines: icon tile 32 pt, name with the typed part in
-textPrimary bold and the rest textBody, second line `KcalLabel` • portion in textTertiary, trailing
-"+" circle button outlined. Results count line in textTertiary.
+## Navigation
+Tabs: **Accueil · Journal · + · Programme · Profil**. "+" opens the shortcuts sheet
+(Scanner, Rechercher, Rapide, Recettes, then Pesée, Eau). Accueil, Journal and Programme
+show a floating "Rechercher un aliment" bar above the tab bar (`AddSearchBar`), which opens
+the add sheet in search mode with the keyboard up. All adding goes through
+`appState.presentAdd(_:context:)` → `AddFlowView`.
 
-## Everything else
-Same rules: Lists with `.themedBackground()`, `.listRowBackground(Theme.background)`,
-`.listRowSeparatorTint(Theme.separator)`; section headers = `Theme.label` uppercase textTertiary.
-Charts: lines/bars in macro colors, axes textTertiary, grid separator.
+## Screens (see mockups for layout)
+- **Accueil**: title + date; calorie ring (thin 6 pt gradient arc, inner tick ring, white end dot,
+  center "RESTANT / 1 251 / sur 1 911 kcal", sides Mangé / Objectif); G/P/L bars; Mangé/Restant
+  segmented control. Sections of 2-column cards (`.themedCard()`): Tendances (Dépense, Poids
+  tendance, Objectif, Bilan énergétique), Nutrition du jour, Mesures, Régularité (30-day grids).
+- **Journal**: title + date + calendar/menu buttons; remaining header (kcal, G, P, L with bars);
+  hourly timeline: hour pills on a vertical line at the right, per-hour totals (kcal, G, P, L chips)
+  and a round "+", food cards (icon tile, name, "kcal · G · P · L · qty", round edit button),
+  empty hours show only "+" and the pill, current hour pill outlined in calories blue.
+- **Add sheet**: header (close, time chip, remaining kcal/G/P/L mini bars); mode tabs
+  Scanner / Rechercher / Rapide / Recettes; search shows Favoris, "Souvent à 9 h", Récents with
+  multi-select and a bottom "Ajouter (n)" button. Food detail: kcal + G/P/L with % of energy,
+  Favori / Créer un aliment perso, "Part de la journée" mini rings, quantity field + unit chips +
+  numeric keypad with "Ajouter et continuer" / "Ajouter". Quick add: kcal (focused) + G/P/L fields,
+  macro-sum check, optional name.
+- **Programme**: check-in countdown (7-segment ring for the week, thin outer goal ring), current
+  program card (7 day columns: kcal chip + stacked G/P/L blocks), goal card (poids visé, kg/sem,
+  %/sem), goal history, exception periods, check-in history.
+- **Bilan de la semaine**: expenditure + change + chart, week summary (trend, real vs target rate,
+  average intake), new program (old → new, G/P/L), −/+ adjust (collaborative), Plus tard / Appliquer.
+
+## Food icons
+Fluent Emoji Flat (MIT, bundled in the asset catalog, license shown in About) when a generic
+match exists; otherwise the OpenNutrition illustration (CDN, `<name>@4x.webp`); otherwise the
+generic fallback. Icons sit on a `raised2` rounded tile.

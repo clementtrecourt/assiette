@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Icônes d'aliments</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<style>
+:root{--bg:#18181a;--raise:#232326;--raise2:#2e2e32;--fg:#fafafa;--fg2:#d4d4d8;--mut:#a1a1aa;--mut2:#71717a}
+*{box-sizing:border-box}
+body{margin:0;padding:4px 0 20px;font-family:'DM Sans',system-ui,sans-serif;color:var(--foreground,var(--fg))}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.col{background:var(--bg);border-radius:18px;padding:14px 12px 10px}
+.col h2{margin:0;font-size:14px;font-weight:600;color:var(--fg);letter-spacing:-.02em}
+.col .lic{font-size:11px;color:var(--mut);margin:3px 0 12px;line-height:1.4}
+.col .lic b{color:var(--fg2);font-weight:600}
+.row{display:flex;align-items:center;gap:10px;background:var(--raise);border-radius:13px;padding:8px 10px;margin-bottom:6px}
+.ic{width:34px;height:34px;flex:none;display:grid;place-items:center}
+.ic img{width:30px;height:30px;object-fit:contain}
+.nm{font-size:12.5px;font-weight:500;color:var(--fg)}
+.q{font-size:10.5px;color:var(--mut);margin-top:2px}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0 4px}
+.strip span{aspect-ratio:1;border-radius:12px;background:var(--raise);display:grid;place-items:center}
+.strip img{width:70%;height:70%;object-fit:contain}
+</style>
+</head>
+<body>
+<div class="cols" id="cols"></div>
+<script>
+const FOODS = [
+  ["Poulet cuit", "140 g · 197 kcal", "bone_in_chicken_breast_fY71RN", "Poultry leg"],
+  ["Flocons d'avoine", "60 g · 228 kcal", "rolled_oats_6nRbKF", "Bowl with spoon"],
+  ["Banane", "120 g · 105 kcal", "banana_pC4onp", "Banana"],
+  ["Crêpe au chocolat", "32 g · 148 kcal", "chocolate_crepe_F4SJL8", "Pancakes"],
+  ["Œuf dur", "50 g · 78 kcal", "hard_boiled_egg_80IbJU", "Egg"],
+];
+const STRIP = [
+  ["white_rice_3iVYQH", "Cooked rice"], ["salmon_fillet_oapjWi", "Fish"], ["avocado_tIWV1d", "Avocado"],
+  ["dark_chocolate_43DhgU", "Chocolate bar"], ["milk_KWNAyM", "Glass of milk"], ["coffee_s1L9qs", "Hot beverage"],
+];
+const fluent = (name, style) => {
+  const snake = name.toLowerCase().replace(/ /g, "_");
+  const file = style === "3D" ? `${snake}_3d.png` : `${snake}_flat.svg`;
+  return `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(name)}/${style}/${file}`;
+};
+const on = n => `https://drd3kry2ubqnc.cloudfront.net/${n}@4x.webp`;
+const SETS = [
+  ["OpenNutrition", "<b>Déjà dans Assiette</b> (13 044 aliments, 69 % couverts). Illustrations détaillées, propres à chaque plat.", (f) => on(f[2]), (s) => on(s[0])],
+  ["Fluent Emoji « Flat »", "<b>Licence MIT</b> (Microsoft). Aplats nets, très lisibles en petit ; environ 130 aliments génériques.", (f) => fluent(f[3], "Flat"), (s) => fluent(s[1], "Flat")],
+  ["Fluent Emoji « 3D »", "<b>Licence MIT</b>. Même catalogue en relief doux, plus chaleureux mais plus chargé.", (f) => fluent(f[3], "3D"), (s) => fluent(s[1], "3D")],
+];
+document.getElementById("cols").innerHTML = SETS.map(([title, lic, rowSrc, stripSrc]) => `
+  <div class="col"><h2>${title}</h2><div class="lic">${lic}</div>
+    ${FOODS.map(f => `<div class="row"><div class="ic"><img src="${rowSrc(f)}" alt=""></div><div><div class="nm">${f[0]}</div><div class="q">${f[1]}</div></div></div>`).join("")}
+    <div class="strip">${STRIP.map(s => `<span><img src="${stripSrc(s)}" alt=""></span>`).join("")}</div>
+  </div>`).join("");
+</script>
+</body>
+</html>

@@ -116,45 +116,60 @@ struct AssietteApp: App {
     }
 }
 
-/// Dark tab bar shared by every tab. Background and item colors come from the UIKit appearance
-/// set in `AssietteApp.configureTabBarAppearance()` (opaque for both standard and scroll-edge),
-/// so no SwiftUI `toolbarBackground` here: it would replace that appearance.
-private extension View {
-    func rootTabBarStyle() -> some View {
-        self
-    }
-}
-
-/// Tabs: Journal · Progrès · Profil. Adding food goes through the Journal floating "+" button.
+/// Tabs: Accueil · Journal · + · Programme · Profil. The central "+" tab never stays selected:
+/// it opens the shortcuts sheet. The main tabs show the floating search bar above the tab bar.
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
     @State private var didSetUpDemo = false
+    @State private var lastRealTab: AppTab = .progress
+    @State private var checkInPrompted = false
 
     var body: some View {
         @Bindable var appState = appState
         TabView(selection: $appState.selectedTab) {
-            TodayView()
-                .rootTabBarStyle()
-                .tabItem { Label("Journal", systemImage: "book.closed") }
-                .tag(AppTab.today)
-
-            ProgressDashboardView()
-                .rootTabBarStyle()
-                .tabItem { Label("Progrès", systemImage: "chart.xyaxis.line") }
+            DashboardView()
+                .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
+                .tabItem { Label("Accueil", systemImage: "square.grid.2x2.fill") }
                 .tag(AppTab.progress)
 
+            TodayView()
+                .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
+                .tabItem { Label("Journal", systemImage: "list.bullet.rectangle.portrait") }
+                .tag(AppTab.today)
+
+            Color.clear
+                .tabItem { Image(uiImage: RootTabPlusImage.image).renderingMode(.original) }
+                .tag(AppTab.add)
+
+            ProgramView()
+                .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
+                .tabItem { Label("Programme", systemImage: "chart.line.uptrend.xyaxis") }
+                .tag(AppTab.program)
+
             ProfileView()
-                .rootTabBarStyle()
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
         .onChange(of: appState.selectedTab) { _, newValue in
-            // The former "Ajouter" tab no longer exists: adding lives in the journal.
             if newValue == .add {
-                appState.selectedTab = .today
+                appState.selectedTab = lastRealTab
+                appState.showingShortcuts = true
+            } else {
+                lastRealTab = newValue
+            }
+        }
+        .sheet(isPresented: $appState.showingShortcuts) {
+            AddShortcutsSheet()
+        }
+        .sheet(item: $appState.addFlow) { request in
+            AddFlowView(request: request)
+        }
+        .sheet(isPresented: $appState.showingCheckIn) {
+            if let profile = profiles.first {
+                CoachingCheckInView(profile: profile)
             }
         }
         .task {
@@ -164,10 +179,19 @@ struct RootView: View {
             if let tab = DemoSupport.startTab {
                 appState.selectedTab = tab
             }
+            promptCheckInIfDue()
         }
         .fullScreenCover(isPresented: needsOnboarding) {
             OnboardingView()
         }
+    }
+
+    /// Opens the weekly check-in once per launch when it is due.
+    private func promptCheckInIfDue() {
+        guard !checkInPrompted, let profile = profiles.first,
+              CoachingService.isCheckInDue(profile: profile) else { return }
+        checkInPrompted = true
+        appState.showingCheckIn = true
     }
 
     private var needsOnboarding: Binding<Bool> {
@@ -176,4 +200,23 @@ struct RootView: View {
             set: { _ in }
         )
     }
+}
+
+/// The white rounded "+" of the central tab (drawn once, rendered in original colors).
+private enum RootTabPlusImage {
+    static let image: UIImage = {
+        let size = CGSize(width: 40, height: 40)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+            UIColor(Theme.accent).setFill()
+            UIBezierPath(roundedRect: rect, cornerRadius: 12).fill()
+            let plus = UIBezierPath()
+            plus.move(to: CGPoint(x: 20, y: 12)); plus.addLine(to: CGPoint(x: 20, y: 28))
+            plus.move(to: CGPoint(x: 12, y: 20)); plus.addLine(to: CGPoint(x: 28, y: 20))
+            plus.lineWidth = 3
+            plus.lineCapStyle = .round
+            UIColor(Theme.onAccent).setStroke()
+            plus.stroke()
+        }.withRenderingMode(.alwaysOriginal)
+    }()
 }
