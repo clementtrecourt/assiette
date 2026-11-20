@@ -21,6 +21,7 @@ WAIT=12 shot 01-journal -startTab today        # first launch seeds demo data
 shot 02-recherche -startTab today -startSheet search
 shot 03-fiche-aliment -startTab today -startSheet detail
 shot 04-ajout-quantite -startTab today -startSheet add
+shot 04b-ajout-quantite-panneau -startTab today -startSheet addflow-entry
 shot 05-ajout-rapide -startTab today -startSheet quickadd
 shot 06-scanner -startTab today -startSheet scan
 shot 07-accueil -startTab progress

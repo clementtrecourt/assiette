@@ -12,6 +12,7 @@ import UIKit
 /// NavigationStack: navigation title, "Fermer" and meal menu). `AddFlowView` embeds it with
 /// `FoodSearchView(embeddedIn:onLogged:onQuickAdd:)` (no navigation bar).
 struct FoodSearchView: View {
+    @Environment(\.addFlowOpenItem) private var addFlowOpenItem
     let isSheet: Bool
     private let isEmbedded: Bool
     private let onLogged: (() -> Void)?
@@ -661,6 +662,10 @@ struct FoodSearchView: View {
     private func open(_ item: FoodItem) {
         refocusAfterSheet = isSearchFocused
         isSearchFocused = false
+        if let addFlowOpenItem {
+            addFlowOpenItem(item)
+            return
+        }
         activeSheet = .add(item)
     }
 

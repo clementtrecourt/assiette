@@ -698,6 +698,7 @@ struct TodayDayContent: View {
         case "search": appState.presentAdd(.search, context: context)
         case "scan": appState.presentAdd(.scan, context: context)
         case "quickadd": appState.presentAdd(.quick, context: context)
+        case "addflow-entry": appState.presentAdd(.search, context: context)
         case "detail": sheet = .detail(DemoSupport.sampleItem, context)
         case "add": sheet = .add(DemoSupport.sampleItem, context)
         default: break

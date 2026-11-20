@@ -607,18 +607,14 @@ struct GoalRateEditor: View {
     private var slider: some View {
         GeometryReader { geo in
             let w = geo.size.width
-            func x(_ v: Double) -> CGFloat {
-                CGFloat((min(max(v, range.lowerBound), range.upperBound) - range.lowerBound)
-                        / (range.upperBound - range.lowerBound)) * w
-            }
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.raised2).frame(height: 3)
                 Capsule().fill(Theme.good)
-                    .frame(width: x(recommended.upperBound) - x(recommended.lowerBound), height: 3)
-                    .offset(x: x(recommended.lowerBound))
+                    .frame(width: x(recommended.upperBound, w) - x(recommended.lowerBound, w), height: 3)
+                    .offset(x: x(recommended.lowerBound, w))
                 Circle().fill(Theme.accent)
                     .frame(width: 32, height: 32)
-                    .offset(x: x(ratePercent) - 16)
+                    .offset(x: x(ratePercent, w) - 16)
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -640,6 +636,12 @@ struct GoalRateEditor: View {
             @unknown default: break
             }
         }
+    }
+
+    /// Horizontal position of a rate on a slider `width` wide.
+    private func x(_ v: Double, _ width: CGFloat) -> CGFloat {
+        CGFloat((min(max(v, range.lowerBound), range.upperBound) - range.lowerBound)
+                / (range.upperBound - range.lowerBound)) * width
     }
 
     private func row(sign: String, kg: Binding<String>, pct: Binding<String>, kgField: Field, pctField: Field,

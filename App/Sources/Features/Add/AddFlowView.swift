@@ -58,6 +58,8 @@ struct AddFlowView: View {
 
     @State private var mode: AddMode
     @State private var context: LogContext
+    /// Food opened from search: its quantity screen replaces the tabs inside the panel.
+    @State private var openedItem: FoodItem?
 
     init(request: AddFlowRequest) {
         self.request = request
@@ -71,6 +73,17 @@ struct AddFlowView: View {
         VStack(spacing: 0) {
             AddFlowHeader(context: $context, onClose: { dismiss() })
             VStack(spacing: 0) {
+              if let openedItem {
+                Capsule()
+                    .fill(Theme.raised2)
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 8)
+                    .accessibilityHidden(true)
+                AddEntrySheet(item: openedItem, context: context, onLogged: { close() },
+                              onBack: { withAnimation(.snappy) { self.openedItem = nil } })
+                    .id(openedItem.id)
+                    .transition(.move(edge: .trailing))
+              } else {
                 VStack(spacing: 0) {
                     Capsule()
                         .fill(Theme.raised2)
@@ -90,6 +103,10 @@ struct AddFlowView: View {
                 )
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .environment(\.addFlowOpenItem) { item in
+                        withAnimation(.snappy) { openedItem = item }
+                    }
+              }
             }
             .background {
                 UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24, style: .continuous)
@@ -98,6 +115,10 @@ struct AddFlowView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
+        .onAppear {
+            // CI screenshot: quantity screen inside the panel.
+            if DemoSupport.startSheet == "addflow-entry", openedItem == nil { openedItem = DemoSupport.sampleItem }
+        }
     }
 
     @ViewBuilder
@@ -744,5 +765,17 @@ struct AddSearchBar: View {
                            startPoint: .top, endPoint: .center)
                 .allowsHitTesting(false)
         }
+    }
+}
+
+private struct AddFlowOpenItemKey: EnvironmentKey {
+    static let defaultValue: ((FoodItem) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Set inside the add flow: opens a food's quantity screen in the panel instead of a sheet.
+    var addFlowOpenItem: ((FoodItem) -> Void)? {
+        get { self[AddFlowOpenItemKey.self] }
+        set { self[AddFlowOpenItemKey.self] = newValue }
     }
 }
