@@ -58,8 +58,9 @@ struct AssietteApp: App {
         for item in itemAppearances {
             item.normal.iconColor = normal
             item.normal.titleTextAttributes = normalAttributes
-            item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 2)
-            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 2)
+            // Icons carry 5 pt of top padding (asset viewBox); labels follow them down.
+            item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 5)
+            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 5)
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = selectedAttributes
         }
@@ -209,15 +210,17 @@ struct RootView: View {
 private enum RootTabPlusImage {
     static let image: UIImage = {
         // Reference: 44 pt white disc, thin 2.2 pt plus, 18 pt wide.
-        let size = CGSize(width: 46, height: 46)
+        // 7 pt transparent band on top so the disc clears the tab bar border.
+        let disc: CGFloat = 46, top: CGFloat = 7
+        let size = CGSize(width: disc, height: disc + top)
         return UIGraphicsImageRenderer(size: size).image { _ in
-            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+            let rect = CGRect(x: 0, y: top, width: disc, height: disc).insetBy(dx: 1, dy: 1)
             UIColor(Theme.accent).setFill()
             UIBezierPath(ovalIn: rect).fill()
-            let c = size.width / 2
+            let c = disc / 2, cy = top + disc / 2
             let plus = UIBezierPath()
-            plus.move(to: CGPoint(x: c, y: c - 9)); plus.addLine(to: CGPoint(x: c, y: c + 9))
-            plus.move(to: CGPoint(x: c - 9, y: c)); plus.addLine(to: CGPoint(x: c + 9, y: c))
+            plus.move(to: CGPoint(x: c, y: cy - 9)); plus.addLine(to: CGPoint(x: c, y: cy + 9))
+            plus.move(to: CGPoint(x: c - 9, y: cy)); plus.addLine(to: CGPoint(x: c + 9, y: cy))
             plus.lineWidth = 2.2
             plus.lineCapStyle = .round
             UIColor(Theme.onAccent).setStroke()

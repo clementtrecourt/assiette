@@ -304,22 +304,22 @@ struct AddEntrySheet: View {
             }
             .padding(.leading, 6)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 2)
     }
 
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 AddEntryMacroSummary(per100: item.per100, portion: portion)
-                    .padding(.top, 14)
+                    .padding(.top, 4)
                 if !isQuickAdd {
                     actionsRow
-                        .padding(.top, 18)
+                        .padding(.top, 10)
                 }
                 AddEntryHairline()
-                    .padding(.top, 22)
+                    .padding(.top, 12)
                 dayShare
-                    .padding(.top, 24)
+                    .padding(.top, 12)
                 whenRow
                     .padding(.top, 14)
                 if showsDatasetAttribution {
@@ -340,15 +340,15 @@ struct AddEntrySheet: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header
                     AddEntryMacroSummary(per100: item.per100, portion: portion)
-                        .padding(.top, 18)
+                        .padding(.top, 10)
                     if !isQuickAdd {
                         actionsRow
-                            .padding(.top, 18)
+                            .padding(.top, 10)
                     }
                     AddEntryHairline()
-                        .padding(.top, 22)
+                        .padding(.top, 12)
                     dayShare
-                        .padding(.top, 24)
+                        .padding(.top, 12)
                     whenRow
                         .padding(.top, 14)
                     if showsDatasetAttribution {
@@ -421,7 +421,7 @@ struct AddEntrySheet: View {
 
     /// Square tiles with a label below (reference: "To Custom", "Favorite").
     private var actionsRow: some View {
-        HStack(alignment: .top, spacing: 24) {
+        HStack(alignment: .top, spacing: 18) {
             if item.source != .custom {
                 actionTile("Personnaliser", systemImage: "square.on.square.fill") { showCustomEditor = true }
             }
@@ -436,14 +436,14 @@ struct AddEntrySheet: View {
     private func actionTile(_ title: String, systemImage: String, tint: Color = Theme.textPrimary,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 4) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(tint)
-                    .frame(width: 60, height: 60)
-                    .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .frame(width: 40, height: 40)
+                    .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 Text(title)
-                    .font(Theme.font(17, .regular, relativeTo: .body))
+                    .font(Theme.font(14, .regular, relativeTo: .footnote))
                     .foregroundStyle(Theme.textPrimary)
                     .fixedSize()
             }
@@ -452,11 +452,11 @@ struct AddEntrySheet: View {
     }
 
     private var dayShare: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Impact sur les objectifs")
-                .font(Theme.font(22, .bold, relativeTo: .title2))
+                .font(Theme.font(19, .bold, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
-                .padding(.bottom, 14)
+                .padding(.bottom, 2)
             HStack(spacing: 0) {
                 AddEntryDayRing(fraction: share(of: .calories), color: Theme.calories, title: "Calories")
                 ForEach(Theme.macroOrder, id: \.self) { key in
@@ -516,7 +516,7 @@ struct AddEntrySheet: View {
     /// Reference panel: #313133 background, white-bordered field, unit chips, 4-column keypad
     /// whose last row holds the two actions.
     private var entryPanel: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             quantityField
             unitRow
             AddEntryKeypad(onKey: press, onClear: clearQuantity) {
@@ -524,8 +524,8 @@ struct AddEntrySheet: View {
             }
         }
         .padding(.horizontal, 6)
-        .padding(.top, 14)
-        .padding(.bottom, 6)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
         .background(AddEntryPanel.background.ignoresSafeArea(edges: .bottom))
     }
 
@@ -560,7 +560,7 @@ struct AddEntrySheet: View {
                 .minimumScaleFactor(0.7)
         }
         .padding(.horizontal, 16)
-        .frame(height: 56)
+        .frame(height: 50)
         .background(AddEntryPanel.field, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -586,7 +586,7 @@ struct AddEntrySheet: View {
                     Image(systemName: "arrow.up.arrow.down")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                        .frame(width: 44, height: 52)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .disabled(availableUnits.count < 2)
@@ -843,14 +843,14 @@ private struct AddEntryMacroSummary: View {
         HStack(alignment: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Text(Formatters.number(portion.calories, maxFractionDigits: 0))
-                    .font(Theme.font(46, .bold, relativeTo: .largeTitle))
+                    .font(Theme.font(40, .bold, relativeTo: .largeTitle))
                     .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 Text("Calories")
-                    .font(Theme.font(19, .regular, relativeTo: .body))
+                    .font(Theme.font(16, .regular, relativeTo: .callout))
                     .foregroundStyle(Theme.textSecondary)
                     .padding(.top, -6)
             }
@@ -860,21 +860,21 @@ private struct AddEntryMacroSummary: View {
             ForEach(Theme.macroOrder, id: \.self) { key in
                 VStack(spacing: 0) {
                     Text(energyShare(key))
-                        .font(Theme.font(17, .regular, relativeTo: .body))
+                        .font(Theme.font(15, .regular, relativeTo: .subheadline))
                         .monospacedDigit()
                         .foregroundStyle(Theme.color(for: key))
-                        .padding(.horizontal, 14)
-                        .frame(height: 30)
+                        .padding(.horizontal, 12)
+                        .frame(height: 26)
                         .background(AddEntryPanel.pill(key), in: Capsule())
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 8)
                     Text(Formatters.number(portion.value(key), maxFractionDigits: 1))
-                        .font(Theme.font(27, .bold, relativeTo: .title))
+                        .font(Theme.font(23, .bold, relativeTo: .title2))
                         .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(key.label)
-                        .font(Theme.font(19, .regular, relativeTo: .body))
+                        .font(Theme.font(16, .regular, relativeTo: .callout))
                         .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -895,7 +895,7 @@ private struct AddEntryDayRing: View {
     let title: String
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             ZStack {
                 Circle()
                     .stroke(Theme.track, lineWidth: 4)
@@ -905,17 +905,17 @@ private struct AddEntryDayRing: View {
                             style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 Text(Formatters.percent(fraction))
-                    .font(Theme.font(19, .regular, relativeTo: .body))
+                    .font(Theme.font(17, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .padding(.horizontal, 6)
             }
-            .frame(width: 70, height: 70)
+            .frame(width: 58, height: 58)
             .animation(.snappy, value: fraction)
             Text(title)
-                .font(Theme.font(18, .regular, relativeTo: .body))
+                .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -990,7 +990,7 @@ private struct AddEntryKeypad<Actions: View>: View {
             .font(Theme.font(26, .regular, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(height: 46)
             .background(Self.isSide(key) ? AddEntryPanel.sideKey : AddEntryPanel.digitKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -1034,7 +1034,7 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
             .minimumScaleFactor(0.7)
             .foregroundStyle(isPrimary ? Theme.onAccent : Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(height: 46)
             .background(isPrimary ? Theme.accent : AddEntryPanel.sideKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : (isEnabled ? 1 : 0.55))
@@ -1053,8 +1053,8 @@ private struct AddEntryChipLabel: View {
             .font(Theme.font(18, .regular, relativeTo: .body))
             .monospacedDigit()
             .foregroundStyle(Theme.textPrimary)
-            .padding(.horizontal, 22)
-            .frame(height: 52)
+            .padding(.horizontal, 20)
+            .frame(height: 44)
             .background(AddEntryPanel.chip, in: Capsule())
             .overlay {
                 if isSelected || isOutlined {
