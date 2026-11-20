@@ -6,7 +6,7 @@ read-only SQLite file (`App/Resources/foods.sqlite`, built by `tools/build_db.py
 ~327k foods) bundled in the app. Built on GitHub Actions (macOS) into an **unsigned .ipa**
 that the user signs and sideloads.
 
-There is **no Mac / no Swift compiler locally**: code must compile on the first try with
+There is **no Mac locally** (a Linux Swift toolchain only builds the Foundation-only engine): app code must compile on the first try with
 Xcode 16 (Swift 6 compiler in Swift 5 language mode, `SWIFT_VERSION = 5.0`), iOS 17.0
 deployment target. Be conservative with APIs: anything newer than iOS 17.0 must be avoided
 (no iOS 18-only APIs such as `@Entry`, `MeshGradient`, `Tab(...)` builder, `.onScrollGeometryChange`,
@@ -29,8 +29,21 @@ App/Sources/
     Progress/     weight + history charts                                        [progress agent]
     Profile/      onboarding, profile & goals, settings, export, about           [profile agent]
     CustomFoods/  my foods, custom food editor, recipe editor                    [custom agent]
+  Engine/     adaptive engine: trend weight, expenditure, weekly coaching (Foundation only)
 Tests/            XCTest unit tests (host app = Assiette, so Bundle.main has foods.sqlite)
+EngineTests/      engine tests, run on Linux with `swift test` (Package.swift) and in CI
 ```
+
+### Adaptive engine (`App/Sources/Engine/`)
+
+Pure Foundation code (no SwiftUI/SwiftData), compiled both into the app and as the
+`AssietteEngine` Swift package so it can be tested on Linux (`swift test`; toolchain in
+`~/.local/share/swift`). Types are prefixed `Engine…`. Pipeline:
+`[EngineDay]` (one per calendar day) → `EngineWeightTrend` (Kalman filter = real-time trend,
+RTS smoother = retrospective trend) → `EngineExpenditure` (7-day energy balance, adapted ~1.7 %/day)
+→ `EngineCoach` (weekly calorie target). Constants live in `EngineParameters`, calibrated
+against a MacroFactor export with `tools/mf/`; `EngineCalibrationTests` replays that export
+from the gitignored `reference/` folder and is skipped when it is absent.
 
 Files marked [DONE] are the shared core. **Do not modify them** — if you believe a core
 change is truly required, implement a workaround in your own files and mention it in your

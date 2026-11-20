@@ -7,3 +7,5 @@ App/Resources/foods.sqlite
 .DS_Store
 __pycache__/
 design/onicons/
+reference/
+.build/

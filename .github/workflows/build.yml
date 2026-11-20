@@ -18,6 +18,15 @@ permissions:
   contents: write
 
 jobs:
+  engine:
+    runs-on: ubuntu-latest
+    container: swift:6.0-jammy
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Engine tests (Linux)
+        run: swift test
+
   build:
     runs-on: macos-15
     timeout-minutes: 45
