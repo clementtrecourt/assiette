@@ -48,6 +48,7 @@ struct QuickAddSheet: View {
 
     @State private var name = ""
     @State private var caloriesText = ""
+    @State private var energyInKJ = false
     @State private var carbsText = ""
     @State private var proteinText = ""
     @State private var fatText = ""
@@ -75,7 +76,11 @@ struct QuickAddSheet: View {
         return value
     }
 
-    private var calories: Double? { QuickAddSheet.parse(caloriesText) }
+    /// Energy typed in kcal, or in kJ (converted) when the unit menu says so.
+    private var calories: Double? {
+        QuickAddSheet.parse(caloriesText).map { energyInKJ ? $0 / QuickAddSheet.kJPerKcal : $0 }
+    }
+    private static let kJPerKcal = 4.184
     private var carbs: Double? { QuickAddSheet.parse(carbsText) }
     private var protein: Double? { QuickAddSheet.parse(proteinText) }
     private var fat: Double? { QuickAddSheet.parse(fatText) }
@@ -180,12 +185,15 @@ struct QuickAddSheet: View {
     private var energyRow: some View {
         HStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("0", text: $caloriesText,
-                          prompt: Text(macroCalories > 0 ? Formatters.number(macroCalories, maxFractionDigits: 0) : "0")
+                TextField("", text: $caloriesText,
+                          prompt: Text(macroCalories > 0
+                                       ? Formatters.number(energyInKJ ? macroCalories * QuickAddSheet.kJPerKcal : macroCalories,
+                                                           maxFractionDigits: 0)
+                                       : "")
                             .foregroundColor(Theme.textQuaternary))
                     .keyboardType(.decimalPad)
                     .focused($focus, equals: .calories)
-                    .font(Theme.font(30, .bold, relativeTo: .largeTitle))
+                    .font(Theme.font(20, .regular, relativeTo: .title3))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .tint(Theme.textPrimary)
@@ -196,11 +204,25 @@ struct QuickAddSheet: View {
             .contentShape(Rectangle())
             .onTapGesture { focus = .calories }
 
-            Text("kcal")
-                .font(Theme.font(15, .medium, relativeTo: .body))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 88, height: 50)
-                .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Menu {
+                Picker("Unité", selection: $energyInKJ) {
+                    Text("kcal").tag(false)
+                    Text("kJ").tag(true)
+                }
+            } label: {
+                HStack {
+                    Text(energyInKJ ? "kJ" : "kcal")
+                        .font(Theme.font(17, .regular, relativeTo: .body))
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, 16)
+                .frame(width: 112, height: 50)
+                .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .accessibilityLabel("Unité d'énergie : \(energyInKJ ? "kilojoules" : "kilocalories")")
         }
     }
 
@@ -232,17 +254,16 @@ struct QuickAddSheet: View {
         return VStack(alignment: .leading, spacing: 0) {
             fieldLabel(key.label, color: Theme.textBody)
             HStack(spacing: 4) {
-                TextField("0", text: binding,
-                          prompt: Text("0").foregroundColor(Theme.textQuaternary))
+                TextField("", text: binding)
                     .keyboardType(.decimalPad)
                     .focused($focus, equals: field)
-                    .font(Theme.font(18, .bold, relativeTo: .body))
+                    .font(Theme.font(20, .regular, relativeTo: .title3))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .tint(Theme.textPrimary)
                 Text("g")
-                    .font(Theme.callout)
-                    .foregroundStyle(Theme.textTertiary)
+                    .font(Theme.font(17, .regular, relativeTo: .body))
+                    .foregroundStyle(Theme.textPrimary)
             }
             .padding(.horizontal, 12)
             .frame(height: 50)
@@ -278,41 +299,18 @@ struct QuickAddSheet: View {
 
     private var bottomBar: some View {
         VStack(spacing: 8) {
-            if let current = focus, let next = current.next {
-                HStack {
-                    Spacer()
-                    Button {
-                        focus = next
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Suivant : \(next.title)")
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .bold))
-                        }
-                        .font(Theme.font(13, .medium, relativeTo: .footnote))
-                        .foregroundStyle(Theme.textSecondary)
-                        .padding(.horizontal, 12)
-                        .frame(height: 30)
-                        .overlay {
-                            Capsule().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-                        }
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
             VStack(spacing: 8) {
                 Button {
                     save(continuing: true)
                 } label: {
                     Text("Ajouter et continuer")
                         .font(Theme.font(17, .regular, relativeTo: .body))
-                        .foregroundStyle(canSave ? Theme.textPrimary : Theme.textTertiary)
+                        .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSave)
@@ -323,13 +321,12 @@ struct QuickAddSheet: View {
                     Text("Ajouter à \(timeLabel)")
                         .font(Theme.font(17, .medium, relativeTo: .body))
                         .monospacedDigit()
-                        .foregroundStyle(canSave ? Theme.onAccent : Theme.textTertiary)
+                        .foregroundStyle(Theme.onAccent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(canSave ? Theme.accent : Theme.separatorStrong,
-                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSave)
@@ -407,9 +404,9 @@ private struct QuickAddFieldBox: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(isInvalid ? Theme.overTarget : (isFocused ? Theme.textPrimary : Color.clear),
                                   lineWidth: isFocused ? 2 : Theme.hairline)
             }

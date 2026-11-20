@@ -110,14 +110,14 @@ struct TodayMacroHeaderColumn: View {
                     .foregroundStyle(Theme.textPrimary)
             } else {
                 Text(Theme.letter(for: key))
-                    .font(Theme.font(16, .bold, relativeTo: .callout))
+                    .font(Theme.font(14, .bold, relativeTo: .footnote))
                     .foregroundStyle(Theme.textPrimary)
             }
             (Text(Formatters.number(displayed, maxFractionDigits: 0))
                 .foregroundColor(isNegative ? Theme.overTarget : Theme.textPrimary)
              + Text(showsConsumed ? (isCalories ? " kcal" : " g") : " rest.")
                 .foregroundColor(Theme.textPrimary))
-                .font(Theme.font(16, .regular, relativeTo: .callout))
+                .font(Theme.font(14, .regular, relativeTo: .footnote))
                 .monospacedDigit()
                 .contentTransition(.numericText())
         }

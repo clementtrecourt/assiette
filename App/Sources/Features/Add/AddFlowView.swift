@@ -65,18 +65,39 @@ struct AddFlowView: View {
         _context = State(initialValue: request.context)
     }
 
+    /// Full-screen cover: the header sits on the dark backdrop, the modes live in a raised
+    /// panel with rounded top corners and a grabber (drag it down to close).
     var body: some View {
         VStack(spacing: 0) {
             AddFlowHeader(context: $context, onClose: { dismiss() })
-            AddFlowModeTabs(selection: $mode)
-                .background(Theme.raised)
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    Capsule()
+                        .fill(Theme.raised2)
+                        .frame(width: 40, height: 5)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                        .accessibilityHidden(true)
+                    AddFlowModeTabs(selection: $mode)
+                }
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 24)
+                        .onEnded { value in
+                            let t = value.translation
+                            if t.height > 90, abs(t.height) > abs(t.width) * 2 { dismiss() }
+                        }
+                )
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background {
+                UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24, style: .continuous)
+                    .fill(Theme.raised)
+                    .ignoresSafeArea(.container, edges: .bottom)
+            }
         }
         .background(Theme.background.ignoresSafeArea())
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(Theme.background)
     }
 
     @ViewBuilder
@@ -114,9 +135,9 @@ private struct AddFlowHeader: View {
         HStack(alignment: .center, spacing: 8) {
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 50, height: 50)
                     .background(Theme.raised2, in: Circle())
                     .contentShape(Circle())
             }
@@ -126,17 +147,12 @@ private struct AddFlowHeader: View {
             Button {
                 showingTime = true
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.textTertiary)
-                    Text(AddTime.label(AddTime.effectiveTime(of: context)))
-                        .font(Theme.font(13, .medium, relativeTo: .subheadline))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.textBody)
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 44)
+                Text(AddTime.label(AddTime.effectiveTime(of: context)))
+                    .font(Theme.font(17, .regular, relativeTo: .body))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, 18)
+                    .frame(height: 50)
                 .background(Theme.raised2, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
@@ -151,9 +167,9 @@ private struct AddFlowHeader: View {
                 .frame(maxWidth: .infinity)
                 .padding(.leading, 6)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 18)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
     }
 }
 
@@ -242,16 +258,15 @@ private struct AddFlowRemaining: View {
         let target = targets?.value(key) ?? 0
         let remaining = target - eaten.value(key)
         let fraction = target > 0 ? min(max(remaining / target, 0), 1) : 0
-        let unit = key == .calories ? " kcal" : " \(Theme.letter(for: key))"
+        let unit = key == .calories ? " rest." : " \(Theme.letter(for: key)) rest."
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 0) {
                 Text(target > 0 ? Formatters.number(remaining, maxFractionDigits: 0) : "—")
-                    .font(Theme.font(12, .bold, relativeTo: .caption))
-                    .foregroundStyle(remaining < 0 ? Theme.overTarget : Theme.textBody)
+                    .foregroundStyle(remaining < 0 ? Theme.overTarget : Theme.textPrimary)
                 Text(unit)
-                    .font(Theme.font(11, .medium, relativeTo: .caption2))
-                    .foregroundStyle(key == .calories ? Theme.textTertiary : Theme.color(for: key))
+                    .foregroundStyle(Theme.textPrimary)
             }
+            .font(Theme.font(14, .regular, relativeTo: .footnote))
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.8)
@@ -284,18 +299,26 @@ private struct AddFlowModeTabs: View {
     @Binding var selection: AddMode
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 22) {
-                ForEach(AddMode.allCases) { mode in
-                    tab(mode)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(AddMode.allCases) { mode in
+                        tab(mode)
+                            .id(mode)
+                    }
                 }
+                .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 16)
-        }
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: Theme.hairline)
+            .background(alignment: .bottom) {
+                // Full-width 4 pt track under the tabs; the selected tab draws white over it.
+                Rectangle()
+                    .fill(Theme.raised2)
+                    .frame(height: 4)
+            }
+            .onAppear { proxy.scrollTo(selection, anchor: .center) }
+            .onChange(of: selection) { _, mode in
+                withAnimation(.snappy) { proxy.scrollTo(mode, anchor: .center) }
+            }
         }
         .sensoryFeedback(.selection, trigger: selection)
     }
@@ -306,18 +329,21 @@ private struct AddFlowModeTabs: View {
             selection = mode
         } label: {
             VStack(spacing: 0) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Image(systemName: mode.addFlowSymbol)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 17, weight: .regular))
                     Text(mode.addFlowTitle)
-                        .font(Theme.font(14, isSelected ? .bold : .medium, relativeTo: .subheadline))
+                        .font(Theme.font(17, .regular, relativeTo: .body))
+                        .lineLimit(1)
+                        .fixedSize()
                 }
-                .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textTertiary)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
                 Rectangle()
                     .fill(isSelected ? Theme.textPrimary : Color.clear)
-                    .frame(height: 2)
+                    .frame(height: 4)
             }
             .contentShape(Rectangle())
         }

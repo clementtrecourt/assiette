@@ -164,7 +164,7 @@ struct RootView: View {
         .sheet(isPresented: $appState.showingShortcuts) {
             AddShortcutsSheet()
         }
-        .sheet(item: $appState.addFlow) { request in
+        .fullScreenCover(item: $appState.addFlow) { request in
             AddFlowView(request: request)
         }
         .sheet(isPresented: $appState.showingCheckIn) {

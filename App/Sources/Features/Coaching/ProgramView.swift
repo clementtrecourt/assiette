@@ -229,8 +229,9 @@ private struct ProgramContent: View {
                     Label("Ajouter une exception", systemImage: "pause.circle")
                 }
             } label: {
-                Image("Glyph-menu")
-                    .font(.system(size: 17, weight: .semibold))
+                Image(systemName: "ellipsis")
+                    .rotationEffect(.degrees(90))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                     .frame(width: 44, height: 44)
                     .background(Theme.raised2, in: Circle())
@@ -238,16 +239,15 @@ private struct ProgramContent: View {
             }
             .accessibilityLabel("Options du programme")
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 8)
+        .padding(.top, -4)
     }
 
     private var isDue: Bool { CoachingService.isCheckInDue(profile: profile) }
     private var daysLeft: Int { CoachingService.daysUntilCheckIn(profile: profile) }
 
+    /// Days of the current check-in week already elapsed (also shown in manual mode).
     private var filledDays: Int {
-        if mode == .manual { return 0 }
-        return isDue ? 7 : max(0, min(7, 7 - daysLeft))
+        isDue ? 7 : max(0, min(7, 7 - daysLeft))
     }
 
     private var countdown: some View {

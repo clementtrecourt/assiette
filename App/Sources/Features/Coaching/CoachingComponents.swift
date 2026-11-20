@@ -180,12 +180,12 @@ struct CoachingCardHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(Theme.font(14, .bold, relativeTo: .subheadline))
+                .font(Theme.font(19, .regular, relativeTo: .title3))
                 .foregroundStyle(Theme.textPrimary)
             if let subtitle {
                 Text(subtitle)
-                    .font(Theme.caption)
-                    .foregroundStyle(Theme.textTertiary)
+                    .font(Theme.font(15, .regular, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -348,23 +348,25 @@ struct CoachingCountdownRing<Center: View>: View {
     }
 
     private static var size: CGFloat { 202 }
-    private static var outerDiameter: CGFloat { 188 }
-    private static var innerDiameter: CGFloat { 164 }
+    private static var outerDiameter: CGFloat { 189 }
+    private static var innerDiameter: CGFloat { 162 }
+    private static var trackColor: Color { Theme.hex(0x333333) }
 
     var body: some View {
         let goal = CGFloat(min(max(goalProgress ?? 0, 0), 1))
         let elapsed = CGFloat(min(max(filledDays, 0), 7)) / 7
+        // Measured on the reference: both tracks #333, 5 pt strokes, arcs start at 3 o'clock.
         ZStack {
-            Circle().stroke(Theme.track, lineWidth: 4)
+            Circle().stroke(Self.trackColor, lineWidth: 5)
                 .frame(width: Self.outerDiameter, height: Self.outerDiameter)
             Circle().trim(from: 0, to: goal)
-                .stroke(Theme.good, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(Theme.good, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                 .frame(width: Self.outerDiameter, height: Self.outerDiameter)
                 .opacity(goal > 0 ? 1 : 0)
-            Circle().stroke(Theme.track, lineWidth: 4)
+            Circle().stroke(Self.trackColor, lineWidth: 5)
                 .frame(width: Self.innerDiameter, height: Self.innerDiameter)
             Circle().trim(from: 0, to: elapsed)
-                .stroke(Theme.textPrimary, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(Theme.textPrimary, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                 .frame(width: Self.innerDiameter, height: Self.innerDiameter)
                 .opacity(elapsed > 0 ? 1 : 0)
 
