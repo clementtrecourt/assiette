@@ -674,8 +674,8 @@ struct AddSearchBar: View {
                 appState.presentAdd(.search)
             } label: {
                 HStack(spacing: 9) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .semibold))
+                    Image("Glyph-loupe")
+                    .resizable().frame(width: 18, height: 18)
                         .foregroundStyle(Theme.textSecondary)
                     Text("Rechercher un aliment")
                         .font(Theme.font(15, .regular, relativeTo: .body))
@@ -696,8 +696,8 @@ struct AddSearchBar: View {
             Button {
                 appState.presentAdd(.scan)
             } label: {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.system(size: 17, weight: .medium))
+                Image("Glyph-scan")
+                    .resizable().frame(width: 18, height: 18)
                     .foregroundStyle(Theme.textSecondary)
                     .frame(width: 48)
                     .frame(maxHeight: .infinity)
@@ -707,11 +707,7 @@ struct AddSearchBar: View {
             .accessibilityLabel("Scanner un code-barres")
         }
         .frame(height: 46)
-        .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: 1)
-        }
+        .background(Theme.raised2, in: Capsule())
         .shadow(color: Color.black.opacity(0.35), radius: 10, y: 4)
         .padding(.horizontal, 12)
         .padding(.top, 14)

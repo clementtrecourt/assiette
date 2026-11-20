@@ -347,38 +347,29 @@ struct CoachingCountdownRing<Center: View>: View {
         self.center = center()
     }
 
-    private static var size: CGFloat { 156 }
-    private static var outerDiameter: CGFloat { 138 }
-    private static var innerDiameter: CGFloat { 116 }
-    /// Half of the gap between two day segments, as a fraction of the circle.
-    private static var halfGap: CGFloat { 0.008 }
+    private static var size: CGFloat { 202 }
+    private static var outerDiameter: CGFloat { 188 }
+    private static var innerDiameter: CGFloat { 164 }
 
     var body: some View {
+        let goal = CGFloat(min(max(goalProgress ?? 0, 0), 1))
+        let elapsed = CGFloat(min(max(filledDays, 0), 7)) / 7
         ZStack {
-            Circle()
-                .stroke(Theme.separator, lineWidth: 3)
+            Circle().stroke(Theme.track, lineWidth: 4)
                 .frame(width: Self.outerDiameter, height: Self.outerDiameter)
-            Circle()
-                .trim(from: 0, to: CGFloat(min(max(goalProgress ?? 0, 0), 1)))
-                .stroke(
-                    LinearGradient(colors: Theme.goodGradient, startPoint: .topLeading, endPoint: .bottomTrailing),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
+            Circle().trim(from: 0, to: goal)
+                .stroke(Theme.good, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .frame(width: Self.outerDiameter, height: Self.outerDiameter)
-                .opacity((goalProgress ?? 0) > 0 ? 1 : 0)
-
-            ForEach(0..<7, id: \.self) { index in
-                Circle()
-                    .trim(from: CGFloat(index) / 7 + Self.halfGap, to: CGFloat(index + 1) / 7 - Self.halfGap)
-                    .stroke(index < filledDays ? Theme.textPrimary : Theme.track,
-                            style: StrokeStyle(lineWidth: 7, lineCap: .butt))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: Self.innerDiameter, height: Self.innerDiameter)
-            }
+                .opacity(goal > 0 ? 1 : 0)
+            Circle().stroke(Theme.track, lineWidth: 4)
+                .frame(width: Self.innerDiameter, height: Self.innerDiameter)
+            Circle().trim(from: 0, to: elapsed)
+                .stroke(Theme.textPrimary, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .frame(width: Self.innerDiameter, height: Self.innerDiameter)
+                .opacity(elapsed > 0 ? 1 : 0)
 
             center
-                .frame(width: Self.innerDiameter - 20)
+                .frame(width: Self.innerDiameter - 38)
         }
         .frame(width: Self.size, height: Self.size)
         .animation(.snappy, value: filledDays)
@@ -426,13 +417,10 @@ struct CoachingWeekColumns: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .foregroundStyle(Theme.calories)
+                .foregroundStyle(Theme.onAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Theme.calories.opacity(0.45), lineWidth: Theme.hairline)
-                )
+                .background(Theme.calories, in: Capsule())
             ForEach(Theme.macroOrder, id: \.self) { key in
                 let value = grams(key)
                 Text(Formatters.number(value, maxFractionDigits: 0))
@@ -442,7 +430,7 @@ struct CoachingWeekColumns: View {
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(Theme.onAccent)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 16 + 36 * CGFloat(value / maxGrams))
+                    .frame(height: 30 + 68 * CGFloat(value / maxGrams))
                     .background(Theme.color(for: key), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
             Text(CoachingFormat.dayLetters[index])

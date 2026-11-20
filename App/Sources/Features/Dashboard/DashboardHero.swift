@@ -56,7 +56,6 @@ struct DashboardHero: View {
             color = isOver ? Theme.overTarget : Theme.textPrimary
         }
         return VStack(spacing: 3) {
-            DashboardCapsLabel(text: caption)
             Text(Formatters.number(value, maxFractionDigits: 0))
                 .font(Theme.font(32, .bold, relativeTo: .largeTitle))
                 .tracking(-1.2)
@@ -65,7 +64,7 @@ struct DashboardHero: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
-            Text("sur \(Formatters.kcal(target))")
+            Text(caption)
                 .font(Theme.font(12, .regular, relativeTo: .caption))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
@@ -120,78 +119,30 @@ private struct DashboardHeroSide: View {
 
 // MARK: - Ring
 
-/// 140 pt ring: thin gradient arc on a track, inner ring of fine ticks, white dot at the arc end.
+/// The foreground and track use the same 270-degree arc, open at the bottom.
 struct DashboardCalorieRing<Center: View>: View {
     let progress: Double
     let isOver: Bool
-    let center: Center
-
-    private let size: CGFloat = 140
-    private let lineWidth: CGFloat = 6
-    /// Arc radius = size / 2 − arcInset.
-    private let arcInset: CGFloat = 6
-    /// Tick ring radius = size / 2 − tickInset.
-    private let tickInset: CGFloat = 18
-    private let tickCount = 64
-
-    init(progress: Double, isOver: Bool, @ViewBuilder center: () -> Center) {
-        self.progress = progress
-        self.isOver = isOver
-        self.center = center()
-    }
-
-    private var arcStyle: AnyShapeStyle {
-        if isOver { return AnyShapeStyle(Theme.overTarget) }
-        return AnyShapeStyle(LinearGradient(colors: Theme.caloriesGradient,
-                                            startPoint: .topLeading, endPoint: .bottomTrailing))
-    }
+    @ViewBuilder let center: () -> Center
 
     var body: some View {
-        let clamped = min(max(progress, 0), 1)
-        let tickRadius = size / 2 - tickInset
-        let tickGap = max(2 * CGFloat.pi * tickRadius / CGFloat(tickCount) - 0.9, 0.5)
+        let fraction = CGFloat(min(max(progress, 0), 1))
+        let stroke = StrokeStyle(lineWidth: 5, lineCap: .round)
         ZStack {
             Circle()
-                .stroke(Theme.track, style: StrokeStyle(lineWidth: 3, dash: [0.9, tickGap]))
-                .padding(tickInset)
+                .trim(from: 0, to: 0.75)
+                .stroke(Theme.track, style: stroke)
+                .rotationEffect(.degrees(135))
             Circle()
-                .stroke(Theme.track, lineWidth: lineWidth)
-                .padding(arcInset)
-            Circle()
-                .trim(from: 0, to: clamped)
-                .stroke(arcStyle, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .padding(arcInset)
-            if clamped > 0 {
-                DashboardRingDot(progress: clamped, inset: arcInset, radius: 6)
-                    .fill(Theme.background)
-                DashboardRingDot(progress: clamped, inset: arcInset, radius: 3.6)
-                    .fill(Theme.textPrimary)
-            }
-            center
+                .trim(from: 0.75 * (1 - fraction), to: 0.75)
+                .stroke(isOver ? Theme.overTarget : Theme.calories, style: stroke)
+                .rotationEffect(.degrees(135))
+                .opacity(fraction > 0 ? 1 : 0)
+            center()
         }
-        .frame(width: size, height: size)
-        .animation(.snappy, value: clamped)
-    }
-}
-
-/// Small disc sitting on the ring at `progress` (animatable, so it follows the arc).
-private struct DashboardRingDot: Shape {
-    var progress: Double
-    let inset: CGFloat
-    let radius: CGFloat
-
-    var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        let ringRadius = min(rect.width, rect.height) / 2 - inset
-        let angle = -Double.pi / 2 + 2 * Double.pi * progress
-        let x = rect.midX + ringRadius * CGFloat(cos(angle))
-        let y = rect.midY + ringRadius * CGFloat(sin(angle))
-        return Path(ellipseIn: CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2))
+        .padding(4)
+        .frame(width: 178, height: 178)
+        .animation(.snappy, value: fraction)
     }
 }
 
@@ -277,10 +228,7 @@ struct DashboardModePicker: View {
             segment("Restant", selected: showRemaining) { showRemaining = true }
         }
         .padding(2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-        )
+        .background(Theme.raised2, in: Capsule())
     }
 
     private func segment(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -293,7 +241,7 @@ struct DashboardModePicker: View {
                 .padding(.horizontal, 18)
                 .frame(minHeight: 30)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    Capsule()
                         .fill(selected ? Theme.accent : Color.clear)
                 )
                 .contentShape(Rectangle())

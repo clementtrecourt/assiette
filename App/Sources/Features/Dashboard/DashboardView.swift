@@ -62,15 +62,26 @@ private struct DashboardContent: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                header
-                DashboardHero(consumed: totals.calories, target: targets.calories,
-                              showRemaining: showRemaining)
-                    .padding(.top, 8)
-                DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
-                    .padding(.top, 18)
-                DashboardModePicker(showRemaining: $showRemaining)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 18)
+                VStack(alignment: .leading, spacing: 0) {
+                    header
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Nutrition du jour")
+                            .font(Theme.headline)
+                        Spacer(minLength: 10)
+                        DashboardHero(consumed: totals.calories, target: targets.calories,
+                                      showRemaining: showRemaining)
+                        Spacer(minLength: 14)
+                        DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
+                        Spacer(minLength: 16)
+                        DashboardModePicker(showRemaining: $showRemaining)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.vertical, 14)
+                    .frame(minHeight: 382)
+                }
+                .padding(.horizontal, 16)
+                .background(Theme.raised)
+                .padding(.horizontal, -16)
 
                 trendsSection(goal: goal, todayKcal: totals.calories)
                     .padding(.top, 30)
@@ -102,19 +113,28 @@ private struct DashboardContent: View {
     // MARK: Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        HStack {
             Text("Accueil")
+                .textCase(.uppercase)
                 .font(Theme.font(28, .bold, relativeTo: .largeTitle))
-                .tracking(-0.6)
                 .foregroundStyle(Theme.textPrimary)
-            Text(DashboardFormat.dateLine(today))
-                .font(Theme.font(12, .medium, relativeTo: .subheadline))
-                .foregroundStyle(Theme.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            Menu {
+                Picker("Affichage", selection: $showRemaining) {
+                    Text("Mangé").tag(false)
+                    Text("Restant").tag(true)
+                }
+            } label: {
+                Image("Glyph-reglage")
+                    .frame(width: 40, height: 40)
+                    .background(Theme.raised2, in: Circle())
+            }
+            .accessibilityLabel("Affichage de la nutrition")
         }
         .padding(.top, 6)
         .padding(.bottom, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+
     }
 
     // MARK: Tendances

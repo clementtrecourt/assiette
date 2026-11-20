@@ -38,7 +38,7 @@ struct AssietteApp: App {
     private static func configureTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(Theme.background)
+        appearance.backgroundColor = UIColor(Theme.raised)
         appearance.shadowColor = UIColor(Theme.separator)
 
         let normal = UIColor(Theme.textTertiary)
@@ -131,12 +131,12 @@ struct RootView: View {
         TabView(selection: $appState.selectedTab) {
             DashboardView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Accueil", systemImage: "square.grid.2x2.fill") }
+                .tabItem { Label("Accueil", image: appState.selectedTab == .progress ? "Glyph-accueil-active" : "Glyph-accueil") }
                 .tag(AppTab.progress)
 
             TodayView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Journal", systemImage: "list.bullet.rectangle.portrait") }
+                .tabItem { Label("Journal", image: appState.selectedTab == .today ? "Glyph-journal-active" : "Glyph-journal") }
                 .tag(AppTab.today)
 
             Color.clear
@@ -145,11 +145,11 @@ struct RootView: View {
 
             ProgramView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Programme", systemImage: "chart.line.uptrend.xyaxis") }
+                .tabItem { Label("Programme", image: appState.selectedTab == .program ? "Glyph-programme-active" : "Glyph-programme") }
                 .tag(AppTab.program)
 
             ProfileView()
-                .tabItem { Label("Profil", systemImage: "person.crop.circle") }
+                .tabItem { Label("Profil", image: "Glyph-profil") }
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
@@ -209,7 +209,7 @@ private enum RootTabPlusImage {
         return UIGraphicsImageRenderer(size: size).image { _ in
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
             UIColor(Theme.accent).setFill()
-            UIBezierPath(roundedRect: rect, cornerRadius: 12).fill()
+            UIBezierPath(ovalIn: rect).fill()
             let plus = UIBezierPath()
             plus.move(to: CGPoint(x: 20, y: 12)); plus.addLine(to: CGPoint(x: 20, y: 28))
             plus.move(to: CGPoint(x: 12, y: 20)); plus.addLine(to: CGPoint(x: 28, y: 20))

@@ -14,46 +14,46 @@ enum Theme {
     }
 
     // Surfaces
-    static let background = hex(0x0F0F11)
+    static let background = hex(0x141414)
     /// Cards, sheets, input fields.
-    static let raised = hex(0x232326)
+    static let raised = hex(0x1F1F1F)
     /// Controls on top of a card (round buttons, chips, keypad keys, icon tiles).
-    static let raised2 = hex(0x2E2E32)
+    static let raised2 = hex(0x383838)
     static let card = raised
     static let cardBackground = raised
     /// Card fill: subtle top-to-bottom gradient + `cardBorder` hairline (see `.themedCard()`).
-    static let cardTop = hex(0x26262A)
-    static let cardBottom = hex(0x212124)
+    static let cardTop = hex(0x1F1F1F)
+    static let cardBottom = hex(0x1F1F1F)
     static let cardBorder = Color.white.opacity(0.045)
     /// Hairline separators (1 px).
     static let separator = hex(0x2A2A2E)
     /// Stronger hairline (inputs, chips, ring and bar tracks).
-    static let separatorStrong = hex(0x38383D)
+    static let separatorStrong = hex(0x383838)
     /// Track behind progress rings and bars.
-    static let track = hex(0x2C2C31)
+    static let track = hex(0x383838)
 
     // Text
-    static let textPrimary = hex(0xFAFAFA)
+    static let textPrimary = hex(0xFFFFFF)
     static let textBody = hex(0xD4D4D8)
     static let textSecondary = hex(0xA1A1AA)
-    static let textTertiary = hex(0x71717A)
+    static let textTertiary = hex(0xA6A6A6)
     static let textQuaternary = hex(0x52525B)
 
     // Accent & semantic — white controls with near-black content.
     static let accent = textPrimary
     /// Foreground on top of `accent` fills (buttons, "+" tab, selected chips).
-    static let onAccent = hex(0x0F0F11)
+    static let onAccent = hex(0x141414)
     static let overTarget = hex(0xE45A5A)
-    static let good = hex(0x6FCF97)
+    static let good = hex(0x5DBA87)
     /// Small flame before kcal values; also the expenditure color.
     static let flame = hex(0xF97316)
     static let expenditure = flame
 
     // Nutrients
-    static let calories = hex(0x6EA4F7)
-    static let carbs = hex(0x5FBF8F)
-    static let protein = hex(0xF28C6B)
-    static let fat = hex(0xF5C95A)
+    static let calories = hex(0x689FFA)
+    static let carbs = hex(0x5DBA87)
+    static let protein = hex(0xFF8660)
+    static let fat = hex(0xFFD15E)
     static let fiber = hex(0x7FCF9A)
     static let water = hex(0x6CC4E8)
     static let weight = hex(0xC4B5FD)

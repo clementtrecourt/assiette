@@ -94,7 +94,7 @@ private struct ProgramContent: View {
                 header
                 countdown
             }
-            .listRowBackground(Color.clear)
+            .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
 
@@ -186,6 +186,7 @@ private struct ProgramContent: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Programme")
+                    .textCase(.uppercase)
                     .font(Theme.font(28, .bold, relativeTo: .largeTitle))
                     .foregroundStyle(Theme.textPrimary)
                 Text("\(CoachingFormat.goalTitle(profile.goal)) · \(mode.adjective)")
@@ -210,7 +211,7 @@ private struct ProgramContent: View {
                     Label("Ajouter une exception", systemImage: "pause.circle")
                 }
             } label: {
-                Image(systemName: "ellipsis")
+                Image("Glyph-menu")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.textSecondary)
                     .frame(width: 36, height: 36)
@@ -246,15 +247,15 @@ private struct ProgramContent: View {
             .accessibilityElement(children: .combine)
 
             HStack(spacing: 16) {
-                legendItem(color: Theme.good, text: goalLegend)
+                legendItem(icon: "Glyph-objectif", color: Theme.good, text: goalLegend)
                 if mode != .manual {
-                    legendItem(color: Theme.textPrimary,
+                    legendItem(icon: "Glyph-bilan", color: Theme.textPrimary,
                                text: "Bilan le \(CoachingFormat.weekdayName(profile.checkInWeekday))")
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+        .frame(minHeight: 276)
     }
 
     @ViewBuilder
@@ -285,16 +286,18 @@ private struct ProgramContent: View {
                 .buttonStyle(.borderless)
                 .padding(.top, 2)
             } else {
-                ringCaption("Bilan dans")
-                Text(daysLeft > 1 ? "\(daysLeft) jours" : "1 jour")
+
+                Text(daysLeft > 1 ? "\(daysLeft) JOURS" : "1 JOUR")
                     .font(Theme.font(26, .bold, relativeTo: .title))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                ringDetail(CoachingFormat.weekdayDay(CoachingService.nextCheckInDate(profile: profile)))
+                ringDetail("avant le bilan")
             }
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.65)
     }
 
     private func ringCaption(_ text: String) -> some View {
@@ -313,9 +316,9 @@ private struct ProgramContent: View {
             .minimumScaleFactor(0.8)
     }
 
-    private func legendItem(color: Color, text: String) -> some View {
+    private func legendItem(icon: String, color: Color, text: String) -> some View {
         HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 8, height: 8)
+            Image(icon).resizable().frame(width: 16, height: 16).foregroundStyle(color)
             Text(text)
                 .font(Theme.font(12, .regular, relativeTo: .caption))
                 .monospacedDigit()
@@ -384,9 +387,9 @@ private struct ProgramContent: View {
                                 protein: profile.proteinTarget, fat: profile.fatTarget,
                                 todayIndex: CoachingFormat.mondayIndex(of: .now),
                                 excludedDays: excludedDays)
-                .padding(.top, 10)
+                .padding(.top, 22)
             cardHairline
-                .padding(.top, 10)
+                .padding(.top, 22)
             VStack(alignment: .leading, spacing: 6) {
                     Button {
                         sheet = .goal(.target)
@@ -409,9 +412,10 @@ private struct ProgramContent: View {
                     .buttonStyle(.borderless)
                 }
             }
-            .padding(.top, 9)
+            .padding(.top, 16)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 20)
         .themedCard()
     }
 
