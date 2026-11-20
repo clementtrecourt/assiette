@@ -97,6 +97,10 @@ private struct DashboardContent: View {
         }
         .scrollIndicators(.hidden)
         .background(Theme.background.ignoresSafeArea())
+        .overlay(alignment: .top) {
+            // Status bar strip in the header color (ShapeStyle backgrounds fill the safe area).
+            Color.clear.frame(height: 0).background(Theme.raised)
+        }
         .navigationDestination(for: DashboardRoute.self) { route in
             destination(route, goal: goal, totals: totals, targets: targets,
                         entryCount: todayEntries.count)
@@ -114,9 +118,8 @@ private struct DashboardContent: View {
 
     private var header: some View {
         HStack {
-            Text("Accueil")
-                .textCase(.uppercase)
-                .font(Theme.font(28, .bold, relativeTo: .largeTitle))
+            Text("ACCUEIL")
+                .font(Theme.screenTitle())
                 .foregroundStyle(Theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
@@ -127,7 +130,7 @@ private struct DashboardContent: View {
                 }
             } label: {
                 Image("Glyph-reglage")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .background(Theme.raised2, in: Circle())
             }
             .accessibilityLabel("Affichage de la nutrition")

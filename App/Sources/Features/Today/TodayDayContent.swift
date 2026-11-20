@@ -447,6 +447,7 @@ struct TodayDayContent: View {
             .disabled(entries.isEmpty)
         } label: {
             TodayRoundIcon(systemName: "ellipsis")
+                .rotationEffect(.degrees(90))
                 .accessibilityLabel("Options du jour")
         }
     }

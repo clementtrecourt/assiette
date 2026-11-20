@@ -172,9 +172,9 @@ struct QuickAddSheet: View {
 
     private func fieldLabel(_ title: String, color: Color) -> some View {
         Text(title)
-            .font(Theme.font(12, .bold, relativeTo: .caption))
-            .foregroundStyle(color)
-            .padding(.bottom, 6)
+            .font(Theme.font(17, .regular, relativeTo: .body))
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.bottom, 10)
     }
 
     private var energyRow: some View {
@@ -191,7 +191,7 @@ struct QuickAddSheet: View {
                     .tint(Theme.textPrimary)
             }
             .padding(.horizontal, 14)
-            .frame(height: 48)
+            .frame(height: 50)
             .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText)))
             .contentShape(Rectangle())
             .onTapGesture { focus = .calories }
@@ -199,7 +199,7 @@ struct QuickAddSheet: View {
             Text("kcal")
                 .font(Theme.font(15, .medium, relativeTo: .body))
                 .foregroundStyle(Theme.textSecondary)
-                .frame(width: 88, height: 48)
+                .frame(width: 88, height: 50)
                 .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
@@ -210,17 +210,17 @@ struct QuickAddSheet: View {
         let sum = Formatters.kcal(macroCalories)
         if let calories, macroCalories > 0, abs(macroCalories - calories) > max(30, calories * 0.15) {
             Label("Somme des macros : \(sum), loin de l'énergie saisie", systemImage: "exclamationmark.triangle")
-                .font(Theme.caption)
+                .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .monospacedDigit()
                 .foregroundStyle(Theme.fat)
         } else if calories == nil, macroCalories > 0 {
             Text("Somme des macros : \(sum) (utilisée comme énergie)")
-                .font(Theme.caption)
+                .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
         } else {
             Text("Somme des macros : \(sum)")
-                .font(Theme.caption)
+                .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textTertiary)
         }
@@ -245,7 +245,7 @@ struct QuickAddSheet: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(.horizontal, 12)
-            .frame(height: 46)
+            .frame(height: 50)
             .modifier(QuickAddFieldBox(isFocused: focus == field, isInvalid: isInvalid(binding.wrappedValue)))
             .contentShape(Rectangle())
             .onTapGesture { focus = field }
@@ -263,7 +263,7 @@ struct QuickAddSheet: View {
             .foregroundStyle(Theme.textPrimary)
             .tint(Theme.textPrimary)
             .padding(.horizontal, 12)
-            .frame(height: 46)
+            .frame(height: 50)
             .modifier(QuickAddFieldBox(isFocused: focus == .name, isInvalid: false))
     }
 
@@ -306,12 +306,12 @@ struct QuickAddSheet: View {
                     save(continuing: true)
                 } label: {
                     Text("Ajouter et continuer")
-                        .font(Theme.font(15, .medium, relativeTo: .body))
+                        .font(Theme.font(17, .regular, relativeTo: .body))
                         .foregroundStyle(canSave ? Theme.textPrimary : Theme.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+                        .frame(height: 54)
                         .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -321,13 +321,13 @@ struct QuickAddSheet: View {
                     save(continuing: false)
                 } label: {
                     Text("Ajouter à \(timeLabel)")
-                        .font(Theme.font(15, .bold, relativeTo: .body))
+                        .font(Theme.font(17, .medium, relativeTo: .body))
                         .monospacedDigit()
                         .foregroundStyle(canSave ? Theme.onAccent : Theme.textTertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+                        .frame(height: 54)
                         .background(canSave ? Theme.accent : Theme.separatorStrong,
                                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }

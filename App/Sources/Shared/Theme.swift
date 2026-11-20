@@ -107,6 +107,11 @@ enum Theme {
         return Font.custom(name, size: size, relativeTo: style)
     }
 
+    /// Screen titles (ACCUEIL, AUJOURD'HUI, PROGRAMME): Archivo Expanded ExtraBold, uppercase.
+    static func screenTitle(_ size: CGFloat = 24) -> Font {
+        Font.custom("ArchivoExpanded-ExtraBold", size: size, relativeTo: .largeTitle)
+    }
+
     /// Big remaining numbers in the journal header.
     static let numberLarge = font(22, .bold, relativeTo: .title2)
     static let title = font(20, .bold, relativeTo: .title3)
@@ -118,7 +123,7 @@ enum Theme {
 
     /// Registers the bundled DM Sans fonts. Call once at launch.
     static func registerFonts() {
-        for name in ["DMSans-Regular", "DMSans-Medium", "DMSans-Bold"] {
+        for name in ["DMSans-Regular", "DMSans-Medium", "DMSans-Bold", "ArchivoExpanded-ExtraBold"] {
             guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }

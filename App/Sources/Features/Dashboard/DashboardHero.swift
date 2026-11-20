@@ -57,21 +57,21 @@ struct DashboardHero: View {
         }
         return VStack(spacing: 3) {
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(32, .bold, relativeTo: .largeTitle))
-                .tracking(-1.2)
+                .font(Theme.font(40, .bold, relativeTo: .largeTitle))
+                .tracking(-1)
                 .monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
             Text(caption)
-                .font(Theme.font(12, .regular, relativeTo: .caption))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .frame(width: 96)
+        .frame(width: 124)
     }
 
     private var accessibilityText: String {
@@ -103,14 +103,16 @@ private struct DashboardHeroSide: View {
     var body: some View {
         VStack(spacing: 3) {
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(20, .bold, relativeTo: .title3))
-                .tracking(-0.5)
+                .font(Theme.font(22, .bold, relativeTo: .title3))
+                .tracking(-0.3)
                 .monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(caption)
-                .font(Theme.font(12, .regular, relativeTo: .caption))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(Theme.textSecondary)
         }
     }
@@ -182,9 +184,9 @@ struct DashboardMacroBars: View {
             main = Text(shown).foregroundColor(Theme.overTarget)
         } else {
             let shown = showRemaining ? target - eaten : eaten
-            main = Text(Formatters.number(shown, maxFractionDigits: 0)).foregroundColor(Theme.textBody)
+            main = Text(Formatters.number(shown, maxFractionDigits: 0)).foregroundColor(Theme.textPrimary)
         }
-        let rest = Text(" / \(Formatters.number(target, maxFractionDigits: 0)) g").foregroundColor(Theme.textTertiary)
+        let rest = Text(" / \(Formatters.number(target, maxFractionDigits: 0))g").foregroundColor(Theme.textPrimary)
         let status = isOver
             ? "\(Formatters.number(eaten - target, maxFractionDigits: 0)) g en trop"
             : (showRemaining ? "\(Formatters.number(target - eaten, maxFractionDigits: 0)) g restants"
@@ -192,14 +194,14 @@ struct DashboardMacroBars: View {
 
         return VStack(spacing: 6) {
             Text(key.label)
-                .font(Theme.font(14, .regular, relativeTo: .subheadline))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             DashboardBar(fraction: fraction, color: isOver ? Theme.overTarget : color,
                          fromTrailing: showRemaining)
             (main + rest)
-                .font(Theme.font(12, .medium, relativeTo: .caption))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)

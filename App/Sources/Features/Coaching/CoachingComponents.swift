@@ -165,7 +165,7 @@ struct CoachingSectionTitle: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(15, .bold, relativeTo: .headline))
+            .font(Theme.font(20, .bold, relativeTo: .title3))
             .foregroundStyle(Theme.textPrimary)
             .textCase(nil)
             .padding(.leading, -4)

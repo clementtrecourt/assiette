@@ -81,6 +81,8 @@ private struct ProgramContent: View {
     @State private var sheet: ProgramSheet?
     @State private var trendKg: Double?
     @State private var deleteTick = 0
+    /// Global x of the hero header (List header inset), see the "En cours" section header.
+    @State private var heroMinX: CGFloat = 16
 
     private static let visibleCheckIns = 5
 
@@ -91,19 +93,40 @@ private struct ProgramContent: View {
     var body: some View {
         List {
             Section {
-                header
-                countdown
-            }
-            .listRowBackground(Theme.raised)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-
-            Section {
                 programCard
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } header: {
-                CoachingSectionTitle("En cours")
+                // Hero in the section header: headers are not clipped to the inset card shape,
+                // so its background runs edge to edge and under the status bar.
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 0) {
+                        header
+                        countdown
+                            .padding(.bottom, 20)
+                    }
+                    .background {
+                        Theme.raised
+                            .padding(.horizontal, -60)
+                            .padding(.top, -600)
+                    }
+                    CoachingSectionTitle("En cours")
+                        .padding(.leading, 4)
+                        .padding(.top, 28)
+                        .padding(.bottom, 8)
+                }
+                // Keeps the content on the 16 pt screen margin whatever inset the header gets.
+                .padding(.horizontal, max(0, 16 - heroMinX))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { heroMinX = geo.frame(in: .global).minX }
+                            .onChange(of: geo.frame(in: .global).minX) { _, x in heroMinX = x }
+                    }
+                }
+                .textCase(nil)
+                .listRowInsets(EdgeInsets())
             }
 
             Section {
@@ -183,16 +206,11 @@ private struct ProgramContent: View {
     // MARK: - Header & countdown
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Programme")
-                    .textCase(.uppercase)
-                    .font(Theme.font(28, .bold, relativeTo: .largeTitle))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("\(CoachingFormat.goalTitle(profile.goal)) · \(mode.adjective)")
-                    .font(Theme.font(13, .medium, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.textTertiary)
-            }
+        HStack(alignment: .center) {
+            Text("PROGRAMME")
+                .font(Theme.screenTitle())
+                .foregroundStyle(Theme.textPrimary)
+                .accessibilityLabel("Programme, \(CoachingFormat.goalTitle(profile.goal)), \(mode.adjective)")
             Spacer()
             Menu {
                 Button {
@@ -212,9 +230,9 @@ private struct ProgramContent: View {
                 }
             } label: {
                 Image("Glyph-menu")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 36, height: 36)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 44, height: 44)
                     .background(Theme.raised2, in: Circle())
                     .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
@@ -259,16 +277,14 @@ private struct ProgramContent: View {
     private var countdownCenter: some View {
         VStack(spacing: 3) {
             if mode == .manual {
-                ringCaption("Mode manuel")
                 Text(CoachingFormat.kcalNumber(profile.calorieTarget))
-                    .font(Theme.font(26, .bold, relativeTo: .title))
+                    .font(Theme.screenTitle(26))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                 ringDetail("kcal / jour")
             } else if isDue {
-                ringCaption("Bilan")
-                Text("Disponible")
-                    .font(Theme.font(20, .bold, relativeTo: .title3))
+                Text("BILAN")
+                    .font(Theme.screenTitle(26))
                     .foregroundStyle(Theme.textPrimary)
                 Button {
                     appState.showingCheckIn = true
@@ -285,7 +301,7 @@ private struct ProgramContent: View {
             } else {
 
                 Text(daysLeft > 1 ? "\(daysLeft) JOURS" : "1 JOUR")
-                    .font(Theme.font(26, .bold, relativeTo: .title))
+                    .font(Theme.screenTitle(26))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
@@ -297,29 +313,21 @@ private struct ProgramContent: View {
         .minimumScaleFactor(0.65)
     }
 
-    private func ringCaption(_ text: String) -> some View {
-        Text(text)
-            .font(Theme.label)
-            .tracking(0.6)
-            .textCase(.uppercase)
-            .foregroundStyle(Theme.textTertiary)
-    }
-
     private func ringDetail(_ text: String) -> some View {
         Text(text)
-            .font(Theme.font(11, .regular, relativeTo: .caption2))
-            .foregroundStyle(Theme.textTertiary)
+            .font(Theme.font(16, .regular, relativeTo: .callout))
+            .foregroundStyle(Theme.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
     }
 
     private func legendItem(icon: String, color: Color, text: String) -> some View {
-        HStack(spacing: 5) {
-            Image(icon).resizable().frame(width: 16, height: 16).foregroundStyle(color)
+        HStack(spacing: 8) {
+            Image(icon).resizable().frame(width: 22, height: 22).foregroundStyle(color)
             Text(text)
-                .font(Theme.font(12, .regular, relativeTo: .caption))
+                .font(Theme.font(17, .regular, relativeTo: .body))
                 .monospacedDigit()
-                .foregroundStyle(Theme.textSecondary)
+                .foregroundStyle(Theme.textPrimary)
         }
     }
 

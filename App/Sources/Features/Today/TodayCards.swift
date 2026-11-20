@@ -17,14 +17,14 @@ struct TodayHairline: View {
 
 // MARK: - Round icon button label
 
-/// 32 pt `raised2` circle with an SF Symbol (title bar buttons).
+/// 44 pt `raised2` circle with an SF Symbol (title bar buttons).
 struct TodayRoundIcon: View {
     let systemName: String
-    var size: CGFloat = 32
+    var size: CGFloat = 44
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: 17, weight: .semibold))
             .foregroundStyle(Theme.textBody)
             .frame(width: size, height: size)
             .background(Circle().fill(Theme.raised2))
@@ -103,22 +103,23 @@ struct TodayMacroHeaderColumn: View {
     }
 
     private var valueLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             if isCalories {
-                Image(systemName: "flame.fill").font(.caption2)
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
             } else {
                 Text(Theme.letter(for: key))
-                    .font(Theme.font(12, .bold, relativeTo: .caption))
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(Theme.font(16, .bold, relativeTo: .callout))
+                    .foregroundStyle(Theme.textPrimary)
             }
-            Text(Formatters.number(displayed, maxFractionDigits: 0))
-                .font(Theme.font(17, .bold, relativeTo: .headline))
+            (Text(Formatters.number(displayed, maxFractionDigits: 0))
+                .foregroundColor(isNegative ? Theme.overTarget : Theme.textPrimary)
+             + Text(showsConsumed ? (isCalories ? " kcal" : " g") : " rest.")
+                .foregroundColor(Theme.textPrimary))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .monospacedDigit()
-                .foregroundStyle(isNegative ? Theme.overTarget : Theme.textPrimary)
                 .contentTransition(.numericText())
-            Text(showsConsumed ? (isCalories ? "kcal" : "g") : "rest.")
-                .font(Theme.font(11, .medium, relativeTo: .caption2))
-                .foregroundStyle(Theme.textTertiary)
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
@@ -143,13 +144,13 @@ private struct TodayMacroBar: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: fromTrailing ? .trailing : .leading) {
-                Capsule().fill(Theme.track)
-                Capsule()
+                Rectangle().fill(Theme.track)
+                Rectangle()
                     .fill(color)
                     .frame(width: geo.size.width * fraction)
             }
         }
-        .frame(height: 3)
+        .frame(height: 4)
         .animation(.snappy, value: fraction)
         .accessibilityHidden(true)
     }
@@ -175,16 +176,16 @@ enum TodayTimeFormat {
 enum TodayTimelineMetrics {
     static let leading: CGFloat = 16
     /// Space between the screen's trailing edge and the hour pills.
-    static let pillTrailing: CGFloat = 12
-    static let pillWidth: CGFloat = 52
-    static let pillHeight: CGFloat = 24
+    static let pillTrailing: CGFloat = 6
+    static let pillWidth: CGFloat = 58
+    static let pillHeight: CGFloat = 28
     /// Distance from the trailing edge to the vertical line (center of the pills).
     static let lineCenterTrailing: CGFloat = pillTrailing + pillWidth / 2
     /// Food cards stop before the pill column.
-    static let cardTrailing: CGFloat = pillTrailing + pillWidth + 8
-    static let hourRowHeight: CGFloat = 50
-    static let addSize: CGFloat = 24
-    static let cardIconSize: CGFloat = 38
+    static let cardTrailing: CGFloat = pillTrailing + pillWidth + 6
+    static let hourRowHeight: CGFloat = 52
+    static let addSize: CGFloat = 28
+    static let cardIconSize: CGFloat = 40
     static let cardRadius: CGFloat = 13
 }
 
@@ -265,7 +266,7 @@ struct TodayHourRow: View {
     private var addButton: some View {
         Button(action: onAdd) {
             Image(systemName: "plus")
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: TodayTimelineMetrics.addSize, height: TodayTimelineMetrics.addSize)
                 .background(Circle().fill(Theme.raised2))
@@ -290,7 +291,7 @@ struct TodayHourPill: View {
                     .frame(width: 5, height: 5)
             }
             Text(TodayTimeFormat.hour(hour))
-                .font(Theme.font(11, .medium, relativeTo: .caption2))
+                .font(Theme.font(14, .regular, relativeTo: .footnote))
                 .monospacedDigit()
                 .foregroundStyle(isNow ? Theme.textPrimary : Theme.textBody)
                 .lineLimit(1)
@@ -313,17 +314,17 @@ struct TodayHourChips: View {
     let totals: NutrientValues
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 0) {
             chip(value: totals.calories) {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Theme.flame)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
             }
             ForEach(Theme.macroOrder) { key in
                 chip(value: totals.value(key)) {
                     Text(Theme.letter(for: key))
-                        .font(Theme.font(9, .bold, relativeTo: .caption2))
-                        .foregroundStyle(Theme.textBody)
+                        .font(Theme.font(12, .bold, relativeTo: .caption2))
+                        .foregroundStyle(Theme.textPrimary)
                 }
             }
         }
@@ -333,16 +334,17 @@ struct TodayHourChips: View {
     }
 
     private func chip<Badge: View>(value: Double, @ViewBuilder badge: () -> Badge) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 7) {
             badge()
-                .frame(width: 17, height: 17)
+                .frame(width: 22, height: 22)
                 .background(Circle().fill(Theme.raised2))
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(12, .medium, relativeTo: .caption))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textPrimary)
                 .fixedSize()
         }
+        .frame(minWidth: 66, alignment: .leading)
     }
 
     private var accessibilityText: String {
@@ -360,26 +362,28 @@ struct TodayEntryCard: View {
 
     var body: some View {
         let nutrients = entry.nutrients
-        HStack(spacing: 9) {
+        HStack(spacing: 14) {
             icon
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(entry.name)
-                    .font(Theme.font(13, .medium, relativeTo: .subheadline))
+                    .font(Theme.font(16, .regular, relativeTo: .callout))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                 detailText(nutrients)
-                    .font(Theme.font(11, .regular, relativeTo: .caption))
+                    .font(Theme.font(15, .regular, relativeTo: .subheadline))
                     .monospacedDigit()
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             Spacer(minLength: 6)
             Image(systemName: "pencil")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.textBody)
-                .frame(width: 24, height: 24)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 30, height: 30)
                 .background(Circle().fill(Theme.raised2))
         }
-        .padding(.horizontal, 9)
+        .padding(.leading, 14)
+        .padding(.trailing, 12)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -403,17 +407,17 @@ struct TodayEntryCard: View {
     }
 
     private func detailText(_ nutrients: NutrientValues) -> Text {
+        // "263🔥  0G  53P  6L  •  174 g" (G / P / L order).
         let kcal = Text(Formatters.number(nutrients.calories, maxFractionDigits: 0))
-            .fontWeight(.semibold)
-            .foregroundStyle(Theme.textBody)
-        var rest = Theme.macroOrder
-            .map { "\(Formatters.number(nutrients.value($0), maxFractionDigits: 0)) \(Theme.letter(for: $0))" }
+            + Text(Image(systemName: "flame.fill")).font(.system(size: 11, weight: .semibold))
+        let macros = Theme.macroOrder
+            .map { "\(Formatters.number(nutrients.value($0), maxFractionDigits: 0))\(Theme.letter(for: $0))" }
+            .joined(separator: "  ")
+        var tail = "  " + macros
         if entry.source != .quickAdd {
-            rest.append(entry.quantityDescription)
+            tail += "  •  " + entry.quantityDescription
         }
-        let tail = Text(" · " + rest.joined(separator: " · "))
-            .foregroundStyle(Theme.textTertiary)
-        return kcal + tail
+        return (kcal + Text(tail)).foregroundStyle(Theme.textBody)
     }
 }
 

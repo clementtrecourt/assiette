@@ -70,16 +70,11 @@ struct FoodIconView: View {
         }
     }
 
-    /// Tile shape: radius proportional to the size (7 pt at 32 pt, as in the mockup).
-    private var tileShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: (size * 0.22).rounded(), style: .continuous)
-    }
-
-    /// Illustration inside the tile (~72 % of the side, leaving a margin around it).
-    private var imageSide: CGFloat { (size * 0.72).rounded() }
+    /// Illustration side (~90 % of the frame).
+    private var imageSide: CGFloat { (size * 0.9).rounded() }
 
     /// Fluent emojis fill their whole canvas: drawn a bit smaller to match the illustrations.
-    private var emojiSide: CGFloat { (size * 0.6).rounded() }
+    private var emojiSide: CGFloat { (size * 0.8).rounded() }
 
     private var pixelSide: Int { max(Int((imageSide * max(displayScale, 1)).rounded()), 1) }
 
@@ -112,11 +107,8 @@ struct FoodIconView: View {
     var body: some View {
         let emoji = displayedFluent
         let image = emoji == nil ? (cachedImage ?? (loadedKey == taskKey ? loadedImage : nil)) : nil
+        // Bare icon, no tile (MacroFactor-style lists).
         ZStack {
-            tileShape
-                .fill(Theme.raised2)
-            tileShape
-                .strokeBorder(Theme.separator, lineWidth: Theme.hairline)
             if let emoji {
                 Image(FoodEmojiMatcher.assetName(emoji))
                     .resizable()
@@ -130,8 +122,8 @@ struct FoodIconView: View {
                     .frame(width: imageSide, height: imageSide)
             } else {
                 Image(systemName: placeholder ?? kind?.systemImage ?? "fork.knife")
-                    .font(.system(size: size * 0.4, weight: .regular))
-                    .foregroundStyle(Theme.textTertiary)
+                    .font(.system(size: size * 0.6, weight: .regular))
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
         .frame(width: size, height: size)

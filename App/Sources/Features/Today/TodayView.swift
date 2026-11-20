@@ -28,6 +28,8 @@ struct TodayTitleBar<Accessory: View>: View {
     let onToday: () -> Void
     let accessory: Accessory
 
+    @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
+
     init(day: Date,
          onShiftDay: @escaping (Int) -> Void,
          onPickDate: @escaping () -> Void,
@@ -43,31 +45,33 @@ struct TodayTitleBar<Accessory: View>: View {
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 6) {
+        HStack(alignment: .center, spacing: 8) {
             titleButton
                 .layoutPriority(1)
             Spacer(minLength: 4)
             if !isToday {
                 todayButton
             }
-            roundButton("chevron.left", label: "Jour précédent") { onShiftDay(-1) }
-            roundButton("chevron.right", label: "Jour suivant") { onShiftDay(1) }
             roundButton("calendar", label: "Choisir une date", action: onPickDate)
+            roundButton("slider.horizontal.3",
+                        label: showsConsumed ? "Afficher le restant" : "Afficher le consommé") {
+                withAnimation(.snappy) { showsConsumed.toggle() }
+            }
             accessory
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 12)
+        .padding(.top, 2)
+        .padding(.bottom, 10)
     }
 
     private var titleButton: some View {
         Button(action: onPickDate) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(isToday ? "AUJOURD’HUI" : "JOURNAL")
-                    .font(Theme.font(26, .bold, relativeTo: .largeTitle))
-                    .tracking(-0.8)
+                    .font(Theme.screenTitle())
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 if !isToday {
                     Text(TodayDayFormat.dateLine(for: day))
                         .font(Theme.caption)
@@ -80,6 +84,8 @@ struct TodayTitleBar<Accessory: View>: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Journal, \(TodayDayFormat.dateLine(for: day))")
         .accessibilityHint("Choisir une date")
+        .accessibilityAction(named: "Jour précédent") { onShiftDay(-1) }
+        .accessibilityAction(named: "Jour suivant") { onShiftDay(1) }
     }
 
     private var todayButton: some View {
