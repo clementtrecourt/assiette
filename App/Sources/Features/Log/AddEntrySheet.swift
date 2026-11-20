@@ -862,7 +862,7 @@ private struct AddEntryMacroSummary: View {
                     Text(energyShare(key))
                         .font(Theme.font(15, .regular, relativeTo: .subheadline))
                         .monospacedDigit()
-                        .foregroundStyle(Theme.color(for: key))
+                        .foregroundStyle(Theme.textPrimary)
                         .padding(.horizontal, 12)
                         .frame(height: 26)
                         .background(AddEntryPanel.pill(key), in: Capsule())

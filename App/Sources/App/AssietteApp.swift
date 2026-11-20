@@ -45,8 +45,8 @@ struct AssietteApp: App {
         let selected = UIColor(Theme.textPrimary)
         var normalAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: normal]
         var selectedAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: selected]
-        // Reference tab bar: 14 pt labels, regular for idle tabs and medium for the selected one.
-        if let regular = UIFont(name: "DMSans-Regular", size: 14), let medium = UIFont(name: "DMSans-Medium", size: 14) {
+        // Reference tab bar: 13 pt labels, regular for idle tabs and medium for the selected one.
+        if let regular = UIFont(name: "DMSans-Regular", size: 13), let medium = UIFont(name: "DMSans-Medium", size: 13) {
             normalAttributes[.font] = regular
             selectedAttributes[.font] = medium
         }
@@ -58,9 +58,9 @@ struct AssietteApp: App {
         for item in itemAppearances {
             item.normal.iconColor = normal
             item.normal.titleTextAttributes = normalAttributes
-            // Icons carry 5 pt of top padding (asset viewBox); labels follow them down.
-            item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 5)
-            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 5)
+            // Icons carry 5 pt of top padding (asset viewBox); labels stay close under them.
+            item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 1)
+            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 1)
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = selectedAttributes
         }
