@@ -51,6 +51,11 @@ the add sheet in search mode with the keyboard up. All adding goes through
   hourly timeline: hour pills on a vertical line at the right, per-hour totals (kcal, G, P, L chips)
   and a round "+", food cards (icon tile, name, "kcal · G · P · L · qty", round edit button),
   empty hours show only "+" and the pill, current hour pill outlined in calories blue.
+- **Remaining header** (`DayRemainingView`): what is left for the day (kcal, G, P, L + bars) stays
+  in view on every screen that adds or edits a food: add sheet header, quantity screen opened as
+  a sheet (close button + remaining, replaces the nav bar), food detail (one row under the title).
+  It previews the quantity being typed: values already count it and the part of each bar it
+  uses is drawn lighter (an edited entry's old values are given back first).
 - **Add sheet**: header (close, time chip, remaining kcal/G/P/L mini bars); mode tabs
   Scanner / Rechercher / Rapide / Recettes; search shows Favoris, "Souvent à 9 h", Récents with
   multi-select and a bottom "Ajouter (n)" button. Food detail: kcal + G/P/L with % of energy,

@@ -94,6 +94,14 @@ struct FoodDetailView: View {
                 favoriteButton
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // What is left for the day stays in view while reading the food.
+            DayRemainingView(day: context.day, layout: .row)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 10)
+                .background(Theme.background)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             addButton
         }

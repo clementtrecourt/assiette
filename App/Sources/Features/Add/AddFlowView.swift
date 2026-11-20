@@ -60,6 +60,8 @@ struct AddFlowView: View {
     @State private var context: LogContext
     /// Food opened from search: its quantity screen replaces the tabs inside the panel.
     @State private var openedItem: FoodItem?
+    /// Nutrients of the quantity typed on that screen, previewed in the header.
+    @State private var pending: AddEntryPending?
 
     init(request: AddFlowRequest) {
         self.request = request
@@ -71,7 +73,7 @@ struct AddFlowView: View {
     /// panel with rounded top corners and a grabber (drag it down to close).
     var body: some View {
         VStack(spacing: 0) {
-            AddFlowHeader(context: $context, onClose: { dismiss() })
+            AddFlowHeader(context: $context, pending: pending, onClose: { dismiss() })
             VStack(spacing: 0) {
               if let openedItem {
                 Capsule()
@@ -115,6 +117,9 @@ struct AddFlowView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
+        .onPreferenceChange(AddEntryPendingKey.self) { value in
+            pending = value
+        }
         .onAppear {
             // CI screenshot: quantity screen inside the panel.
             if DemoSupport.startSheet == "addflow-entry", openedItem == nil { openedItem = DemoSupport.sampleItem }
@@ -148,6 +153,8 @@ struct AddFlowView: View {
 /// Close button, time chip and the remaining-of-the-day mini bars.
 private struct AddFlowHeader: View {
     @Binding var context: LogContext
+    /// Food being added on the quantity screen (previewed in what is left).
+    var pending: AddEntryPending?
     let onClose: () -> Void
 
     @State private var showingTime = false
@@ -184,7 +191,7 @@ private struct AddFlowHeader: View {
                     .presentationCompactAdaptation(.popover)
             }
 
-            AddFlowRemaining(day: context.day)
+            DayRemainingView(day: pending?.day ?? context.day, pending: pending?.nutrients)
                 .frame(maxWidth: .infinity)
                 .padding(.leading, 6)
         }
@@ -245,76 +252,6 @@ private struct AddFlowTimePicker: View {
         .padding(12)
         .frame(width: 254)
         .background(Theme.raised)
-    }
-}
-
-/// Remaining kcal / G / P / L of the day: value + 2 pt bar (remaining share of the target).
-private struct AddFlowRemaining: View {
-    @Query private var entries: [JournalEntry]
-    @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
-
-    private let day: Date
-
-    init(day: Date) {
-        self.day = day
-        let start = Calendar.current.startOfDay(for: day)
-        _entries = Query(filter: #Predicate<JournalEntry> { $0.day == start })
-    }
-
-    var body: some View {
-        let eaten = NutrientValues.sum(entries.map { $0.nutrients })
-        let targets = profiles.first?.targets(on: day)
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-            GridRow {
-                cell(.calories, eaten: eaten, targets: targets)
-                cell(.carbohydrates, eaten: eaten, targets: targets)
-            }
-            GridRow {
-                cell(.protein, eaten: eaten, targets: targets)
-                cell(.totalFat, eaten: eaten, targets: targets)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityText(eaten: eaten, targets: targets))
-    }
-
-    private func cell(_ key: NutrientKey, eaten: NutrientValues, targets: NutrientValues?) -> some View {
-        let target = targets?.value(key) ?? 0
-        let remaining = target - eaten.value(key)
-        let fraction = target > 0 ? min(max(remaining / target, 0), 1) : 0
-        let unit = key == .calories ? " rest." : " \(Theme.letter(for: key)) rest."
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 0) {
-                Text(target > 0 ? Formatters.number(remaining, maxFractionDigits: 0) : "—")
-                    .foregroundStyle(remaining < 0 ? Theme.overTarget : Theme.textPrimary)
-                Text(unit)
-                    .foregroundStyle(Theme.textPrimary)
-            }
-            .font(Theme.font(14, .regular, relativeTo: .footnote))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            GeometryReader { geo in
-                ZStack(alignment: .trailing) {
-                    Rectangle().fill(Theme.track)
-                    Rectangle()
-                        .fill(Theme.color(for: key))
-                        .frame(width: geo.size.width * fraction)
-                }
-            }
-            .frame(height: 4)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func accessibilityText(eaten: NutrientValues, targets: NutrientValues?) -> String {
-        guard let targets else { return "Restant du jour" }
-        let parts = ([NutrientKey.calories] + Theme.macroOrder).map { key -> String in
-            let remaining = targets.value(key) - eaten.value(key)
-            let unit = key == .calories ? "kcal" : "g"
-            return "\(key.label) \(Formatters.number(remaining, maxFractionDigits: 0)) \(unit)"
-        }
-        return "Restant du jour : " + parts.joined(separator: ", ")
     }
 }
 

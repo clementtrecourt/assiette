@@ -185,6 +185,19 @@ struct AddEntrySheet: View {
 
     private var portion: NutrientValues { item.per100.forGrams(grams ?? 0) }
 
+    /// Day the entry will be logged on (an edited entry moves with its date and time).
+    private var entryDay: Date { entry != nil ? Calendar.current.startOfDay(for: time) : day }
+
+    /// Nutrients of the quantity typed, previewed in what is left (nil while it is invalid).
+    private var pendingPortion: NutrientValues? { grams == nil ? nil : portion }
+
+    /// Current nutrients of the edited entry, already counted in its day's total.
+    private var replacedNutrients: NutrientValues? {
+        guard let entry, pendingPortion != nil,
+              Calendar.current.isDate(entry.day, inSameDayAs: entryDay) else { return nil }
+        return entry.nutrients
+    }
+
     private func unitWord(_ unit: AddEntryUnit, count: Double) -> String {
         switch unit {
         case .base: return item.unitSymbol
@@ -276,9 +289,39 @@ struct AddEntrySheet: View {
             }
             .sensoryFeedback(.selection, trigger: favoriteToggles)
             .onAppear { caretOn = true }
+            // The add sheet header previews what will be left with this quantity.
+            .preference(key: AddEntryPendingKey.self,
+                        value: pendingPortion.map { AddEntryPending(day: entryDay, nutrients: $0) })
         } else {
             sheetBody
         }
+    }
+
+    /// Sheet header (reference: add sheet): close button and what is left for the day,
+    /// including the quantity typed, so the remaining kcal and macros stay in view.
+    private var sheetTopBar: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Button { close() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 50, height: 50)
+                    .background(Theme.raised2, in: Circle())
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Fermer")
+            DayRemainingView(day: entryDay, pending: pendingPortion, replacing: replacedNutrients)
+                .id(entryDay)
+                .frame(maxWidth: .infinity)
+                .padding(.leading, 6)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .background(Theme.raised)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityHint(entry == nil ? "Ajouter" : "Modifier")
     }
 
     /// Back chevron + centered food name (reference layout inside the add panel).
@@ -360,23 +403,11 @@ struct AddEntrySheet: View {
                 .padding(.bottom, 12)
             }
             .scrollIndicators(.hidden)
+            .safeAreaInset(edge: .top, spacing: 0) { sheetTopBar }
             .safeAreaInset(edge: .bottom, spacing: 0) { entryPanel }
             .background(Theme.raised.ignoresSafeArea())
             .navigationTitle(entry == nil ? "Ajouter" : "Modifier")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.raised, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        close()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    .accessibilityLabel("Fermer")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .confirmationDialog(
                 "Supprimer cet aliment du journal ?",
                 isPresented: $showDeleteConfirm,
