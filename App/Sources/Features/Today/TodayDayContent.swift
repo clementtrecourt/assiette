@@ -282,8 +282,9 @@ struct TodayDayContent: View {
                              totals: hourEntries.isEmpty ? nil : buckets.totalsByHour[hour]) {
                     add(at: hour)
                 }
+                .background(TodayTimelineLine(top: hour != first, bottom: hour != 23 || !hourEntries.isEmpty))
+                .todayListRow()
                 .id(Self.hourID(hour))
-                .todayTimelineRow(top: hour != first, bottom: hour != 23 || !hourEntries.isEmpty)
                 ForEach(hourEntries, id: \.persistentModelID) { entry in
                     entryRow(entry)
                 }
@@ -362,6 +363,7 @@ struct TodayDayContent: View {
             } label: {
                 Label("Supprimer", systemImage: "trash")
             }
+            .tint(.red)
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {

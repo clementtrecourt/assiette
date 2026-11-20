@@ -366,7 +366,6 @@ struct SearchMacroColumns: View {
                     .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
-            .layoutPriority(1)
             .accessibilityElement(children: .combine)
 
             ForEach(Theme.macroOrder, id: \.self) { key in

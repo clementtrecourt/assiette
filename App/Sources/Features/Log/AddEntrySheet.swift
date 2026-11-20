@@ -707,7 +707,6 @@ private struct AddEntryMacroSummary: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .frame(maxWidth: .infinity)
-            .layoutPriority(1)
             .accessibilityElement(children: .combine)
 
             ForEach(Theme.macroOrder, id: \.self) { key in

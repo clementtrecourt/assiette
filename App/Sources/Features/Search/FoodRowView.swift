@@ -51,6 +51,7 @@ struct FoodRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(nameText)
+                    .multilineTextAlignment(.leading)
                     .lineLimit(2)
                 detailLine
                     .lineLimit(1)

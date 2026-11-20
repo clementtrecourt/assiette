@@ -147,6 +147,18 @@ def main(src, dst):
         tokenize='unicode61 remove_diacritics 2', prefix='2 3')""")
     db.execute("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
 
+    # Localized names for staple foods with a known preparation state.
+    french_names = {
+        "fd_VoAECiJlRO4t": "Riz basmati cru",
+        "fd_rhmHl8WBly89": "Riz complet cru",
+        "fd_gbtVB7G9twmc": "Riz cuit",
+        "fd_ScotusF79jyh": "Poulet cru, entier découpé",
+        "fd_57Ne2bwpolgJ": "Poulet cuit, entier",
+        "fd_z3bVu8Loyy6a": "Blanc de poulet cuit, grillé",
+        "fd_8P5faGPYoPZ1": "Pâtes crues, spaghetti",
+        "fd_r3FR60zh9Wz4": "Quinoa cru",
+        "fd_zkscDlk1dkn8": "Couscous cru",
+    }
     icons = load_icons()
     fluent_match = load_fluent_matcher()
     placeholders = ",".join("?" * (13 + len(NUTRIENTS)))
@@ -193,6 +205,9 @@ def main(src, dst):
             fluent = fluent_match(name) if fluent_match else None
             if fluent:
                 fluent_count += 1
+            if localized := french_names.get(row["id"]):
+                alt = f"{name} {alt}"
+                name = localized
             db.execute(
                 f"INSERT INTO food VALUES({placeholders})",
                 (n, row["id"], name, brand, t, row["ean_13"] or None,

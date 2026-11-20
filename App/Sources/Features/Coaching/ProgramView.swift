@@ -387,14 +387,14 @@ private struct ProgramContent: View {
                 .padding(.top, 10)
             cardHairline
                 .padding(.top, 10)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
                     Button {
                         sheet = .goal(.target)
                     } label: {
                         CoachingChipLabel(title: "Nouveau programme", systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.borderless)
+                HStack(spacing: 6) {
                     Button {
                         sheet = .targets
                     } label: {
