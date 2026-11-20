@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Every CI build gets a unique, increasing version: Feather spots updates by version string,
+  # the in-app banner by build number. Local and simulator builds keep 0.1.0 (1).
+  APP_VERSION: 0.1.${{ github.run_number }}
+  APP_BUILD: ${{ github.run_number }}
   DATASET_URL: https://downloads.opennutrition.app/opennutrition-dataset-2025.1.zip
 
 permissions:
@@ -93,6 +97,7 @@ jobs:
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build/device \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$APP_BUILD" \
             2>&1 | tee build/device.log | xcbeautify --renderer github-actions
           mkdir -p build/ipa/Payload
           cp -R build/device/Build/Products/Release-iphoneos/Assiette.app build/ipa/Payload/
@@ -113,8 +118,12 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG=latest; fi
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
           (cd build/screenshots && zip -q ../screenshots.zip *.png) || true
-          gh release create "$TAG" build/Assiette.ipa build/screenshots.zip --target "$GITHUB_SHA" \
-            --title "Assiette $TAG" --notes "Build ${GITHUB_SHA::7} — IPA non signé, à signer avant installation." \
+          NOTES="$(git log -1 --format=%s "$GITHUB_SHA") (build ${GITHUB_SHA::7})"
+          python3 -I tools/make_source.py build/Assiette.ipa "$APP_VERSION" "$APP_BUILD" "$NOTES" \
+            "$GITHUB_REPOSITORY" build/source.json
+          gh release create "$TAG" build/Assiette.ipa build/screenshots.zip build/source.json --target "$GITHUB_SHA" \
+            --title "Assiette $APP_VERSION" \
+            --notes "$NOTES — IPA non signé. Source Feather : https://github.com/$GITHUB_REPOSITORY/releases/download/latest/source.json" \
             $([[ "$TAG" == latest ]] && echo --prerelease)
 
       - name: Show compiler errors

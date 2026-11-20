@@ -7,8 +7,9 @@ import SwiftData
 ///   -startTab <name>      today | progress (Accueil) | program | profile
 ///   -startSheet <name>    search | scan | quickadd | detail | add   (presented from the journal)
 ///                         wizard | wizard-summary                 (presented from Programme)
+///   -updateBanner         show the "new version" banner with a fake build
 enum DemoSupport {
-    private static var arguments: [String] { ProcessInfo.processInfo.arguments }
+    static var arguments: [String] { ProcessInfo.processInfo.arguments }
 
     static var isDemo: Bool { arguments.contains("-demo") }
 

@@ -28,6 +28,7 @@ shot 07-accueil -startTab progress
 shot 09-programme -startTab program
 shot 08-profil -startTab profile
 shot 10-programme-regime -startTab program -startSheet wizard
+shot 11-mise-a-jour -startTab progress -updateBanner
 shot 11-programme-pret -startTab program -startSheet wizard-summary
 shot 12-objectif-intro -startTab program -startSheet goal-new
 shot 13-objectif-rythme -startTab program -startSheet goal-rate

@@ -129,6 +129,9 @@ struct RootView: View {
     @State private var didSetUpDemo = false
     @State private var lastRealTab: AppTab = .progress
     @State private var checkInPrompted = false
+    @State private var updates = UpdateChecker()
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         @Bindable var appState = appState
@@ -157,6 +160,19 @@ struct RootView: View {
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let update = updates.available {
+                UpdateBanner(update: update, onUpdate: openFeather, onDismiss: {
+                    withAnimation { updates.dismiss() }
+                })
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: updates.available)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !DemoSupport.isDemo else { return }
+            Task { await updates.checkIfStale() }
+        }
         .onChange(of: appState.selectedTab) { _, newValue in
             if newValue == .add {
                 appState.selectedTab = lastRealTab
@@ -184,9 +200,22 @@ struct RootView: View {
                 appState.selectedTab = tab
             }
             promptCheckInIfDue()
+            if DemoSupport.isDemo {
+                if DemoSupport.arguments.contains("-updateBanner") { updates.showDemo() }
+            } else {
+                await updates.checkIfStale()
+            }
         }
         .fullScreenCover(isPresented: needsOnboarding) {
             OnboardingView()
+        }
+    }
+
+    /// Feather holds the signing certificate and the source: it re-signs and installs the new
+    /// build. Without Feather, fall back to the release page.
+    private func openFeather() {
+        openURL(UpdateChecker.featherURL) { accepted in
+            if !accepted { openURL(UpdateChecker.releasePage) }
         }
     }
 
