@@ -4,7 +4,7 @@ import SwiftData
 /// Demo mode used by CI to take simulator screenshots of every screen.
 /// Launch arguments:
 ///   -demo                 seed a realistic profile + 30 days of journal/weights (fresh store only)
-///   -startTab <name>      today | progress | profile
+///   -startTab <name>      today | progress (Accueil) | program | profile
 ///   -startSheet <name>    search | scan | quickadd | detail | add   (presented from the journal)
 enum DemoSupport {
     private static var arguments: [String] { ProcessInfo.processInfo.arguments }
@@ -19,7 +19,8 @@ enum DemoSupport {
     static var startTab: AppTab? {
         switch value(after: "-startTab") {
         case "today": .today
-        case "progress": .progress
+        case "progress", "dashboard": .progress
+        case "program": .program
         case "profile": .profile
         default: nil
         }

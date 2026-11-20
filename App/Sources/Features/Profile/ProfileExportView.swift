@@ -129,6 +129,7 @@ struct ProfileAboutView: View {
     }
 
     private let database = FoodDatabase.shared
+    @State private var showsFluentLicense = false
 
     var body: some View {
         List {
@@ -178,6 +179,9 @@ struct ProfileAboutView: View {
                 Text("Les produits récupérés en ligne par code-barres proviennent d'Open Food Facts (© contributeurs Open Food Facts), également sous licence ODbL ; les images et contenus éventuels sont sous licence CC BY-SA.")
                     .font(Theme.callout)
                     .foregroundStyle(Theme.textBody)
+                Text("Les illustrations des aliments proviennent d'OpenNutrition et de Fluent Emoji (© Microsoft Corporation), sous licence MIT.")
+                    .font(Theme.callout)
+                    .foregroundStyle(Theme.textBody)
                 Link(destination: URL(string: "https://www.opennutrition.app")!) {
                     Label("opennutrition.app", systemImage: "safari")
                 }
@@ -186,6 +190,11 @@ struct ProfileAboutView: View {
                 }
                 Link(destination: URL(string: "https://opendatacommons.org/licenses/odbl/1-0/")!) {
                     Label("Texte de la licence ODbL", systemImage: "doc.text")
+                }
+                Button {
+                    showsFluentLicense = true
+                } label: {
+                    Label("Licence Fluent Emoji (MIT)", systemImage: "doc.text")
                 }
             } header: {
                 ProfileSectionHeader("Sources & licences")
@@ -212,6 +221,11 @@ struct ProfileAboutView: View {
         .themedBackground()
         .navigationTitle("À propos")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showsFluentLicense) {
+            ProfileAboutLicenseSheet(title: "Fluent Emoji",
+                                     resource: "FluentEmoji-LICENSE",
+                                     sourceURL: URL(string: "https://github.com/microsoft/fluentui-emoji"))
+        }
     }
 
     private func aboutValueRow(_ title: String, _ value: String) -> some View {
@@ -224,6 +238,53 @@ struct ProfileAboutView: View {
             Text(title)
                 .font(Theme.body)
                 .foregroundStyle(Theme.textBody)
+        }
+    }
+}
+
+/// License text bundled as `<resource>.txt` (e.g. FluentEmoji-LICENSE.txt), shown from About.
+private struct ProfileAboutLicenseSheet: View {
+    let title: String
+    let resource: String
+    let sourceURL: URL?
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var text: String {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "txt"),
+              let content = try? String(contentsOf: url, encoding: .utf8) else {
+            return "Texte de la licence introuvable dans l'application."
+        }
+        return content
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(text)
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundStyle(Theme.textBody)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let sourceURL {
+                        Link(destination: sourceURL) {
+                            Label(sourceURL.host ?? sourceURL.absoluteString, systemImage: "safari")
+                        }
+                        .font(Theme.body)
+                        .tint(Theme.textPrimary)
+                    }
+                }
+                .padding(16)
+            }
+            .themedBackground()
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("OK") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -67,9 +67,12 @@ struct Food: Identifiable, Hashable, Sendable {
     /// Values per 100 g / 100 ml.
     let per100: NutrientValues
     /// OpenNutrition illustration basename (CDN: `<icon>@4x.webp`), exact or best generic
-    /// match computed by tools/build_db.py. nil when unknown. Last so the memberwise init
-    /// keeps working without it.
+    /// match computed by tools/build_db.py. nil when unknown. Last (with `fluent`) so the
+    /// memberwise init keeps working without it.
     var icon: String? = nil
+    /// Bundled Fluent Emoji (asset `FoodEmoji/<fluent>`), set by tools/map_fluent.py when the
+    /// name is a clear generic match; shown before `icon`. nil when none / older database.
+    var fluent: String? = nil
 
     /// Name without the trailing " by Brand".
     var displayName: String {
@@ -90,7 +93,8 @@ struct Food: Identifiable, Hashable, Sendable {
             isLiquid: isLiquid,
             ean: ean,
             per100: per100,
-            icon: icon
+            icon: icon,
+            fluent: fluent
         )
     }
 }
@@ -111,9 +115,12 @@ struct FoodItem: Identifiable, Hashable, Sendable {
     var isLiquid: Bool = false
     var ean: String?
     var per100: NutrientValues
-    /// OpenNutrition illustration basename (see `FoodIconView`). Must stay the LAST stored
-    /// property (defaulted) so existing memberwise `FoodItem(...)` calls keep compiling.
+    /// OpenNutrition illustration basename (see `FoodIconView`). `icon` and `fluent` must stay
+    /// the LAST stored properties (defaulted) so existing memberwise `FoodItem(...)` calls
+    /// keep compiling.
     var icon: String? = nil
+    /// Bundled Fluent Emoji name (see `FoodIconView`, `FoodEmojiMatcher`); dataset foods only.
+    var fluent: String? = nil
 
     /// Stable key, used for favorites and de-duplication: "source:ref" (or "source:name").
     var id: String { "\(source.rawValue):\(ref ?? name)" }

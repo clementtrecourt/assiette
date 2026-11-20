@@ -4,12 +4,17 @@ import SwiftUI
 import Vision
 import VisionKit
 
-/// Barcode scanner presented in a sheet (has its own NavigationStack).
-/// Lookup order: bundled OpenNutrition DB → user's CustomFood (by EAN) → Open Food Facts.
+/// Full-bleed camera scanner: barcodes (lookup order: bundled OpenNutrition DB → user's
+/// CustomFood by EAN → Open Food Facts) or a nutrition facts label (OCR of the per-100 g values).
+///
+/// Standalone (sheet): own NavigationStack, close button in the camera top bar.
+/// `embedded: true`: no NavigationStack chrome (the add sheet provides its header); the food
+/// detail opens in a sheet instead of being pushed.
 struct BarcodeScanView: View {
     let context: LogContext
-    /// Called just before the scanner closes itself after a successful log.
+    /// Called after a successful log ("Ajouter"); standalone, the scanner then closes itself.
     let onLogged: (() -> Void)?
+    let embedded: Bool
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -18,9 +23,15 @@ struct BarcodeScanView: View {
 
     @State private var cameraState: ScanCameraState = .checking
     @State private var scannerAppeared = false
+    @State private var mode: ScanMode = .barcode
     @State private var phase: ScanPhase = .scanning
+    @State private var labelPhase: ScanLabelPhase = .idle
     @State private var lookupTask: Task<Void, Never>?
+    @State private var labelTask: Task<Void, Never>?
     @State private var detectionCount = 0
+    @State private var captureHandle = ScanCaptureHandle()
+    @State private var torchAvailable = false
+    @State private var torchOn = false
 
     @State private var showManualEntry = false
     @State private var detailItem: FoodItem?
@@ -28,51 +39,33 @@ struct BarcodeScanView: View {
     @State private var editorRequest: ScanEditorRequest?
     @State private var closeAfterLogging = false
 
-    init(context: LogContext, onLogged: (() -> Void)? = nil) {
+    /// Last product found by a scan (JSON snapshot, so it works offline) and when.
+    @AppStorage("scan.lastProduct") private var lastProductData = Data()
+    @AppStorage("scan.lastProductDate") private var lastProductDate: Double = 0
+
+    init(context: LogContext, onLogged: (() -> Void)? = nil, embedded: Bool = false) {
         self.context = context
         self.onLogged = onLogged
+        self.embedded = embedded
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
-                cameraLayer
-
-                if showsPanel {
-                    panel
-                        .frame(maxWidth: 520)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                Theme.background.ignoresSafeArea()
-            }
-            .animation(.snappy, value: phase)
-            .navigationTitle("Scanner un code-barres")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fermer") { dismiss() }
-                        .tint(Theme.textSecondary)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showManualEntry = true
-                    } label: {
-                        Label("Saisir le code", systemImage: "keyboard")
+        Group {
+            if embedded {
+                scanner
+                    .sheet(item: $detailItem) { item in
+                        NavigationStack {
+                            FoodDetailView(item: item, context: context, onLogged: finishLogging)
+                        }
                     }
-                    .tint(Theme.textPrimary)
+            } else {
+                NavigationStack {
+                    scanner
+                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationDestination(item: $detailItem) { item in
+                            FoodDetailView(item: item, context: context, onLogged: finishLogging)
+                        }
                 }
-            }
-            .navigationDestination(item: $detailItem) { item in
-                FoodDetailView(item: item, context: context, onLogged: {
-                    onLogged?()
-                    dismiss()
-                })
             }
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: detectionCount)
@@ -84,16 +77,23 @@ struct BarcodeScanView: View {
             default: return nil
             }
         }
+        .sensoryFeedback(trigger: labelPhase) { _, newPhase in
+            switch newPhase {
+            case .result: return .success
+            case .failed: return .warning
+            default: return nil
+            }
+        }
         .sheet(isPresented: $showManualEntry) {
             ScanManualEntrySheet { code in
+                if mode != .barcode { switchMode(to: .barcode) }
                 handle(code: code, force: true)
             }
         }
         .sheet(item: $itemToLog, onDismiss: {
             if closeAfterLogging {
                 closeAfterLogging = false
-                onLogged?()
-                dismiss()
+                finishLogging()
             }
         }) { item in
             AddEntrySheet(item: item, context: context, onLogged: {
@@ -107,26 +107,69 @@ struct BarcodeScanView: View {
             await evaluateCamera()
         }
         .onChange(of: scenePhase) { _, newValue in
-            guard newValue == .active else { return }
-            if cameraState == .denied || cameraState == .unavailable {
-                Task { await evaluateCamera() }
+            if newValue == .active {
+                if cameraState == .denied || cameraState == .unavailable {
+                    Task { await evaluateCamera() }
+                }
+            } else {
+                torchOn = false
             }
+        }
+        .onChange(of: phase) { _, newPhase in
+            if case .found(let code, let item) = newPhase {
+                rememberLast(item, code: code)
+            }
+        }
+        .onChange(of: torchOn) { _, on in
+            ScanTorch.set(on)
         }
         .onDisappear {
             lookupTask?.cancel()
+            labelTask?.cancel()
+            if torchOn { ScanTorch.set(false) }
         }
+    }
+
+    /// Camera, overlays and bottom card.
+    private var scanner: some View {
+        ZStack(alignment: .bottom) {
+            cameraLayer
+
+            if let panelContent = panelKind {
+                panel(panelContent)
+                    .frame(maxWidth: 520)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .top) { topBar }
+        .background {
+            Color.black.ignoresSafeArea()
+        }
+        .animation(.snappy, value: phase)
+        .animation(.snappy, value: labelPhase)
+        .animation(.snappy, value: mode)
     }
 
     // MARK: - Layers
 
     private var scannerIsActive: Bool {
-        cameraState == .ready && scannerAppeared && phase == .scanning
-            && detailItem == nil && itemToLog == nil && editorRequest == nil && !showManualEntry
-            && scenePhase == .active
+        guard cameraState == .ready, scannerAppeared, scenePhase == .active,
+              detailItem == nil, itemToLog == nil, editorRequest == nil, !showManualEntry
+        else { return false }
+        switch mode {
+        case .barcode: return phase == .scanning
+        case .label: return labelPhase == .idle || labelPhase == .reading
+        }
     }
 
-    private var showsPanel: Bool {
-        cameraState == .ready || phase != .scanning
+    private var showsViewfinder: Bool {
+        switch mode {
+        case .barcode: return phase == .scanning
+        case .label: return labelPhase == .idle || labelPhase == .reading
+        }
     }
 
     @ViewBuilder
@@ -140,28 +183,40 @@ struct BarcodeScanView: View {
             }
             .tint(Theme.textSecondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
         case .ready:
             ZStack {
                 ScanDataScanner(
+                    mode: mode,
                     isActive: scannerIsActive,
+                    handle: captureHandle,
                     onCode: { code in handle(code: code, force: false) },
                     onUnavailable: { cameraState = .unavailable }
                 )
+                .id(mode)
                 .ignoresSafeArea()
-                .onAppear { scannerAppeared = true }
-                .onDisappear { scannerAppeared = false }
 
-                if phase == .scanning {
-                    ScanViewfinder()
+                if showsViewfinder {
+                    ScanViewfinder(mode: mode, bottomReserve: viewfinderBottomReserve)
                 }
             }
+            .onAppear { scannerAppeared = true }
+            .onDisappear { scannerAppeared = false }
         case .unsupported, .denied, .unavailable:
-            if phase == .scanning {
+            if mode == .label || phase == .scanning {
                 unavailableView
+                    .padding(.top, 56)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
             } else {
-                Color.clear
+                Theme.background
             }
         }
+    }
+
+    /// Room kept under the viewfinder for the bottom card.
+    private var viewfinderBottomReserve: CGFloat {
+        mode == .label ? 150 : 110
     }
 
     private var unavailableView: some View {
@@ -175,7 +230,7 @@ struct BarcodeScanView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
         } description: {
-            Text(cameraState.message)
+            Text(mode == .label ? cameraState.labelMessage : cameraState.message)
                 .font(Theme.callout)
                 .foregroundStyle(Theme.textSecondary)
         } actions: {
@@ -185,13 +240,15 @@ struct BarcodeScanView: View {
 
     @ViewBuilder
     private var unavailableActions: some View {
-        Button {
-            showManualEntry = true
-        } label: {
-            Label("Saisir le code-barres", systemImage: "keyboard")
-                .padding(.horizontal, 20)
+        if mode == .barcode {
+            Button {
+                showManualEntry = true
+            } label: {
+                Label("Saisir le code-barres", systemImage: "keyboard")
+                    .padding(.horizontal, 20)
+            }
+            .buttonStyle(ScanPrimaryButtonStyle(fillsWidth: false))
         }
-        .buttonStyle(ScanPrimaryButtonStyle(fillsWidth: false))
 
         if cameraState == .denied {
             Button("Ouvrir les Réglages") {
@@ -204,48 +261,120 @@ struct BarcodeScanView: View {
         }
     }
 
-    @ViewBuilder
-    private var panel: some View {
-        Group {
-            switch phase {
-            case .scanning:
-                ScanHintCard { showManualEntry = true }
-            case .searching(let code, let step):
-                ScanSearchingCard(code: code, step: step)
-            case .found(let code, let item):
-                ScanFoundCard(
-                    item: item,
-                    code: code,
-                    onLog: { itemToLog = item },
-                    onDetail: { detailItem = item },
-                    onComplete: { editorRequest = ScanEditorRequest(barcode: code, prefill: item) },
-                    onRescan: rescan
-                )
-            case .notFound(let code):
-                ScanNotFoundCard(
-                    code: code,
-                    onCreate: { editorRequest = ScanEditorRequest(barcode: code, prefill: nil) },
-                    onRescan: rescan
-                )
-            case .failed(let code, let message):
-                ScanFailedCard(
-                    code: code,
-                    message: message,
-                    onRetry: { handle(code: code, force: true) },
-                    onCreate: { editorRequest = ScanEditorRequest(barcode: code, prefill: nil) },
-                    onRescan: rescan
-                )
+    /// Mode switch (Code-barres / Étiquette), manual entry and torch, over the camera.
+    private var topBar: some View {
+        HStack(spacing: 8) {
+            if !embedded {
+                ScanRoundButton(systemImage: "xmark", label: "Fermer") { dismiss() }
+            }
+            ScanModeSwitch(mode: mode, onSelect: switchMode(to:))
+            Spacer(minLength: 8)
+            ScanRoundButton(systemImage: "keyboard", label: "Saisir le code-barres") {
+                showManualEntry = true
+            }
+            if torchAvailable && cameraState == .ready {
+                ScanRoundButton(systemImage: torchOn ? "flashlight.on.fill" : "flashlight.off.fill",
+                                label: torchOn ? "Éteindre la lampe" : "Allumer la lampe",
+                                isOn: torchOn) {
+                    torchOn.toggle()
+                }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+    }
+
+    // MARK: - Bottom card
+
+    private enum PanelKind {
+        case lastScan(FoodItem)
+        case barcode
+        case label
+    }
+
+    private var panelKind: PanelKind? {
+        switch mode {
+        case .label:
+            if cameraState == .ready { return PanelKind.label }
+            return nil
+        case .barcode:
+            if phase != .scanning { return .barcode }
+            if let last = lastProduct { return .lastScan(last.item) }
+            return nil
         }
-        .foregroundStyle(Theme.textPrimary)
-        .tint(Theme.accent)
+    }
+
+    @ViewBuilder
+    private func panel(_ kind: PanelKind) -> some View {
+        switch kind {
+        case .lastScan(let item):
+            ScanLastCard(
+                item: item,
+                detail: lastScanDetail(for: item),
+                onOpen: {
+                    if let code = lastProduct?.code { phase = .found(code: code, item: item) }
+                },
+                onAdd: { itemToLog = item }
+            )
+        case .barcode:
+            barcodeCard
+                .modifier(ScanCardBackground())
+        case .label:
+            labelCard
+                .modifier(ScanCardBackground())
+        }
+    }
+
+    @ViewBuilder
+    private var barcodeCard: some View {
+        switch phase {
+        case .scanning:
+            EmptyView()
+        case .searching(let code, let step):
+            ScanSearchingCard(code: code, step: step)
+        case .found(let code, let item):
+            ScanFoundCard(
+                item: item,
+                code: code,
+                onLog: { itemToLog = item },
+                onDetail: { detailItem = item },
+                onComplete: { editorRequest = ScanEditorRequest(barcode: code, prefill: item) },
+                onRescan: rescan
+            )
+        case .notFound(let code):
+            ScanNotFoundCard(
+                code: code,
+                onCreate: { editorRequest = ScanEditorRequest(barcode: code, prefill: nil) },
+                onRescan: rescan
+            )
+        case .failed(let code, let message):
+            ScanFailedCard(
+                code: code,
+                message: message,
+                onRetry: { handle(code: code, force: true) },
+                onCreate: { editorRequest = ScanEditorRequest(barcode: code, prefill: nil) },
+                onRescan: rescan
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var labelCard: some View {
+        switch labelPhase {
+        case .idle:
+            ScanLabelIdleCard(onRead: readLabel)
+        case .reading:
+            ScanSearchingCard(code: nil, step: "Lecture du tableau nutritionnel", title: "Lecture de l'étiquette…")
+        case .result(let values):
+            ScanLabelResultCard(
+                values: values,
+                onLog: { itemToLog = BarcodeScanView.labelItem(values) },
+                onCreate: { editorRequest = ScanEditorRequest(barcode: nil, prefill: BarcodeScanView.labelItem(values)) },
+                onRetry: { labelPhase = .idle }
+            )
+        case .failed(let message):
+            ScanLabelFailedCard(message: message, onRetry: readLabel)
+        }
     }
 
     // MARK: - Camera
@@ -268,10 +397,27 @@ struct BarcodeScanView: View {
         default:
             break
         }
+        torchAvailable = ScanTorch.isAvailable
         cameraState = DataScannerViewController.isAvailable ? .ready : .unavailable
     }
 
-    // MARK: - Lookup
+    private func switchMode(to newMode: ScanMode) {
+        guard newMode != mode else { return }
+        lookupTask?.cancel()
+        labelTask?.cancel()
+        phase = .scanning
+        labelPhase = .idle
+        torchOn = false
+        mode = newMode
+    }
+
+    /// After a successful log: tell the caller; standalone, also close the scanner.
+    private func finishLogging() {
+        onLogged?()
+        if !embedded { dismiss() }
+    }
+
+    // MARK: - Barcode lookup
 
     private func handle(code raw: String, force: Bool) {
         let code = raw.filter { $0.isASCII && $0.isNumber }
@@ -335,7 +481,7 @@ struct BarcodeScanView: View {
 
     /// After the custom food editor closes: if the user created a food for this code, show it.
     private func refreshAfterEditor() {
-        guard let code = phase.code, let custom = customFood(matching: code) else { return }
+        guard mode == .barcode, let code = phase.code, let custom = customFood(matching: code) else { return }
         lookupTask?.cancel()
         phase = .found(code: code, item: custom.item)
     }
@@ -362,9 +508,74 @@ struct BarcodeScanView: View {
         }
         return "Impossible de contacter Open Food Facts."
     }
+
+    // MARK: - Last scan
+
+    private var lastProduct: ScanLastProduct? {
+        guard !lastProductData.isEmpty else { return nil }
+        return try? JSONDecoder().decode(ScanLastProduct.self, from: lastProductData)
+    }
+
+    private func rememberLast(_ item: FoodItem, code: String) {
+        guard let data = try? JSONEncoder().encode(ScanLastProduct(item: item, code: code)) else { return }
+        lastProductData = data
+        lastProductDate = Date.now.timeIntervalSince1970
+    }
+
+    /// "il y a 2 jours · 15 g".
+    private func lastScanDetail(for item: FoodItem) -> String {
+        var parts: [String] = []
+        if lastProductDate > 0 {
+            let date = Date(timeIntervalSince1970: lastProductDate)
+            parts.append(ScanLastCard.relativeFormatter.localizedString(for: date, relativeTo: .now))
+        }
+        if let grams = UserDefaults.standard.object(forKey: "lastGrams.\(item.id)") as? Double, grams > 0 {
+            parts.append("\(Formatters.number(grams, maxFractionDigits: 0)) \(item.unitSymbol)")
+        } else if let brand = item.brand, !brand.isEmpty {
+            parts.append(brand)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Nutrition label (OCR)
+
+    private func readLabel() {
+        guard let scanner = captureHandle.scanner else {
+            labelPhase = .failed("La caméra n'est pas prête. Réessayez dans un instant.")
+            return
+        }
+        labelTask?.cancel()
+        labelPhase = .reading
+        labelTask = Task { @MainActor in
+            do {
+                let image = try await scanner.capturePhoto()
+                let rows = await ScanLabelReader.recognizeRows(in: image)
+                if Task.isCancelled { return }
+                if let values = ScanLabelParser.parse(lines: rows) {
+                    labelPhase = .result(values)
+                } else {
+                    labelPhase = .failed("Aucune valeur lue. Cadrez le tableau nutritionnel de plus près, bien éclairé, puis réessayez.")
+                }
+            } catch {
+                if Task.isCancelled { return }
+                labelPhase = .failed("Impossible de prendre la photo. Réessayez.")
+            }
+        }
+    }
+
+    /// Temporary loggable item built from label values (per 100 g).
+    private static func labelItem(_ values: NutrientValues) -> FoodItem {
+        FoodItem(source: .custom, ref: nil, name: "Étiquette scannée", brand: nil, kind: nil,
+                 servingLabel: nil, servingGrams: nil, packageGrams: nil, isLiquid: false,
+                 ean: nil, per100: values)
+    }
 }
 
 // MARK: - State
+
+private enum ScanMode: Hashable {
+    case barcode, label
+}
 
 private enum ScanCameraState: Equatable {
     case checking, ready, unsupported, denied, unavailable
@@ -385,6 +596,17 @@ private enum ScanCameraState: Equatable {
             return "Autorisez l'accès à la caméra dans Réglages pour scanner les codes-barres, ou saisissez le code à la main."
         default:
             return "La caméra est utilisée par une autre app ou restreinte. Vous pouvez saisir le code à la main."
+        }
+    }
+
+    var labelMessage: String {
+        switch self {
+        case .unsupported:
+            return "Cet appareil ne permet pas de lire les étiquettes."
+        case .denied:
+            return "Autorisez l'accès à la caméra dans Réglages pour lire les étiquettes."
+        default:
+            return "La caméra est utilisée par une autre app ou restreinte."
         }
     }
 
@@ -414,16 +636,88 @@ private enum ScanPhase: Equatable {
     }
 }
 
+private enum ScanLabelPhase: Equatable {
+    case idle
+    case reading
+    case result(NutrientValues)
+    case failed(String)
+}
+
 private struct ScanEditorRequest: Identifiable {
     let id = UUID()
-    let barcode: String
+    let barcode: String?
     let prefill: FoodItem?
+}
+
+/// Reference to the live scanner, used to take the label photo.
+private final class ScanCaptureHandle {
+    weak var scanner: DataScannerViewController?
+}
+
+/// Snapshot of the last scanned product (stored as JSON in AppStorage).
+private struct ScanLastProduct: Codable {
+    var code: String
+    var name: String
+    var brand: String?
+    var sourceRaw: String
+    var ref: String?
+    var kindRaw: Int?
+    var servingLabel: String?
+    var servingGrams: Double?
+    var packageGrams: Double?
+    var isLiquid: Bool
+    var ean: String?
+    var per100: NutrientValues
+    var icon: String?
+
+    init(item: FoodItem, code: String) {
+        self.code = code
+        self.name = item.name
+        self.brand = item.brand
+        self.sourceRaw = item.source.rawValue
+        self.ref = item.ref
+        self.kindRaw = item.kind?.rawValue
+        self.servingLabel = item.servingLabel
+        self.servingGrams = item.servingGrams
+        self.packageGrams = item.packageGrams
+        self.isLiquid = item.isLiquid
+        self.ean = item.ean
+        self.per100 = item.per100
+        self.icon = item.icon
+    }
+
+    var item: FoodItem {
+        FoodItem(source: FoodSource(rawValue: sourceRaw) ?? .openFoodFacts, ref: ref, name: name,
+                 brand: brand, kind: kindRaw.flatMap(FoodKind.init(rawValue:)),
+                 servingLabel: servingLabel, servingGrams: servingGrams, packageGrams: packageGrams,
+                 isLiquid: isLiquid, ean: ean, per100: per100, icon: icon)
+    }
+}
+
+/// Torch of the back camera (the scanner's capture device).
+private enum ScanTorch {
+    static var isAvailable: Bool {
+        AVCaptureDevice.default(for: .video)?.hasTorch ?? false
+    }
+
+    static func set(_ on: Bool) {
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = on ? .on : .off
+            device.unlockForConfiguration()
+        } catch {
+            // Torch busy or unavailable: ignore.
+        }
+    }
 }
 
 // MARK: - DataScannerViewController wrapper
 
 private struct ScanDataScanner: UIViewControllerRepresentable {
+    var mode: ScanMode
     var isActive: Bool
+    var handle: ScanCaptureHandle
     var onCode: (String) -> Void
     var onUnavailable: () -> Void
 
@@ -432,16 +726,31 @@ private struct ScanDataScanner: UIViewControllerRepresentable {
     }
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: [.barcode(symbologies: [.ean13, .ean8, .upce])],
-            qualityLevel: .balanced,
-            recognizesMultipleItems: false,
-            isHighFrameRateTrackingEnabled: false,
-            isPinchToZoomEnabled: true,
-            isGuidanceEnabled: true,
-            isHighlightingEnabled: true
-        )
+        let scanner: DataScannerViewController
+        switch mode {
+        case .barcode:
+            scanner = DataScannerViewController(
+                recognizedDataTypes: [.barcode(symbologies: [.ean13, .ean8, .upce])],
+                qualityLevel: .balanced,
+                recognizesMultipleItems: false,
+                isHighFrameRateTrackingEnabled: false,
+                isPinchToZoomEnabled: true,
+                isGuidanceEnabled: true,
+                isHighlightingEnabled: true
+            )
+        case .label:
+            scanner = DataScannerViewController(
+                recognizedDataTypes: [.text()],
+                qualityLevel: .accurate,
+                recognizesMultipleItems: true,
+                isHighFrameRateTrackingEnabled: false,
+                isPinchToZoomEnabled: true,
+                isGuidanceEnabled: false,
+                isHighlightingEnabled: true
+            )
+        }
         scanner.delegate = context.coordinator
+        handle.scanner = scanner
         return scanner
     }
 
@@ -450,6 +759,7 @@ private struct ScanDataScanner: UIViewControllerRepresentable {
         coordinator.onCode = onCode
         coordinator.onUnavailable = onUnavailable
         coordinator.wantsScanning = isActive
+        handle.scanner = scanner
 
         if isActive {
             guard !scanner.isScanning else { return }
@@ -519,66 +829,248 @@ private struct ScanDataScanner: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Overlay & cards
+// MARK: - Overlay
 
-/// Dark overlay with a transparent window and a thin white frame.
+/// Dimmed camera with a clear window, 4 rounded corner brackets, an animated scan line
+/// (calories blue) and the hint under the frame.
 private struct ScanViewfinder: View {
-    private let width: CGFloat = 280
-    private let height: CGFloat = 160
-    private let radius: CGFloat = 12
+    let mode: ScanMode
+    let bottomReserve: CGFloat
+
+    @State private var sweeping = false
+
+    private var hint: String {
+        mode == .barcode
+            ? "Placez le code-barres dans le cadre"
+            : "Cadrez le tableau nutritionnel (pour 100 g)"
+    }
 
     var body: some View {
-        ZStack {
-            Theme.background.opacity(0.6)
-                .ignoresSafeArea()
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .frame(width: width, height: height)
-                .padding(.bottom, 120)
-                .blendMode(.destinationOut)
+        GeometryReader { geo in
+            let width = min(geo.size.width - 52, 360)
+            let available = max(geo.size.height - bottomReserve - 90, 120)
+            let height = mode == .barcode ? min(150, available) : min(width * 1.1, available)
+            let centerY = 70 + (available - height) * 0.35 + height / 2
+            let center = CGPoint(x: geo.size.width / 2, y: centerY)
+
+            ZStack {
+                ZStack {
+                    Color.black.opacity(0.35)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .frame(width: width, height: height)
+                        .position(center)
+                        .blendMode(.destinationOut)
+                }
+                .compositingGroup()
+
+                ScanCornerBrackets()
+                    .stroke(Theme.textPrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .frame(width: width, height: height)
+                    .position(center)
+
+                Capsule()
+                    .fill(Theme.calories)
+                    .frame(width: width - 28, height: 2)
+                    .shadow(color: Theme.calories.opacity(0.7), radius: 6)
+                    .position(x: center.x, y: center.y + (sweeping ? height / 2 - 16 : -height / 2 + 16))
+
+                Text(hint)
+                    .font(Theme.font(13, .medium, relativeTo: .footnote))
+                    .foregroundStyle(Theme.textBody)
+                    .shadow(color: .black.opacity(0.6), radius: 4)
+                    .position(x: center.x, y: center.y + height / 2 + 24)
+            }
         }
-        .compositingGroup()
-        .overlay {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(Theme.accent, lineWidth: 2)
-                .frame(width: width, height: height)
-                .padding(.bottom, 120)
-        }
+        .ignoresSafeArea(.container, edges: .bottom)
         .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(hint)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                sweeping = true
+            }
+        }
     }
 }
 
-private struct ScanHintCard: View {
-    let onManual: () -> Void
+/// Four corner brackets with rounded corners.
+private struct ScanCornerBrackets: Shape {
+    var length: CGFloat = 26
+    var radius: CGFloat = 12
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let l = min(length, rect.width / 2, rect.height / 2)
+        let r = min(radius, l)
+
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + l))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX + l, y: rect.minY))
+
+        path.move(to: CGPoint(x: rect.maxX - l, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r), control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + l))
+
+        path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - l))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - r, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX - l, y: rect.maxY))
+
+        path.move(to: CGPoint(x: rect.minX + l, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - r), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - l))
+        return path
+    }
+}
+
+/// "Code-barres / Étiquette" switch on a translucent dark capsule.
+private struct ScanModeSwitch: View {
+    let mode: ScanMode
+    let onSelect: (ScanMode) -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "barcode.viewfinder")
-                .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(Theme.textPrimary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Visez le code-barres du produit")
-                    .font(Theme.headline)
+        HStack(spacing: 2) {
+            segment(.barcode, title: "Code-barres")
+            segment(.label, title: "Étiquette")
+        }
+        .padding(3)
+        .background(Color.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mode de scan")
+    }
+
+    private func segment(_ value: ScanMode, title: String) -> some View {
+        let isSelected = mode == value
+        return Button {
+            onSelect(value)
+        } label: {
+            Text(title)
+                .font(Theme.font(13, isSelected ? .bold : .medium, relativeTo: .subheadline))
+                .foregroundStyle(isSelected ? Theme.onAccent : Theme.textBody)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.accent)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// Round translucent button of the camera top bar.
+private struct ScanRoundButton: View {
+    let systemImage: String
+    let label: String
+    var isOn = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isOn ? Theme.onAccent : Theme.textPrimary)
+                .frame(width: 36, height: 36)
+                .background(isOn ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Color.black.opacity(0.55)),
+                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Bottom card surface over the camera.
+private struct ScanCardBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.raised.opacity(0.96), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                    .strokeBorder(Theme.cardBorder, lineWidth: 1)
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .tint(Theme.accent)
+    }
+}
+
+// MARK: - Cards
+
+/// "Dernier scan : …" with a "+" to log it again; tap to see the product card.
+private struct ScanLastCard: View {
+    let item: FoodItem
+    let detail: String
+    let onOpen: () -> Void
+    let onAdd: () -> Void
+
+    static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Formatters.locale
+        formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
+        return formatter
+    }()
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: onOpen) {
+                HStack(spacing: 10) {
+                    FoodIconView(item: item, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dernier scan : \(item.name)")
+                            .font(Theme.font(14, .medium, relativeTo: .subheadline))
+                            .foregroundStyle(Theme.textPrimary)
+                            .lineLimit(1)
+                        if !detail.isEmpty {
+                            Text(detail)
+                                .font(Theme.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.textTertiary)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
-                Text("EAN-13, EAN-8 ou UPC-E")
-                    .font(Theme.caption)
-                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 32, height: 32)
+                    .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
-            Spacer(minLength: 8)
-            Button(action: onManual) {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 22)
-            }
-            .buttonStyle(ScanSecondaryButtonStyle(fillsWidth: false))
-            .accessibilityLabel("Saisir le code manuellement")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ajouter \(item.name) au journal")
+        }
+        .padding(10)
+        .background(Theme.raised.opacity(0.94), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Theme.cardBorder, lineWidth: 1)
         }
     }
 }
 
 private struct ScanSearchingCard: View {
-    let code: String
+    let code: String?
     let step: String
+    var title = "Recherche en cours…"
 
     var body: some View {
         HStack(spacing: 14) {
@@ -586,16 +1078,18 @@ private struct ScanSearchingCard: View {
                 .controlSize(.regular)
                 .tint(Theme.textSecondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Recherche en cours…")
+                Text(title)
                     .font(Theme.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Text(step)
                     .font(Theme.caption)
                     .foregroundStyle(Theme.textSecondary)
-                Text(code)
-                    .font(Theme.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.textTertiary)
+                if let code {
+                    Text(code)
+                        .font(Theme.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -648,7 +1142,7 @@ private struct ScanFoundCard: View {
             }
 
             if hasNutrition {
-                nutritionGrid
+                ScanNutritionGrid(values: item.per100, unitSymbol: item.unitSymbol)
             } else {
                 Label("Valeurs nutritionnelles manquantes pour ce produit.", systemImage: "exclamationmark.triangle.fill")
                     .font(Theme.callout)
@@ -657,12 +1151,12 @@ private struct ScanFoundCard: View {
 
             Button(action: hasNutrition ? onLog : onComplete) {
                 Label(hasNutrition ? "Ajouter au journal" : "Compléter cet aliment",
-                      systemImage: hasNutrition ? "plus.circle.fill" : "square.and.pencil")
+                      systemImage: hasNutrition ? "plus" : "square.and.pencil")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(ScanPrimaryButtonStyle())
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button(action: onDetail) {
                     Label("Voir la fiche", systemImage: "list.bullet.rectangle")
                         .frame(maxWidth: .infinity)
@@ -677,19 +1171,24 @@ private struct ScanFoundCard: View {
             AttributionFooter(includeOpenFoodFacts: item.source == .openFoodFacts)
         }
     }
+}
 
-    /// Per-100 g values, 4 columns separated by hairlines like the journal header.
-    private var nutritionGrid: some View {
+/// Per-100 g kcal then G / P / L, 4 columns separated by hairlines.
+private struct ScanNutritionGrid: View {
+    let values: NutrientValues
+    let unitSymbol: String
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 0) {
-                ScanNutrientColumn(title: "Kcal", value: item.per100[.calories], key: .calories, showsLeadingHairline: false)
-                ScanNutrientColumn(title: "Prot.", value: item.per100[.protein], key: .protein, showsLeadingHairline: true)
-                ScanNutrientColumn(title: "Gluc.", value: item.per100[.carbohydrates], key: .carbohydrates, showsLeadingHairline: true)
-                ScanNutrientColumn(title: "Lip.", value: item.per100[.totalFat], key: .totalFat, showsLeadingHairline: true)
+                ScanNutrientColumn(title: "Kcal", value: values[.calories], key: .calories, showsLeadingHairline: false)
+                ForEach(Theme.macroOrder, id: \.self) { key in
+                    ScanNutrientColumn(title: key.label, value: values[key], key: key, showsLeadingHairline: true)
+                }
             }
             .overlay(alignment: .top) { ScanHairline() }
             .overlay(alignment: .bottom) { ScanHairline() }
-            Text("Pour 100 \(item.unitSymbol)")
+            Text("Pour 100 \(unitSymbol)")
                 .font(Theme.caption)
                 .foregroundStyle(Theme.textTertiary)
         }
@@ -713,9 +1212,10 @@ private struct ScanNutrientColumn: View {
             Text(title)
                 .font(Theme.font(10, .bold, relativeTo: .caption2))
                 .textCase(.uppercase)
-                .tracking(0.7)
+                .tracking(0.5)
                 .foregroundStyle(Theme.color(for: key))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(formatted)
                     .font(Theme.font(18, .bold, relativeTo: .title3))
@@ -763,35 +1263,31 @@ private struct ScanPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Theme.font(16, .bold, relativeTo: .headline))
+            .font(Theme.font(15, .bold, relativeTo: .headline))
             .foregroundStyle(isEnabled ? Theme.onAccent : Theme.textTertiary)
             .frame(maxWidth: fillsWidth ? CGFloat.infinity : nil)
             .frame(minHeight: 48)
             .background(isEnabled ? Theme.accent : Theme.separatorStrong,
-                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : 1)
-            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
-/// Secondary action: transparent with a 1 px `separatorStrong` outline.
+/// Secondary action: raised2 fill.
 private struct ScanSecondaryButtonStyle: ButtonStyle {
     var fillsWidth: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(Theme.font(14, .medium, relativeTo: .subheadline))
-            .foregroundStyle(Theme.textPrimary)
+            .foregroundStyle(Theme.textBody)
             .padding(.horizontal, 10)
             .frame(maxWidth: fillsWidth ? CGFloat.infinity : nil)
             .frame(minHeight: 40)
-            .background(configuration.isPressed ? Theme.separator : Color.clear,
-                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                    .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -868,7 +1364,7 @@ private struct ScanFailedCard: View {
             }
             .buttonStyle(ScanPrimaryButtonStyle())
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button(action: onCreate) {
                     Label("Créer", systemImage: "plus.square.on.square")
                         .frame(maxWidth: .infinity)
@@ -883,8 +1379,111 @@ private struct ScanFailedCard: View {
     }
 }
 
+// MARK: - Label cards
+
+private struct ScanLabelIdleCard: View {
+    let onRead: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "text.viewfinder")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Lire le tableau nutritionnel")
+                        .font(Theme.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Valeurs pour 100 g, étiquette à plat et bien éclairée.")
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            Button(action: onRead) {
+                Label("Lire l'étiquette", systemImage: "camera.viewfinder")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ScanPrimaryButtonStyle())
+        }
+    }
+}
+
+private struct ScanLabelResultCard: View {
+    let values: NutrientValues
+    let onLog: () -> Void
+    let onCreate: () -> Void
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Valeurs lues sur l'étiquette")
+                    .font(Theme.font(17, .bold, relativeTo: .headline))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Vérifiez-les avant d'ajouter. Enregistrez l'aliment pour les corriger.")
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ScanNutritionGrid(values: values, unitSymbol: "g")
+
+            Button(action: onLog) {
+                Label("Ajouter au journal", systemImage: "plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ScanPrimaryButtonStyle())
+
+            HStack(spacing: 8) {
+                Button(action: onCreate) {
+                    Label("Enregistrer l'aliment", systemImage: "square.and.pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                Button(action: onRetry) {
+                    Label("Relire", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .buttonStyle(ScanSecondaryButtonStyle())
+        }
+    }
+}
+
+private struct ScanLabelFailedCard: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "text.badge.xmark")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.fat)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Étiquette illisible")
+                        .font(Theme.font(17, .bold, relativeTo: .headline))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(message)
+                        .font(Theme.callout)
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            Button(action: onRetry) {
+                Label("Réessayer", systemImage: "camera.viewfinder")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ScanPrimaryButtonStyle())
+        }
+    }
+}
+
 // MARK: - Manual entry
 
+/// Manual barcode entry: the number pad is up as soon as the sheet appears.
 private struct ScanManualEntrySheet: View {
     let onSubmit: (String) -> Void
 
@@ -901,42 +1500,50 @@ private struct ScanManualEntrySheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Ex. 3017620422003", text: $code)
-                        .keyboardType(.numberPad)
-                        .autocorrectionDisabled()
-                        .font(Theme.font(20, .medium, relativeTo: .title3))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.textPrimary)
-                        .tint(Theme.textPrimary)
-                        .focused($isFocused)
-                        .onSubmit(submit)
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 48)
-                        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                                .strokeBorder(isFocused ? Theme.textTertiary : Theme.separatorStrong,
-                                              lineWidth: Theme.hairline)
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-                } header: {
-                    Text("Code-barres")
-                        .font(Theme.label)
-                        .textCase(.uppercase)
-                        .tracking(0.6)
-                        .foregroundStyle(Theme.textTertiary)
-                } footer: {
-                    Text("Saisissez les 8 à 13 chiffres imprimés sous le code-barres.")
-                        .font(Theme.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CODE-BARRES")
+                    .font(Theme.label)
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.textTertiary)
+                TextField("Ex. 3017620422003", text: $code)
+                    .keyboardType(.numberPad)
+                    .autocorrectionDisabled()
+                    .font(Theme.font(22, .medium, relativeTo: .title3))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .tint(Theme.textPrimary)
+                    .focused($isFocused)
+                    .submitLabel(.search)
+                    .onSubmit(submit)
+                    .padding(.horizontal, 14)
+                    .frame(height: 52)
+                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(isFocused ? Theme.textBody : Theme.separatorStrong, lineWidth: 1.5)
+                    }
+                Text("Saisissez les 8 à 13 chiffres imprimés sous le code-barres.")
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                Spacer(minLength: 0)
             }
-            .themedBackground()
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Theme.raised.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button(action: submit) {
+                    Label("Rechercher", systemImage: "magnifyingglass")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ScanPrimaryButtonStyle())
+                .disabled(!isValid)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Theme.raised)
+            }
             .navigationTitle("Saisir un code")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.raised, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
@@ -950,8 +1557,14 @@ private struct ScanManualEntrySheet: View {
                 }
             }
             .onAppear { isFocused = true }
+            .task {
+                // Sheets can drop the focus requested during the presentation animation.
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                isFocused = true
+            }
         }
         .presentationDetents([.medium])
+        .presentationBackground(Theme.raised)
     }
 
     private func submit() {

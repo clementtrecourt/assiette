@@ -71,6 +71,12 @@ struct ProgressAddWeightSheet: View {
                 }
             }
             .onAppear { fieldFocused = true }
+            .task {
+                // Fallback: inside a Form in a sheet, the field may not be in the window yet
+                // at onAppear; retry once the presentation has settled (keyboard first).
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                if !fieldFocused { fieldFocused = true }
+            }
         }
         .presentationDetents([.medium, .large])
     }

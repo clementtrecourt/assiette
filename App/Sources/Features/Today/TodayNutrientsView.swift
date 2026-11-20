@@ -69,11 +69,11 @@ struct TodayNutrientsView: View {
     }
 
     private var parts: [Part] {
-        [
-            Part(key: .protein, grams: totals.protein, kcal: totals.protein * 4),
-            Part(key: .carbohydrates, grams: totals.carbs, kcal: totals.carbs * 4),
-            Part(key: .totalFat, grams: totals.fat, kcal: totals.fat * 9),
-        ]
+        // DESIGN.md rule 1: Glucides / Protéines / Lipides.
+        Theme.macroOrder.map { key in
+            let grams = totals.value(key)
+            return Part(key: key, grams: grams, kcal: grams * (key == .totalFat ? 9 : 4))
+        }
     }
 
     private var energySection: some View {

@@ -26,7 +26,10 @@ App/Sources/
     Log/          add / edit entry sheets, quick add                             [today agent]
     Search/       search tab, food detail                                        [search agent]
     Scan/         barcode scanner + Open Food Facts client                       [scan agent]
-    Progress/     weight + history charts                                        [progress agent]
+    Dashboard/    Accueil tab: calorie ring, trend/nutrition/measure cards
+    Progress/     weight history, add-weight sheet, detail charts used by Accueil
+    Add/          add sheet (modes), "+" shortcuts sheet, floating search bar
+    Coaching/     CoachingService (engine ↔ SwiftData), Programme tab, weekly check-in
     Profile/      onboarding, profile & goals, settings, export, about           [profile agent]
     CustomFoods/  my foods, custom food editor, recipe editor                    [custom agent]
   Engine/     adaptive engine: trend weight, expenditure, weekly coaching (Foundation only)
@@ -87,7 +90,7 @@ final report.
 ### Root view requires (App/AssietteApp.swift)
 * `TodayView()` — Features/Today
 * `FoodSearchView(context: LogContext, isSheet: Bool)` — Features/Search
-* `ProgressDashboardView()` — Features/Progress
+* `DashboardView()` — Features/Dashboard (Accueil tab)
 * `ProfileView()` — Features/Profile (contains its own NavigationStack)
 * `OnboardingView()` — Features/Profile. Presented full screen until
   `UserProfile.hasCompletedOnboarding == true`; it must fetch/create the profile with
@@ -173,7 +176,7 @@ final report.
   .openFoodFacts, ref: barcode, ...)`. 404 / status 0 → nil.
 
 ### Progress agent
-* `ProgressDashboardView()` — own `NavigationStack`. Swift Charts. Range picker 7 / 30 / 90 j.
+* `DashboardView()` — own `NavigationStack`. Cards push detail charts (30 / 90 j) from Features/Progress.
   Weight: chart of `WeightEntry` with 7-day moving average line, current / start / delta,
   target weight line if set, "Ajouter une pesée" sheet (date + kg, decimal keyboard),
   list of entries with delete. Calories: daily bars vs target rule mark, average, days

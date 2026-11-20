@@ -1,7 +1,8 @@
 import Foundation
 import SwiftData
 
-/// JSON backup of all user data (journal, weights, water, custom foods, favorites, profile).
+/// JSON backup of all user data (journal, weights, water, custom foods, favorites, profile,
+/// coaching exception periods and check-in history).
 struct ProfileBackup: Codable {
     static let currentVersion = 1
 
@@ -14,6 +15,10 @@ struct ProfileBackup: Codable {
     var customFoods: [Custom]
     var favorites: [Favorite]
     var profile: Profile?
+    /// Coaching exception periods (absent from backups made before coaching).
+    var exceptions: [Exception]
+    /// Coaching history: weekly check-ins and program changes (absent before coaching).
+    var checkIns: [CheckIn]
 
     struct Entry: Codable {
         var id: UUID
@@ -87,11 +92,98 @@ struct ProfileBackup: Codable {
         var fiberTarget: Double
         var waterTargetMl: Double
         var manualTargets: Bool
+        // Coaching (optional: older backups do not have them).
+        var createdAt: Date?
+        var weeklyRatePercent: Double?
+        var checkInWeekday: Int?
+        var lastCheckInDate: Date?
+        var initialExpenditure: Double?
+        /// `@AppStorage("coaching.collaborative")`.
+        var collaborative: Bool?
+    }
+
+    struct Exception: Codable {
+        var id: UUID
+        var start: Date
+        var end: Date
+        var note: String
+
+        private enum CodingKeys: String, CodingKey { case id, start, end, note }
+
+        init(id: UUID, start: Date, end: Date, note: String) {
+            self.id = id
+            self.start = start
+            self.end = end
+            self.note = note
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+            start = try c.decode(Date.self, forKey: .start)
+            end = try c.decodeIfPresent(Date.self, forKey: .end) ?? start
+            note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        }
+    }
+
+    struct CheckIn: Codable {
+        var date: Date
+        var kind: String
+        var expenditure: Double
+        var trendKg: Double?
+        var scaleKg: Double?
+        var averageIntake: Double?
+        var goal: String
+        var ratePercent: Double
+        var calorieTarget: Double
+        var proteinTarget: Double
+        var carbsTarget: Double
+        var fatTarget: Double
+
+        private enum CodingKeys: String, CodingKey {
+            case date, kind, expenditure, trendKg, scaleKg, averageIntake, goal, ratePercent
+            case calorieTarget, proteinTarget, carbsTarget, fatTarget
+        }
+
+        init(date: Date, kind: String, expenditure: Double, trendKg: Double?, scaleKg: Double?,
+             averageIntake: Double?, goal: String, ratePercent: Double, calorieTarget: Double,
+             proteinTarget: Double, carbsTarget: Double, fatTarget: Double)
+        {
+            self.date = date
+            self.kind = kind
+            self.expenditure = expenditure
+            self.trendKg = trendKg
+            self.scaleKg = scaleKg
+            self.averageIntake = averageIntake
+            self.goal = goal
+            self.ratePercent = ratePercent
+            self.calorieTarget = calorieTarget
+            self.proteinTarget = proteinTarget
+            self.carbsTarget = carbsTarget
+            self.fatTarget = fatTarget
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            date = try c.decode(Date.self, forKey: .date)
+            kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "weekly"
+            expenditure = try c.decodeIfPresent(Double.self, forKey: .expenditure) ?? 0
+            trendKg = try c.decodeIfPresent(Double.self, forKey: .trendKg)
+            scaleKg = try c.decodeIfPresent(Double.self, forKey: .scaleKg)
+            averageIntake = try c.decodeIfPresent(Double.self, forKey: .averageIntake)
+            goal = try c.decodeIfPresent(String.self, forKey: .goal) ?? WeightGoal.maintain.rawValue
+            ratePercent = try c.decodeIfPresent(Double.self, forKey: .ratePercent) ?? 0
+            calorieTarget = try c.decodeIfPresent(Double.self, forKey: .calorieTarget) ?? 0
+            proteinTarget = try c.decodeIfPresent(Double.self, forKey: .proteinTarget) ?? 0
+            carbsTarget = try c.decodeIfPresent(Double.self, forKey: .carbsTarget) ?? 0
+            fatTarget = try c.decodeIfPresent(Double.self, forKey: .fatTarget) ?? 0
+        }
     }
 
     init(version: Int = ProfileBackup.currentVersion, app: String = "Assiette", exportedAt: Date = .now,
          entries: [Entry] = [], weights: [Weight] = [], water: [Water] = [],
-         customFoods: [Custom] = [], favorites: [Favorite] = [], profile: Profile? = nil)
+         customFoods: [Custom] = [], favorites: [Favorite] = [], profile: Profile? = nil,
+         exceptions: [Exception] = [], checkIns: [CheckIn] = [])
     {
         self.version = version
         self.app = app
@@ -102,10 +194,13 @@ struct ProfileBackup: Codable {
         self.customFoods = customFoods
         self.favorites = favorites
         self.profile = profile
+        self.exceptions = exceptions
+        self.checkIns = checkIns
     }
 
     private enum CodingKeys: String, CodingKey {
         case version, app, exportedAt, entries, weights, water, customFoods, favorites, profile
+        case exceptions, checkIns
     }
 
     /// Lenient decoding: missing arrays are treated as empty.
@@ -120,11 +215,14 @@ struct ProfileBackup: Codable {
         customFoods = try c.decodeIfPresent([Custom].self, forKey: .customFoods) ?? []
         favorites = try c.decodeIfPresent([Favorite].self, forKey: .favorites) ?? []
         profile = try c.decodeIfPresent(Profile.self, forKey: .profile)
+        // Coaching data is optional and must never make an otherwise valid backup unreadable.
+        exceptions = (try? c.decodeIfPresent([Exception].self, forKey: .exceptions)) ?? []
+        checkIns = (try? c.decodeIfPresent([CheckIn].self, forKey: .checkIns)) ?? []
     }
 
     var isEmpty: Bool {
         entries.isEmpty && weights.isEmpty && water.isEmpty && customFoods.isEmpty
-            && favorites.isEmpty && profile == nil
+            && favorites.isEmpty && profile == nil && exceptions.isEmpty && checkIns.isEmpty
     }
 
     /// "123 entrées, 12 pesées, …" (French summary of the content).
@@ -135,6 +233,8 @@ struct ProfileBackup: Codable {
         parts.append(ProfileBackup.plural(water.count, "ajout d'eau", "ajouts d'eau"))
         parts.append(ProfileBackup.plural(customFoods.count, "aliment perso", "aliments perso"))
         parts.append(ProfileBackup.plural(favorites.count, "favori", "favoris"))
+        if !exceptions.isEmpty { parts.append(ProfileBackup.plural(exceptions.count, "exception", "exceptions")) }
+        if !checkIns.isEmpty { parts.append(ProfileBackup.plural(checkIns.count, "bilan", "bilans")) }
         if profile != nil { parts.append("profil") }
         return parts.joined(separator: ", ")
     }
@@ -157,6 +257,8 @@ struct ProfileImportResult {
     var water = 0
     var customFoods = 0
     var favorites = 0
+    var exceptions = 0
+    var checkIns = 0
     var profileRestored = false
 
     var summary: String {
@@ -167,6 +269,8 @@ struct ProfileImportResult {
             ProfileBackup.plural(customFoods, "aliment perso", "aliments perso"),
             ProfileBackup.plural(favorites, "favori", "favoris"),
         ]
+        if exceptions > 0 { parts.append(ProfileBackup.plural(exceptions, "exception", "exceptions")) }
+        if checkIns > 0 { parts.append(ProfileBackup.plural(checkIns, "bilan", "bilans")) }
         if profileRestored { parts.append("profil restauré") }
         return "Importé : " + parts.joined(separator: ", ") + "."
     }
@@ -197,6 +301,10 @@ enum ProfileBackupService {
         let customs = try context.fetch(FetchDescriptor<CustomFood>(sortBy: [SortDescriptor(\CustomFood.createdAt)]))
         let favorites = try context.fetch(FetchDescriptor<FavoriteFood>(sortBy: [SortDescriptor(\FavoriteFood.createdAt)]))
         let profile = try context.fetch(FetchDescriptor<UserProfile>()).first
+        let exceptions = (try? context.fetch(FetchDescriptor<ExceptionPeriod>(
+            sortBy: [SortDescriptor(\ExceptionPeriod.start)]))) ?? []
+        let checkIns = (try? context.fetch(FetchDescriptor<CoachingCheckIn>(
+            sortBy: [SortDescriptor(\CoachingCheckIn.date)]))) ?? []
 
         var backup = ProfileBackup()
         backup.entries = entries.map { e in
@@ -225,7 +333,21 @@ enum ProfileBackupService {
                 activity: p.activityRaw, goal: p.goalRaw, weeklyRateKg: p.weeklyRateKg,
                 targetWeightKg: p.targetWeightKg, calorieTarget: p.calorieTarget,
                 proteinTarget: p.proteinTarget, carbsTarget: p.carbsTarget, fatTarget: p.fatTarget,
-                fiberTarget: p.fiberTarget, waterTargetMl: p.waterTargetMl, manualTargets: p.manualTargets)
+                fiberTarget: p.fiberTarget, waterTargetMl: p.waterTargetMl, manualTargets: p.manualTargets,
+                createdAt: p.createdAt, weeklyRatePercent: p.weeklyRatePercent,
+                checkInWeekday: p.checkInWeekday, lastCheckInDate: p.lastCheckInDate,
+                initialExpenditure: p.initialExpenditure,
+                collaborative: UserDefaults.standard.bool(forKey: CoachingSettings.collaborativeKey))
+        }
+        backup.exceptions = exceptions.map {
+            ProfileBackup.Exception(id: $0.id, start: $0.start, end: $0.end, note: $0.note)
+        }
+        backup.checkIns = checkIns.map { r in
+            ProfileBackup.CheckIn(date: r.date, kind: r.kindRaw, expenditure: r.expenditure, trendKg: r.trendKg,
+                                  scaleKg: r.scaleKg, averageIntake: r.averageIntake, goal: r.goalRaw,
+                                  ratePercent: r.ratePercent, calorieTarget: r.calorieTarget,
+                                  proteinTarget: r.proteinTarget, carbsTarget: r.carbsTarget,
+                                  fatTarget: r.fatTarget)
         }
         return backup
     }
@@ -426,6 +548,40 @@ enum ProfileBackupService {
             result.favorites += 1
         }
 
+        // Coaching exception periods
+        let existingExceptions: Set<UUID> = mode == .merge
+            ? Set(((try? context.fetch(FetchDescriptor<ExceptionPeriod>())) ?? []).map(\.id)) : []
+        for dto in backup.exceptions where !existingExceptions.contains(dto.id) {
+            let period = ExceptionPeriod(start: dto.start, end: dto.end, note: dto.note)
+            period.id = dto.id
+            context.insert(period)
+            result.exceptions += 1
+        }
+
+        // Coaching history (one row per day and kind)
+        func checkInKey(_ date: Date, _ kind: String) -> String {
+            "\(Int(Calendar.current.startOfDay(for: date).timeIntervalSince1970))|\(kind)"
+        }
+        var seenCheckIns: Set<String> = mode == .merge
+            ? Set(((try? context.fetch(FetchDescriptor<CoachingCheckIn>())) ?? []).map { checkInKey($0.date, $0.kindRaw) })
+            : []
+        for dto in backup.checkIns where !seenCheckIns.contains(checkInKey(dto.date, dto.kind)) {
+            seenCheckIns.insert(checkInKey(dto.date, dto.kind))
+            let row = CoachingCheckIn(date: dto.date, kindRaw: dto.kind)
+            row.expenditure = dto.expenditure
+            row.trendKg = dto.trendKg
+            row.scaleKg = dto.scaleKg
+            row.averageIntake = dto.averageIntake
+            row.goalRaw = dto.goal
+            row.ratePercent = dto.ratePercent
+            row.calorieTarget = dto.calorieTarget
+            row.proteinTarget = dto.proteinTarget
+            row.carbsTarget = dto.carbsTarget
+            row.fatTarget = dto.fatTarget
+            context.insert(row)
+            result.checkIns += 1
+        }
+
         // Profile (replace only; merge keeps the current profile)
         let profile = UserProfile.current(in: context)
         if let dto = backup.profile, mode == .replace || !profile.hasCompletedOnboarding {
@@ -444,6 +600,17 @@ enum ProfileBackupService {
             profile.fiberTarget = dto.fiberTarget
             profile.waterTargetMl = dto.waterTargetMl
             profile.manualTargets = dto.manualTargets
+            if let createdAt = dto.createdAt { profile.createdAt = createdAt }
+            // Older backups: derive the % rate from kg, schedule the first check-in a week from now.
+            profile.weeklyRatePercent = dto.weeklyRatePercent
+                ?? (dto.weightKg > 0 ? dto.weeklyRateKg / dto.weightKg * 100 : 0)
+            profile.checkInWeekday = dto.checkInWeekday.map { min(7, max(1, $0)) }
+                ?? Calendar.current.component(.weekday, from: .now)
+            profile.lastCheckInDate = dto.lastCheckInDate ?? Calendar.current.startOfDay(for: .now)
+            profile.initialExpenditure = dto.initialExpenditure
+            if let collaborative = dto.collaborative {
+                UserDefaults.standard.set(collaborative, forKey: CoachingSettings.collaborativeKey)
+            }
             profile.hasCompletedOnboarding = true
             result.profileRestored = true
         }
@@ -454,7 +621,8 @@ enum ProfileBackupService {
 
     // MARK: - Reset
 
-    /// Deletes every journal entry, weight, water entry, custom food and favorite (not the profile).
+    /// Deletes every journal entry, weight, water entry, custom food, favorite, exception period and
+    /// coaching history row (not the profile).
     static func deleteUserData(context: ModelContext) throws {
         // Delete object by object (batch deletes do not always refresh @Query on iOS 17).
         for e in try context.fetch(FetchDescriptor<JournalEntry>()) { context.delete(e) }
@@ -462,6 +630,8 @@ enum ProfileBackupService {
         for e in try context.fetch(FetchDescriptor<WaterEntry>()) { context.delete(e) }
         for e in try context.fetch(FetchDescriptor<CustomFood>()) { context.delete(e) }
         for e in try context.fetch(FetchDescriptor<FavoriteFood>()) { context.delete(e) }
+        for e in try context.fetch(FetchDescriptor<ExceptionPeriod>()) { context.delete(e) }
+        for e in try context.fetch(FetchDescriptor<CoachingCheckIn>()) { context.delete(e) }
         try context.save()
     }
 
@@ -485,8 +655,14 @@ enum ProfileBackupService {
         profile.fiberTarget = defaults.fiberTarget
         profile.waterTargetMl = defaults.waterTargetMl
         profile.manualTargets = false
+        profile.weeklyRatePercent = defaults.weeklyRatePercent
+        profile.checkInWeekday = defaults.checkInWeekday
+        profile.lastCheckInDate = nil
+        profile.initialExpenditure = nil
+        profile.createdAt = .now
         profile.hasCompletedOnboarding = false
         try context.save()
+        UserDefaults.standard.removeObject(forKey: CoachingSettings.collaborativeKey)
 
         let store = UserDefaults.standard
         for key in store.dictionaryRepresentation().keys where key.hasPrefix("lastGrams.") {

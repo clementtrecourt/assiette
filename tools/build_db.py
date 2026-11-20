@@ -7,6 +7,7 @@ Data: OpenNutrition dataset (ODbL) - https://www.opennutrition.app
 The resulting database is a Derivative Database and remains under ODbL.
 """
 import csv
+import importlib.util
 import json
 import os
 import re
@@ -30,6 +31,18 @@ TYPES = {"everyday": 0, "prepared": 1, "restaurant": 2, "grocery": 3}
 BY_RE = re.compile(r"^(.*) by (.+)$")
 WORD_RE = re.compile(r"[a-z0-9]+")
 ICONS_TSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "icons.tsv")
+MAP_FLUENT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "map_fluent.py")
+
+
+def load_fluent_matcher(path=MAP_FLUENT):
+    """`match(name) -> snake name | None` from tools/map_fluent.py (loaded by path: `python3 -I`
+    does not put the script directory on sys.path). None if the file is missing."""
+    if not os.path.exists(path):
+        return None
+    spec = importlib.util.spec_from_file_location("map_fluent", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.match
 
 
 def load_icons(path=ICONS_TSV):
@@ -127,16 +140,19 @@ def main(src, dst):
         is_liquid INTEGER NOT NULL DEFAULT 0,
         package_g REAL,
         {cols},
-        icon TEXT)""")
+        icon TEXT,
+        fluent TEXT)""")
     db.execute("""CREATE VIRTUAL TABLE food_fts USING fts5(
         name, alt, content='', columnsize=0,
         tokenize='unicode61 remove_diacritics 2', prefix='2 3')""")
     db.execute("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
 
     icons = load_icons()
-    placeholders = ",".join("?" * (12 + len(NUTRIENTS)))
+    fluent_match = load_fluent_matcher()
+    placeholders = ",".join("?" * (13 + len(NUTRIENTS)))
     n = 0
     exact = 0
+    fluent_count = 0
     with open(src, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f, delimiter="\t"):
             try:
@@ -172,12 +188,17 @@ def main(src, dst):
             icon = icons.get(row["id"])
             if icon:
                 exact += 1
+            # Bundled Fluent Emoji (App/Resources/Assets.xcassets/FoodEmoji/<fluent>), shown
+            # before the OpenNutrition illustration when the name is a clear generic match.
+            fluent = fluent_match(name) if fluent_match else None
+            if fluent:
+                fluent_count += 1
             db.execute(
                 f"INSERT INTO food VALUES({placeholders})",
                 (n, row["id"], name, brand, t, row["ean_13"] or None,
                  common.get("unit"), num(common.get("quantity")),
                  num(metric.get("quantity")), is_liquid, pkg,
-                 *[num(nut.get(k)) for k in NUTRIENTS], icon),
+                 *[num(nut.get(k)) for k in NUTRIENTS], icon, fluent),
             )
             db.execute("INSERT INTO food_fts(rowid, name, alt) VALUES(?,?,?)", (n, name, alt))
     if icons:
@@ -190,13 +211,17 @@ def main(src, dst):
             print(f"  {t_name:10s} {w}/{c} ({100 * w / max(c, 1):.1f} %)")
     else:
         print(f"icons: {ICONS_TSV} not found, icon column left NULL")
+    if fluent_match:
+        print(f"fluent: {fluent_count}/{n} foods ({100 * fluent_count / max(n, 1):.1f} %)")
+    else:
+        print(f"fluent: {MAP_FLUENT} not found, fluent column left NULL")
     db.execute("CREATE INDEX ix_food_ean ON food(ean) WHERE ean IS NOT NULL")
     db.execute("INSERT INTO food_fts(food_fts) VALUES('optimize')")
     db.executemany("INSERT INTO meta VALUES(?,?)", [
         ("dataset", "OpenNutrition 2025.1"),
         ("license", "ODbL 1.0"),
         ("count", str(n)),
-        ("schema", "2"),
+        ("schema", "3"),
     ])
     db.commit()
     db.execute("VACUUM")

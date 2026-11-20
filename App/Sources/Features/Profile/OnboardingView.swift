@@ -20,7 +20,8 @@ struct OnboardingView: View {
     @State private var weightTenth: Int = 0
     @State private var activity: ActivityLevel = .moderate
     @State private var goal: WeightGoal = .maintain
-    @State private var weeklyRateKg: Double = 0.5
+    /// Weekly rate in % of body weight (the coach works in %; kg shown next to it).
+    @State private var weeklyRatePercent: Double = 0.5
     @State private var hasTargetWeight = false
     @State private var targetWeightKg: Double = 70
 
@@ -39,9 +40,11 @@ struct OnboardingView: View {
 
     private static let currentYear = Calendar.current.component(.year, from: .now)
     private static let years: [Int] = Array((currentYear - 100)...(currentYear - 10)).reversed()
+    /// Weekly rates in % of body weight.
     private static let rates: [Double] = [0.25, 0.5, 0.75, 1.0]
 
     private var weightKg: Double { Double(weightWhole) + Double(weightTenth) / 10 }
+    private var weeklyRateKg: Double { weeklyRatePercent * weightKg / 100 }
     private var age: Int { max(0, Self.currentYear - birthYear) }
 
     private var computed: GoalCalculator.Targets {
@@ -397,11 +400,11 @@ struct OnboardingView: View {
                 if goal != .maintain {
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(goal == .lose ? "Perte par semaine" : "Prise par semaine")
+                            Text(goal == .lose ? "Perte par semaine (% du poids)" : "Prise par semaine (% du poids)")
                                 .font(Theme.headline)
-                            Picker("Rythme", selection: $weeklyRateKg) {
+                            Picker("Rythme", selection: $weeklyRatePercent) {
                                 ForEach(Self.rates, id: \.self) { rate in
-                                    Text("\(Formatters.number(rate, maxFractionDigits: 2)) kg").tag(rate)
+                                    Text("\(Formatters.number(rate, maxFractionDigits: 2)) %").tag(rate)
                                 }
                             }
                             .pickerStyle(.segmented)
@@ -444,7 +447,8 @@ struct OnboardingView: View {
     private var rateHint: String {
         let delta = weeklyRateKg * GoalCalculator.kcalPerKg / 7
         let sign = goal == .lose ? "−" : "+"
-        return "Environ \(sign)\(Formatters.kcal(delta)) par jour. Un rythme de 0,5 kg/semaine est recommandé."
+        let kg = Formatters.number(weeklyRateKg, maxFractionDigits: 2)
+        return "Environ \(kg) kg par semaine, soit \(sign)\(Formatters.kcal(delta)) par jour. 0,5 % du poids par semaine est un bon rythme."
     }
 
     private var weeksToTarget: Int? {
@@ -502,8 +506,8 @@ struct OnboardingView: View {
                 ProfileSectionHeader("Objectifs")
             } footer: {
                 ProfileSectionFooter(customizeTargets
-                     ? "Vos objectifs ne seront plus recalculés automatiquement. Vous pourrez les modifier dans Profil."
-                     : "Calculés avec la formule de Mifflin-St Jeor. Vous pourrez les modifier à tout moment dans Profil.")
+                     ? "Mode manuel : vos objectifs ne seront pas ajustés par le bilan hebdomadaire. Vous pourrez changer de mode dans Programme."
+                     : "Point de départ calculé avec la formule de Mifflin-St Jeor. Chaque semaine, le bilan les ajuste selon vos repas et vos pesées.")
             }
             .profileListRow()
         }
@@ -549,7 +553,12 @@ struct OnboardingView: View {
         profile.activity = activity
         profile.goal = goal
         profile.weeklyRateKg = weeklyRateKg
+        profile.weeklyRatePercent = weightKg > 0 ? weeklyRateKg / weightKg * 100 : weeklyRatePercent
         profile.targetWeightKg = (goal != .maintain && hasTargetWeight) ? targetWeightKg : nil
+        // First check-in one week from today, on today's weekday.
+        let today = Calendar.current.startOfDay(for: .now)
+        profile.lastCheckInDate = today
+        profile.checkInWeekday = Calendar.current.component(.weekday, from: today)
         profile.manualTargets = customizeTargets
         if customizeTargets {
             profile.calorieTarget = calories
@@ -562,6 +571,18 @@ struct OnboardingView: View {
         profile.fiberTarget = fiber
         profile.waterTargetMl = waterMl
         modelContext.insert(WeightEntry(date: .now, kg: weightKg))
+        // Start of the goal history (Programme tab).
+        let start = CoachingCheckIn(date: today, kindRaw: "program")
+        start.expenditure = computed.tdee
+        start.trendKg = weightKg
+        start.scaleKg = weightKg
+        start.goalRaw = goal.rawValue
+        start.ratePercent = profile.weeklyRatePercent
+        start.calorieTarget = profile.calorieTarget
+        start.carbsTarget = profile.carbsTarget
+        start.proteinTarget = profile.proteinTarget
+        start.fatTarget = profile.fatTarget
+        modelContext.insert(start)
         profile.hasCompletedOnboarding = true
         try? modelContext.save()
         finishTrigger += 1

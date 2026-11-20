@@ -21,13 +21,10 @@ struct TodayTargets {
     }
 }
 
-/// Sheet destination. The id is captured at creation so it never reads a model that may
-/// have been deleted while the sheet was open.
+/// Local sheet destination (adding goes through `appState.presentAdd`). The id is captured at
+/// creation so it never reads a model that may have been deleted while the sheet was open.
 private struct TodaySheet: Identifiable {
     enum Kind {
-        case search(LogContext)
-        case scan(LogContext)
-        case quickAdd(LogContext)
         case edit(JournalEntry)
         case detail(FoodItem, LogContext)
         case add(FoodItem, LogContext)
@@ -35,18 +32,6 @@ private struct TodaySheet: Identifiable {
 
     let id: String
     let kind: Kind
-
-    static func search(_ context: LogContext) -> TodaySheet {
-        TodaySheet(id: "search-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .search(context))
-    }
-
-    static func scan(_ context: LogContext) -> TodaySheet {
-        TodaySheet(id: "scan-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .scan(context))
-    }
-
-    static func quickAdd(_ context: LogContext) -> TodaySheet {
-        TodaySheet(id: "quick-\(context.meal.rawValue)-\(context.day.timeIntervalSince1970)", kind: .quickAdd(context))
-    }
 
     static func edit(_ entry: JournalEntry) -> TodaySheet {
         TodaySheet(id: "edit-\(entry.id.uuidString)", kind: .edit(entry))
@@ -62,17 +47,24 @@ private struct TodaySheet: Identifiable {
 }
 
 private extension View {
-    /// Full-bleed, separator-less List row on the app background (hairlines are drawn by the rows).
+    /// Full-bleed, separator-less List row on the app background.
     func todayListRow() -> some View {
         listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowSeparatorTint(Theme.separator)
             .listRowBackground(Theme.background)
+    }
+
+    /// Timeline List row: its background draws the vertical line through the hour pills
+    /// (in the row background, so it does not move with swipe actions).
+    func todayTimelineRow(top: Bool = true, bottom: Bool = true) -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(TodayTimelineLine(top: top, bottom: bottom))
     }
 }
 
-/// Pinned macro header. Owns the "remaining ↔ consumed" toggle so tapping it re-renders only
-/// the header, not the whole timeline list.
+/// Pinned remaining header. Owns the "remaining ↔ consumed" toggle so tapping it re-renders
+/// only the header, not the whole timeline list. Horizontal swipe changes the day.
 private struct TodayPinnedHeader: View {
     let totals: NutrientValues
     let targets: TodayTargets
@@ -81,12 +73,39 @@ private struct TodayPinnedHeader: View {
     @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
 
     var body: some View {
-        TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.snappy) { showsConsumed.toggle() }
-            }
-            .gesture(daySwipe)
+        VStack(spacing: 8) {
+            TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
+            modeLine
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.snappy) { showsConsumed.toggle() }
+        }
+        .gesture(daySwipe)
+        .sensoryFeedback(.selection, trigger: showsConsumed)
+    }
+
+    /// "Restant" / "Mangé" caption + two page dots showing the current mode.
+    private var modeLine: some View {
+        HStack(spacing: 4) {
+            Text(showsConsumed ? "Mangé" : "Restant")
+                .font(Theme.label)
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(Theme.textTertiary)
+            Spacer(minLength: 8)
+            dot(on: !showsConsumed)
+            dot(on: showsConsumed)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func dot(on: Bool) -> some View {
+        Capsule()
+            .fill(on ? Theme.textSecondary : Theme.separatorStrong)
+            .frame(width: on ? 12 : 5, height: 5)
     }
 
     private var daySwipe: some Gesture {
@@ -100,16 +119,16 @@ private struct TodayPinnedHeader: View {
     }
 }
 
-/// Content of one journal day: pinned macro header, timeline log, water, micronutrients.
-/// The queries are built from `day` in the initializer, so a new day re-creates them.
+/// Content of one journal day: title bar, pinned remaining header and the hourly timeline.
+/// The query is built from `day` in the initializer, so a new day re-creates it.
 struct TodayDayContent: View {
     let day: Date
 
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
 
     @Query private var entries: [JournalEntry]
-    @Query private var waterEntries: [WaterEntry]
     @Query private var profiles: [UserProfile]
 
     @State private var sheet: TodaySheet?
@@ -123,6 +142,12 @@ struct TodayDayContent: View {
     @State private var impactTick = 0
     @State private var didRunDemoSheet = false
     @State private var showDatePicker = false
+    @State private var showsEarlyHours = false
+    /// Current clock hour, refreshed at every hour change (current-hour pill).
+    @State private var nowHour = Calendar.current.component(.hour, from: .now)
+
+    /// Hour shown first by default (earlier hours appear if they have entries).
+    private static let defaultFirstHour = 6
 
     init(day: Date) {
         let start = Calendar.current.startOfDay(for: day)
@@ -134,12 +159,6 @@ struct TodayDayContent: View {
             },
             sort: \JournalEntry.createdAt
         )
-        _waterEntries = Query(
-            filter: #Predicate<WaterEntry> { water in
-                water.day >= start && water.day < end
-            },
-            sort: \WaterEntry.createdAt
-        )
         _profiles = Query(sort: \UserProfile.createdAt)
     }
 
@@ -147,68 +166,90 @@ struct TodayDayContent: View {
 
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
-    private var addContext: LogContext { LogContext(day: day, meal: Meal.suggested()) }
+    private var currentHour: Int? { isToday ? nowHour : nil }
+
+    private func firstHour(_ buckets: TodayHourBuckets) -> Int {
+        if showsEarlyHours { return 0 }
+        var first = Self.defaultFirstHour
+        if let earliest = buckets.earliestHour { first = min(first, earliest) }
+        if let currentHour { first = min(first, currentHour) }
+        return first
+    }
 
     var body: some View {
         // Computed once per evaluation and passed down (NutrientValues decoding is memoized
         // in Core, so each entry's JSON is decoded at most once overall).
         let totals = NutrientValues.sum(entries.map(\.nutrients))
-        let groups = TodayTimelineGroup.make(from: entries)
+        let buckets = TodayHourBuckets(entries: entries)
         let targets = self.targets
 
-        logList(groups: groups)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                pinnedTop(totals: totals, targets: targets)
-            }
-            .overlay(alignment: .bottomTrailing) {
-                fab
-            }
-            .overlay(alignment: .bottom) {
-                toastView
-            }
-            .navigationDestination(isPresented: $showNutrients) {
-                TodayNutrientsView(day: day, totals: totals, targets: targets, entryCount: entries.count)
-            }
-            .sheet(item: $sheet) { destination in
-                sheetContent(destination)
-            }
-            .sheet(isPresented: $showDatePicker) {
-                TodayDatePickerSheet()
-            }
-            .confirmationDialog(
-                "Supprimer tous les aliments de ce jour ?",
-                isPresented: $showClearDialog,
-                titleVisibility: .visible
-            ) {
-                Button("Tout supprimer", role: .destructive) { clearDay() }
-                Button("Annuler", role: .cancel) {}
-            }
-            .alert("Enregistrer comme recette", isPresented: $showRecipeAlert) {
-                TextField("Nom de la recette", text: $recipeName)
-                Button("Annuler", role: .cancel) { recipeMeal = nil }
-                Button("Enregistrer") {
-                    saveRecipe(meal: recipeMeal, name: recipeName)
-                    recipeMeal = nil
+        ScrollViewReader { proxy in
+            timeline(buckets: buckets)
+                .task(id: day) {
+                    // Let the List lay out its rows before scrolling.
+                    try? await Task.sleep(for: .milliseconds(60))
+                    guard !Task.isCancelled else { return }
+                    scrollToInitialHour(proxy)
                 }
-            } message: {
-                Text("Les aliments seront regroupés en une recette réutilisable dans « Mes aliments ».")
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            pinnedTop(totals: totals, targets: targets)
+        }
+        .overlay(alignment: .bottom) {
+            toastView
+        }
+        .navigationDestination(isPresented: $showNutrients) {
+            TodayNutrientsView(day: day, totals: totals, targets: targets, entryCount: entries.count)
+        }
+        .sheet(item: $sheet) { destination in
+            sheetContent(destination)
+        }
+        .sheet(isPresented: $showDatePicker) {
+            TodayDatePickerSheet()
+        }
+        .confirmationDialog(
+            "Supprimer tous les aliments de ce jour ?",
+            isPresented: $showClearDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Tout supprimer", role: .destructive) { clearDay() }
+            Button("Annuler", role: .cancel) {}
+        }
+        .alert("Enregistrer comme recette", isPresented: $showRecipeAlert) {
+            TextField("Nom de la recette", text: $recipeName)
+            Button("Annuler", role: .cancel) { recipeMeal = nil }
+            Button("Enregistrer") {
+                saveRecipe(meal: recipeMeal, name: recipeName)
+                recipeMeal = nil
             }
-            .task(id: toast) {
-                guard toast != nil else { return }
-                try? await Task.sleep(for: .seconds(2.2))
-                guard !Task.isCancelled else { return }
-                withAnimation(.snappy) { toast = nil }
-            }
-            .task {
-                await presentDemoSheetIfNeeded()
-            }
-            .sensoryFeedback(.success, trigger: successTick)
-            .sensoryFeedback(.impact(weight: .light), trigger: impactTick)
+        } message: {
+            Text("Les aliments seront regroupés en une recette réutilisable dans « Mes aliments ».")
+        }
+        .task(id: toast) {
+            guard toast != nil else { return }
+            try? await Task.sleep(for: .seconds(2.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy) { toast = nil }
+        }
+        .task {
+            await trackCurrentHour()
+        }
+        .task {
+            await presentDemoSheetIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshNowHour() }
+        }
+        .onChange(of: day) { _, _ in
+            showsEarlyHours = false
+        }
+        .sensoryFeedback(.success, trigger: successTick)
+        .sensoryFeedback(.impact(weight: .light), trigger: impactTick)
     }
 
     // MARK: - Layout pieces
 
-    /// Title bar + pinned macro header; the background extends under the status bar so the
+    /// Title bar + pinned header; the background extends under the status bar so the
     /// scrolling timeline never shows through.
     private func pinnedTop(totals: NutrientValues, targets: TodayTargets) -> some View {
         VStack(spacing: 0) {
@@ -219,24 +260,40 @@ struct TodayDayContent: View {
                 moreMenu
             }
             TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
+            TodayHairline()
         }
         .background(Theme.background.ignoresSafeArea(edges: .top))
     }
 
-    private func logList(groups: [TodayTimelineGroup]) -> some View {
-        List {
-            timelineRows(groups)
-            TodayNowRow(isToday: isToday, hasGroups: !groups.isEmpty) {
-                sheet = .search(addContext)
+    private func timeline(buckets: TodayHourBuckets) -> some View {
+        let first = firstHour(buckets)
+        let current = currentHour
+        return List {
+            if first > 0 {
+                TodayEarlyHoursRow(firstHour: first) {
+                    withAnimation(.snappy) { showsEarlyHours = true }
+                }
+                .todayListRow()
             }
-            .todayListRow()
-            waterRow
+            ForEach(first..<24, id: \.self) { hour in
+                let hourEntries = buckets.entries(at: hour)
+                TodayHourRow(hour: hour,
+                             isNow: hour == current,
+                             totals: hourEntries.isEmpty ? nil : buckets.totalsByHour[hour]) {
+                    add(at: hour)
+                }
+                .id(Self.hourID(hour))
+                .todayTimelineRow(top: hour != first, bottom: hour != 23 || !hourEntries.isEmpty)
+                ForEach(hourEntries, id: \.persistentModelID) { entry in
+                    entryRow(entry)
+                }
+            }
             nutrientsRow
             AttributionFooter(includeOpenFoodFacts: entries.contains { $0.sourceRaw == FoodSource.openFoodFacts.rawValue })
                 .padding(.top, 12)
                 .todayListRow()
             Color.clear
-                .frame(height: 88)
+                .frame(height: 12)
                 .todayListRow()
                 .accessibilityHidden(true)
         }
@@ -245,15 +302,7 @@ struct TodayDayContent: View {
         .themedBackground()
     }
 
-    private var fab: some View {
-        TodayAddButton(
-            onSearch: { sheet = .search(addContext) },
-            onScan: { sheet = .scan(addContext) },
-            onQuickAdd: { sheet = .quickAdd(addContext) }
-        )
-        .padding(.trailing, 16)
-        .padding(.bottom, 16)
-    }
+    private static func hourID(_ hour: Int) -> String { "today-hour-\(hour)" }
 
     @ViewBuilder
     private var toastView: some View {
@@ -269,7 +318,7 @@ struct TodayDayContent: View {
                     Capsule().strokeBorder(Theme.separatorStrong, lineWidth: 1)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 84)
+                .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .onTapGesture { withAnimation(.snappy) { self.toast = nil } }
         }
@@ -278,14 +327,6 @@ struct TodayDayContent: View {
     @ViewBuilder
     private func sheetContent(_ destination: TodaySheet) -> some View {
         switch destination.kind {
-        case .search(let context):
-            NavigationStack {
-                FoodSearchView(context: context, isSheet: true)
-            }
-        case .scan(let context):
-            BarcodeScanView(context: context)
-        case .quickAdd(let context):
-            QuickAddSheet(context: context)
         case .edit(let entry):
             AddEntrySheet(editing: entry)
         case .detail(let item, let context):
@@ -297,48 +338,24 @@ struct TodayDayContent: View {
         }
     }
 
-    // MARK: - Timeline rows
+    // MARK: - Entry rows
 
-    @ViewBuilder
-    private func timelineRows(_ groups: [TodayTimelineGroup]) -> some View {
-        if groups.isEmpty {
-            TodayEmptyState(isToday: isToday)
-                .todayListRow()
-        } else {
-            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                groupHeaderRow(group, isFirst: index == 0)
-                ForEach(Array(group.entries.enumerated()), id: \.element.persistentModelID) { entryIndex, entry in
-                    entryRow(entry, showsDivider: entryIndex > 0)
-                }
-                groupFooterRow(group)
-            }
+    private func entryRow(_ entry: JournalEntry) -> some View {
+        Button {
+            sheet = .edit(entry)
+        } label: {
+            TodayEntryCard(entry: entry)
         }
-    }
-
-    private func groupHeaderRow(_ group: TodayTimelineGroup, isFirst: Bool) -> some View {
-        TodayGroupHeaderContent(group: group,
-                                time: TodayTimeFormat.short(group.start),
-                                showsRule: !isFirst)
-            .todayListRow()
-    }
-
-    private func groupFooterRow(_ group: TodayTimelineGroup) -> some View {
-        TodayTimelineRow {
-            TodayGroupFooterContent(totals: group.totals)
+        .buttonStyle(.plain)
+        .contentShape(.contextMenuPreview,
+                      RoundedRectangle(cornerRadius: TodayTimelineMetrics.cardRadius, style: .continuous))
+        .contextMenu {
+            entryContextMenu(entry)
         }
-        .todayListRow()
-    }
-
-    private func entryRow(_ entry: JournalEntry, showsDivider: Bool) -> some View {
-        TodayTimelineRow {
-            Button {
-                sheet = .edit(entry)
-            } label: {
-                TodayTimelineEntryContent(entry: entry, showsDivider: showsDivider)
-            }
-            .buttonStyle(.plain)
-        }
-        .todayListRow()
+        .padding(.leading, TodayTimelineMetrics.leading)
+        .padding(.trailing, TodayTimelineMetrics.cardTrailing)
+        .padding(.bottom, 6)
+        .todayTimelineRow()
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 delete(entry)
@@ -348,15 +365,12 @@ struct TodayDayContent: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
-                duplicate(entry, to: day)
+                duplicate(entry)
             } label: {
                 Label("Dupliquer", systemImage: "plus.square.on.square")
             }
             // Not Theme.accent: the system draws the swipe label in white.
             .tint(Theme.textTertiary)
-        }
-        .contextMenu {
-            entryContextMenu(entry)
         }
     }
 
@@ -368,28 +382,28 @@ struct TodayDayContent: View {
             Label("Modifier", systemImage: "pencil")
         }
         Button {
-            duplicate(entry, to: day)
+            duplicate(entry)
         } label: {
             Label("Dupliquer", systemImage: "plus.square.on.square")
         }
         if !isToday {
             Button {
-                duplicate(entry, to: Date.now.startOfDay)
-                showToast("Ajouté à aujourd'hui")
+                copyToToday(entry)
             } label: {
                 Label("Copier vers aujourd'hui", systemImage: "calendar.badge.plus")
             }
         }
         Menu {
-            ForEach(Meal.allCases.filter { $0 != entry.meal }) { target in
-                Button {
-                    move(entry, to: target)
-                } label: {
-                    Label(target.label, systemImage: target.systemImage)
+            let entryHour = Calendar.current.component(.hour, from: entry.createdAt)
+            ForEach(0..<24, id: \.self) { hour in
+                if hour != entryHour {
+                    Button(TodayTimeFormat.hour(hour)) {
+                        move(entry, toHour: hour)
+                    }
                 }
             }
         } label: {
-            Label("Déplacer vers", systemImage: "arrow.right.circle")
+            Label("Changer l'heure", systemImage: "clock.arrow.circlepath")
         }
         Divider()
         Button(role: .destructive) {
@@ -401,19 +415,6 @@ struct TodayDayContent: View {
 
     // MARK: - Below the timeline
 
-    private var waterRow: some View {
-        TodayWaterCard(
-            totalMl: waterEntries.reduce(0) { $0 + $1.ml },
-            targetMl: targets.water,
-            canUndo: !waterEntries.isEmpty,
-            onAdd: addWater,
-            onUndo: undoWater
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
-        .todayListRow()
-    }
-
     private var nutrientsRow: some View {
         Button {
             showNutrients = true
@@ -422,10 +423,11 @@ struct TodayDayContent: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
+        .padding(.top, 20)
         .todayListRow()
     }
 
-    // MARK: - Toolbar "…" menu
+    // MARK: - "…" day menu
 
     private var mealsPresent: [Meal] {
         Meal.allCases.filter { meal in entries.contains { $0.mealRaw == meal.rawValue } }
@@ -435,6 +437,11 @@ struct TodayDayContent: View {
         Menu {
             copyMenu
             recipeMenu
+            Button {
+                showNutrients = true
+            } label: {
+                Label("Nutriments du jour", systemImage: "chart.bar.doc.horizontal")
+            }
             Divider()
             Button(role: .destructive) {
                 showClearDialog = true
@@ -443,11 +450,7 @@ struct TodayDayContent: View {
             }
             .disabled(entries.isEmpty)
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
-                .frame(width: 34, height: 34)
-                .contentShape(Rectangle())
+            TodayRoundIcon(systemName: "ellipsis")
                 .accessibilityLabel("Options du jour")
         }
     }
@@ -494,7 +497,7 @@ struct TodayDayContent: View {
         .disabled(entries.isEmpty)
     }
 
-    // MARK: - Swipe between days
+    // MARK: - Day navigation & clock
 
     private func goToToday() {
         let today = Date.now.startOfDay
@@ -510,7 +513,61 @@ struct TodayDayContent: View {
         }
     }
 
+    private func refreshNowHour() {
+        let hour = Calendar.current.component(.hour, from: .now)
+        if hour != nowHour { nowHour = hour }
+    }
+
+    /// Keeps `nowHour` in sync with the clock: wakes up just after each hour change.
+    private func trackCurrentHour() async {
+        let calendar = Calendar.current
+        while !Task.isCancelled {
+            refreshNowHour()
+            let now = Date.now
+            let next = calendar.nextDate(after: now,
+                                         matching: DateComponents(minute: 0, second: 0),
+                                         matchingPolicy: .nextTime) ?? now.addingTimeInterval(3600)
+            let delay = max(next.timeIntervalSince(now), 1) + 0.5
+            try? await Task.sleep(for: .seconds(delay))
+        }
+    }
+
+    /// Today: the current hour (one hour of context above it); another day: its first entry.
+    private func scrollToInitialHour(_ proxy: ScrollViewProxy) {
+        let buckets = TodayHourBuckets(entries: entries)
+        let first = firstHour(buckets)
+        let target: Int
+        if let currentHour {
+            target = max(first, currentHour - 1)
+        } else {
+            target = max(first, buckets.earliestHour ?? first)
+        }
+        proxy.scrollTo(Self.hourID(target), anchor: .top)
+    }
+
     // MARK: - Actions
+
+    /// "+" of an hour slot. The current hour of today logs "now" (time nil) so the food lands
+    /// after what is already logged in that hour; other slots log at hh:00.
+    private func add(at hour: Int) {
+        var context = LogContext.slot(day: day, hour: hour)
+        if hour == currentHour {
+            context.time = nil
+        }
+        appState.presentAdd(.search, context: context)
+    }
+
+    /// `date`'s time of day (h, min, s) on `targetDay`.
+    private func sameTime(of date: Date, on targetDay: Date, hour: Int? = nil) -> Date {
+        let calendar = Calendar.current
+        let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
+        let start = calendar.startOfDay(for: targetDay)
+        let h = hour ?? parts.hour ?? 0
+        let m = parts.minute ?? 0
+        let s = parts.second ?? 0
+        return calendar.date(bySettingHour: h, minute: m, second: s, of: start)
+            ?? start.addingTimeInterval(TimeInterval(h * 3600 + m * 60 + s))
+    }
 
     private func delete(_ entry: JournalEntry) {
         withAnimation {
@@ -520,8 +577,10 @@ struct TodayDayContent: View {
         impactTick += 1
     }
 
-    private func duplicate(_ entry: JournalEntry, to targetDay: Date) {
-        let copy = JournalEntry(item: entry.item, grams: entry.grams, day: targetDay, meal: entry.meal)
+    /// Copy right after the original, in the same hour.
+    private func duplicate(_ entry: JournalEntry) {
+        let time = sameTime(of: entry.createdAt, on: day).addingTimeInterval(1)
+        let copy = JournalEntry(item: entry.item, grams: entry.grams, day: day, meal: entry.meal, at: time)
         withAnimation {
             modelContext.insert(copy)
             try? modelContext.save()
@@ -529,9 +588,21 @@ struct TodayDayContent: View {
         successTick += 1
     }
 
-    private func move(_ entry: JournalEntry, to meal: Meal) {
+    private func copyToToday(_ entry: JournalEntry) {
+        let copy = JournalEntry(item: entry.item, grams: entry.grams, day: Date.now.startOfDay,
+                                meal: Meal.suggested(), at: nil)
+        modelContext.insert(copy)
+        try? modelContext.save()
+        successTick += 1
+        showToast("Ajouté à aujourd'hui")
+    }
+
+    /// Moves an entry to another hour of its day (keeps the minutes); the meal follows the time.
+    private func move(_ entry: JournalEntry, toHour hour: Int) {
+        let time = sameTime(of: entry.createdAt, on: entry.day, hour: hour)
         withAnimation {
-            entry.meal = meal
+            entry.createdAt = time
+            entry.meal = Meal.suggested(for: time)
             try? modelContext.save()
         }
         impactTick += 1
@@ -568,7 +639,9 @@ struct TodayDayContent: View {
         }
         withAnimation {
             for entry in previous {
-                modelContext.insert(JournalEntry(item: entry.item, grams: entry.grams, day: day, meal: entry.meal))
+                // Same time of day as the day before, so the copy lands in the same hour.
+                modelContext.insert(JournalEntry(item: entry.item, grams: entry.grams, day: day,
+                                                 meal: entry.meal, at: sameTime(of: entry.createdAt, on: day)))
             }
             try? modelContext.save()
         }
@@ -609,23 +682,6 @@ struct TodayDayContent: View {
         showToast("Recette « \(finalName) » enregistrée")
     }
 
-    private func addWater(_ ml: Double) {
-        withAnimation(.snappy) {
-            modelContext.insert(WaterEntry(day: day, ml: ml))
-            try? modelContext.save()
-        }
-        impactTick += 1
-    }
-
-    private func undoWater() {
-        guard let last = waterEntries.last else { return }
-        withAnimation(.snappy) {
-            modelContext.delete(last)
-            try? modelContext.save()
-        }
-        impactTick += 1
-    }
-
     private func showToast(_ message: String) {
         withAnimation(.snappy) { toast = message }
     }
@@ -640,9 +696,9 @@ struct TodayDayContent: View {
         try? await Task.sleep(for: .milliseconds(500))
         let context = LogContext(day: appState.selectedDay, meal: Meal.suggested())
         switch name {
-        case "search": sheet = .search(context)
-        case "scan": sheet = .scan(context)
-        case "quickadd": sheet = .quickAdd(context)
+        case "search": appState.presentAdd(.search, context: context)
+        case "scan": appState.presentAdd(.scan, context: context)
+        case "quickadd": appState.presentAdd(.quick, context: context)
         case "detail": sheet = .detail(DemoSupport.sampleItem, context)
         case "add": sheet = .add(DemoSupport.sampleItem, context)
         default: break

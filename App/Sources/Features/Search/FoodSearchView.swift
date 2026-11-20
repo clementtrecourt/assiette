@@ -1,17 +1,29 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
-/// "Ajouter" screen: search the OpenNutrition database (French words are translated) and
-/// the user's own foods; shortcuts, favorites and recent foods when the query is empty.
-/// Must be placed inside a NavigationStack (the root of a tab or of a sheet).
+/// Search mode of the add flow: search the OpenNutrition database (French words are
+/// translated) and the user's own foods. With an empty query: Favoris (one tap logs),
+/// "Souvent à 9 h" (foods usually logged around this hour) and Récents.
+/// Tapping a row opens the quantity sheet (`AddEntrySheet`); the round "+" checks the row,
+/// and "Ajouter (n)" logs every checked food with its usual quantity.
+///
+/// `FoodSearchView(context:isSheet:)` is the standalone version (place it inside a
+/// NavigationStack: navigation title, "Fermer" and meal menu). `AddFlowView` embeds it with
+/// `FoodSearchView(embeddedIn:onLogged:onQuickAdd:)` (no navigation bar).
 struct FoodSearchView: View {
     let isSheet: Bool
+    private let isEmbedded: Bool
+    private let onLogged: (() -> Void)?
+    private let onQuickAdd: (() -> Void)?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \FavoriteFood.createdAt, order: .reverse) private var favorites: [FavoriteFood]
     @Query(FoodSearchView.recentDescriptor) private var recentEntries: [JournalEntry]
+    /// Entries of the last 30 days, for "Souvent à 9 h".
+    @Query private var monthEntries: [JournalEntry]
     @Query(sort: \CustomFood.name) private var customFoods: [CustomFood]
 
     private let initialContext: LogContext
@@ -24,13 +36,33 @@ struct FoodSearchView: View {
     @State private var isSearching = false
     @State private var activeSheet: SearchSheet?
     @State private var dismissAfterSheet = false
+    @State private var refocusAfterSheet = false
     @State private var loggedCount = 0
+    /// Checked foods (multi-select), in the order they were checked.
+    @State private var selection: [SearchSelection] = []
     @FocusState private var isSearchFocused: Bool
 
     init(context: LogContext, isSheet: Bool) {
+        self.init(context: context, isSheet: isSheet, isEmbedded: false, onLogged: nil, onQuickAdd: nil)
+    }
+
+    /// Embedded in the add sheet: no navigation bar; `onLogged` closes the sheet,
+    /// `onQuickAdd` switches to the quick add mode.
+    init(embeddedIn context: LogContext, onLogged: @escaping () -> Void, onQuickAdd: @escaping () -> Void) {
+        self.init(context: context, isSheet: true, isEmbedded: true, onLogged: onLogged, onQuickAdd: onQuickAdd)
+    }
+
+    private init(context: LogContext, isSheet: Bool, isEmbedded: Bool,
+                 onLogged: (() -> Void)?, onQuickAdd: (() -> Void)?) {
         self.initialContext = context
         self.isSheet = isSheet
+        self.isEmbedded = isEmbedded
+        self.onLogged = onLogged
+        self.onQuickAdd = onQuickAdd
         _context = State(initialValue: context)
+        let cutoff = Calendar.current.startOfDay(for: .now).addingTimeInterval(-30 * 86_400)
+        _monthEntries = Query(filter: #Predicate<JournalEntry> { $0.createdAt >= cutoff },
+                              sort: \JournalEntry.createdAt, order: .reverse)
     }
 
     private static var recentDescriptor: FetchDescriptor<JournalEntry> {
@@ -47,15 +79,67 @@ struct FoodSearchView: View {
 
     private var searchKey: SearchQueryKey { SearchQueryKey(text: trimmedQuery, filter: filter) }
 
-    /// Distinct items of the latest journal entries (most recent first).
-    /// De-duplicates on the stored key fields first so only the ~20 kept entries pay for
-    /// `entry.item` (which JSON-decodes the nutrient snapshot).
-    private var recentItems: [FoodItem] {
-        var seen = Set<String>()
+    /// Same value as `entry.item.id` ("source:ref" or "source:name"), without decoding the entry.
+    private static func key(of entry: JournalEntry) -> String {
+        "\(entry.source.rawValue):\(entry.ref ?? entry.name)"
+    }
+
+    /// Hour the user is adding food for (slot time, or now).
+    private var contextHour: Int {
+        Calendar.current.component(.hour, from: context.time ?? .now)
+    }
+
+    /// Latest logged quantity per item key (from the recent entries).
+    private var lastLoggedGrams: [String: Double] {
+        var grams: [String: Double] = [:]
+        for entry in recentEntries {
+            let key = FoodSearchView.key(of: entry)
+            if grams[key] == nil { grams[key] = entry.grams }
+        }
+        return grams
+    }
+
+    /// Usual quantity of an item: remembered by the quantity sheet, else last logged, else one
+    /// serving (or 100 g).
+    private func usualGrams(for item: FoodItem, recent: [String: Double]) -> Double {
+        if item.source == .quickAdd { return 100 }
+        if let remembered = UserDefaults.standard.object(forKey: "lastGrams.\(item.id)") as? Double,
+           remembered > 0 {
+            return remembered
+        }
+        if let grams = recent[item.id], grams > 0 { return grams }
+        return item.defaultGrams
+    }
+
+    /// Foods logged on at least 2 different days within ±1 h of `hour` in the last 30 days,
+    /// most frequent first (max 5). Only the kept entries pay for `entry.item`.
+    private func frequentItems(hour: Int) -> [FoodItem] {
+        let calendar = Calendar.current
+        var days: [String: Set<Date>] = [:]
+        var latest: [String: JournalEntry] = [:]
+        for entry in monthEntries {
+            let entryHour = calendar.component(.hour, from: entry.createdAt)
+            let difference = abs(entryHour - hour)
+            guard min(difference, 24 - difference) <= 1 else { continue }
+            let key = FoodSearchView.key(of: entry)
+            days[key, default: []].insert(entry.day)
+            if latest[key] == nil { latest[key] = entry }
+        }
+        let ranked = days
+            .filter { $0.value.count >= 2 }
+            .sorted { lhs, rhs in
+                if lhs.value.count != rhs.value.count { return lhs.value.count > rhs.value.count }
+                return lhs.key < rhs.key
+            }
+        return ranked.prefix(5).compactMap { latest[$0.key]?.item }
+    }
+
+    /// Distinct items of the latest journal entries (most recent first), skipping `excluded` keys.
+    private func recentItems(excluding excluded: Set<String>) -> [FoodItem] {
+        var seen = excluded
         var items: [FoodItem] = []
         for entry in recentEntries {
-            // Same value as `entry.item.id` ("source:ref" or "source:name").
-            let key = "\(entry.source.rawValue):\(entry.ref ?? entry.name)"
+            let key = FoodSearchView.key(of: entry)
             guard seen.insert(key).inserted else { continue }
             items.append(entry.item)
             if items.count >= 20 { break }
@@ -80,41 +164,62 @@ struct FoodSearchView: View {
         return matches
     }
 
+    private func isSelected(_ item: FoodItem) -> Bool {
+        selection.contains { $0.id == item.id }
+    }
+
     // MARK: Body
 
     var body: some View {
         let text = trimmedQuery
         let custom = matchingCustomFoods(for: text)
-        resultsList(text: text, custom: custom)
+        let recent = lastLoggedGrams
+        Group {
+            if isEmbedded {
+                content(text: text, custom: custom, recent: recent)
+            } else {
+                content(text: text, custom: custom, recent: recent)
+                    .navigationTitle(isSheet ? "Ajouter un aliment" : "Ajouter")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { toolbarContent }
+            }
+        }
+        .task(id: searchKey) { await runSearch(searchKey) }
+        .task {
+            // Keyboard first: the field is focused as soon as the screen appears.
+            try? await Task.sleep(for: .milliseconds(50))
+            isSearchFocused = true
+        }
+        .onChange(of: initialContext) { _, newValue in context = newValue }
+        .sheet(item: $activeSheet, onDismiss: sheetDismissed) { sheet in
+            sheetContent(sheet)
+        }
+        .sensoryFeedback(.success, trigger: loggedCount)
+        .sensoryFeedback(.selection, trigger: selection.count)
+    }
+
+    private func content(text: String, custom: [CustomFood], recent: [String: Double]) -> some View {
+        resultsList(text: text, custom: custom, recent: recent)
             .overlay {
                 if !text.isEmpty, !isSearching, searchedText == text,
                    results.isEmpty, custom.isEmpty {
                     noResultsView(text: text)
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                searchHeader(showsChips: !text.isEmpty)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomBar(showsChips: !text.isEmpty)
             }
-            .navigationTitle(isSheet ? "Ajouter un aliment" : "Ajouter")
-            .navigationBarTitleDisplayMode(isSheet ? .inline : .large)
-            .toolbar { toolbarContent }
-            .task(id: searchKey) { await runSearch(searchKey) }
-            .onChange(of: initialContext) { _, newValue in context = newValue }
-            .sheet(item: $activeSheet, onDismiss: sheetDismissed) { sheet in
-                sheetContent(sheet)
-            }
-            .sensoryFeedback(.success, trigger: loggedCount)
     }
 
-    private func resultsList(text: String, custom: [CustomFood]) -> some View {
+    private func resultsList(text: String, custom: [CustomFood], recent: [String: Double]) -> some View {
         List {
             if !FoodDatabase.shared.isAvailable {
                 databaseErrorSection
             }
             if text.isEmpty {
-                emptyQueryContent
+                emptyQueryContent(recent: recent)
             } else {
-                searchContent(text: text, custom: custom)
+                searchContent(text: text, custom: custom, recent: recent)
             }
             AttributionFooter()
                 .listRowBackground(Theme.background)
@@ -129,10 +234,6 @@ struct FoodSearchView: View {
     @ViewBuilder
     private func sheetContent(_ sheet: SearchSheet) -> some View {
         switch sheet {
-        case .scanner:
-            BarcodeScanView(context: context, onLogged: {
-                if isSheet { dismissAfterSheet = true }
-            })
         case .quickAdd:
             QuickAddSheet(context: context, onLogged: {
                 if isSheet { dismissAfterSheet = true }
@@ -140,7 +241,7 @@ struct FoodSearchView: View {
         case .add(let item):
             AddEntrySheet(item: item, context: context, onLogged: {
                 loggedCount += 1
-                if isSheet { dismissAfterSheet = true }
+                dismissAfterSheet = true
             })
         }
     }
@@ -156,7 +257,12 @@ struct FoodSearchView: View {
                 .foregroundStyle(Theme.textSecondary)
         } actions: {
             Button {
-                activeSheet = .quickAdd
+                if let onQuickAdd {
+                    onQuickAdd()
+                } else {
+                    isSearchFocused = false
+                    activeSheet = .quickAdd
+                }
             } label: {
                 SearchOutlineButtonLabel(title: "Ajout rapide", systemImage: "bolt")
             }
@@ -164,39 +270,34 @@ struct FoodSearchView: View {
         }
     }
 
-    // MARK: Search header (destination line, field, chips)
+    // MARK: Bottom bar (chips, field, "Ajouter (n)")
 
-    private func searchHeader(showsChips: Bool) -> some View {
-        VStack(spacing: 0) {
-            destinationLine
-                .padding(.bottom, 8)
-            searchField
-                .padding(.horizontal, 16)
+    private func bottomBar(showsChips: Bool) -> some View {
+        VStack(spacing: 10) {
             if showsChips {
                 filterChips
-                    .padding(.top, 10)
             }
+            HStack(spacing: 8) {
+                searchField
+                if !selection.isEmpty {
+                    addSelectionButton
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 16)
         }
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity)
-        .background(Theme.background)
-    }
-
-    /// "Ajout à Déjeuner · aujourd'hui" (meal and day the food will be logged to).
-    private var destinationLine: some View {
-        HStack(spacing: 4) {
-            Text("Ajout à")
-                .foregroundStyle(Theme.textTertiary)
-            Text(context.meal.label)
-                .font(Theme.font(12, .medium, relativeTo: .caption))
-                .foregroundStyle(Theme.textBody)
-            Text("· \(Formatters.dayTitle(context.day).lowercased())")
-                .foregroundStyle(Theme.textTertiary)
+        .background {
+            Theme.raised.ignoresSafeArea(.container, edges: .bottom)
         }
-        .font(Theme.caption)
-        .lineLimit(1)
-        .accessibilityElement(children: .combine)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.separator)
+                .frame(height: Theme.hairline)
+        }
+        .animation(.snappy, value: selection.isEmpty)
     }
 
     private var searchField: some View {
@@ -210,7 +311,8 @@ struct FoodSearchView: View {
                 .foregroundStyle(Theme.textPrimary)
                 .tint(Theme.textPrimary)
                 .focused($isSearchFocused)
-                .submitLabel(.search)
+                .submitLabel(selection.isEmpty ? .search : .done)
+                .onSubmit(submit)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .frame(maxHeight: .infinity)
@@ -218,13 +320,32 @@ struct FoodSearchView: View {
                 clearButton
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: 40)
-        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .padding(.horizontal, 11)
+        .frame(height: 42)
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(isSearchFocused ? Theme.textTertiary : Theme.separatorStrong,
+                              lineWidth: Theme.hairline)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { isSearchFocused = true }
+    }
+
+    private var addSelectionButton: some View {
+        Button(action: logSelection) {
+            Text("Ajouter (\(selection.count))")
+                .font(Theme.font(15, .bold, relativeTo: .body))
+                .monospacedDigit()
+                .foregroundStyle(Theme.onAccent)
+                .padding(.horizontal, 14)
+                .frame(height: 42)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel("Ajouter \(selection.count) aliment\(selection.count > 1 ? "s" : "") au journal")
     }
 
     private var clearButton: some View {
@@ -240,7 +361,24 @@ struct FoodSearchView: View {
         .accessibilityLabel("Effacer la recherche")
     }
 
-    // MARK: Toolbar
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(SearchKindFilter.allCases) { option in
+                    Button {
+                        filter = option
+                    } label: {
+                        SearchFilterPill(option: option, isSelected: filter == option)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .sensoryFeedback(.selection, trigger: filter)
+    }
+
+    // MARK: Toolbar (standalone only)
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
@@ -299,70 +437,83 @@ struct FoodSearchView: View {
     }
 
     @ViewBuilder
-    private var emptyQueryContent: some View {
-        shortcutsSection
-
+    private func emptyQueryContent(recent: [String: Double]) -> some View {
         if !favorites.isEmpty {
-            favoritesSection
+            favoritesSection(recent: recent)
         }
 
-        let recents = recentItems
-        if !recents.isEmpty {
+        let hour = contextHour
+        let frequent = frequentItems(hour: hour)
+        if !frequent.isEmpty {
             Section {
-                sectionHeaderRow("Récents")
-                ForEach(recents) { item in
-                    foodRow(item)
+                sectionHeaderRow("Souvent à \(hour) h")
+                ForEach(frequent) { item in
+                    foodRow(item, grams: usualGrams(for: item, recent: recent))
                 }
             }
             .listSectionSeparator(.hidden)
         }
 
-        if favorites.isEmpty && recents.isEmpty {
+        let recents = recentItems(excluding: Set(frequent.map(\.id)))
+        if !recents.isEmpty {
+            Section {
+                sectionHeaderRow("Récents")
+                ForEach(recents) { item in
+                    foodRow(item, grams: usualGrams(for: item, recent: recent))
+                }
+            }
+            .listSectionSeparator(.hidden)
+        }
+
+        if favorites.isEmpty && frequent.isEmpty && recents.isEmpty {
             emptyHint
         }
     }
 
-    private var shortcutsSection: some View {
+    /// Horizontal row of big icon tiles; one tap logs the usual quantity.
+    private func favoritesSection(recent: [String: Double]) -> some View {
         Section {
-            Button {
-                activeSheet = .scanner
-            } label: {
-                SearchShortcutLabel(title: "Scanner un code-barres", systemImage: "barcode.viewfinder")
+            sectionHeaderRow("Favoris")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(favorites) { favorite in
+                        favoriteTile(favorite, recent: recent)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 6)
             }
-            .listRowSeparator(.hidden, edges: .top)
-            Button {
-                activeSheet = .quickAdd
-            } label: {
-                SearchShortcutLabel(title: "Ajout rapide", systemImage: "bolt")
-            }
-            NavigationLink {
-                CustomFoodsListView(pickContext: context, onLogged: closeSheetAfterLogging)
-            } label: {
-                SearchShortcutLabel(title: "Mes aliments", systemImage: "person.crop.circle")
-            }
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 6, trailing: 0))
+            .listRowBackground(Theme.background)
+            .listRowSeparator(.hidden)
         }
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .listRowBackground(Theme.background)
-        .listRowSeparatorTint(Theme.separator)
         .listSectionSeparator(.hidden)
     }
 
-    private var favoritesSection: some View {
-        Section {
-            sectionHeaderRow("Favoris")
-            ForEach(favorites) { favorite in
-                foodRow(favorite.item)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            modelContext.delete(favorite)
-                            try? modelContext.save()
-                        } label: {
-                            Label("Retirer", systemImage: "star.slash")
-                        }
-                    }
+    private func favoriteTile(_ favorite: FavoriteFood, recent: [String: Double]) -> some View {
+        let item = favorite.item
+        let grams = usualGrams(for: item, recent: recent)
+        return Button {
+            logFoods([SearchSelection(item: item, grams: grams)])
+        } label: {
+            SearchFavoriteTile(item: item)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Ajouter \(item.name), \(Formatters.number(grams, maxFractionDigits: 0)) \(item.unitSymbol)")
+        .contextMenu {
+            Button {
+                open(item)
+            } label: {
+                Label("Choisir la quantité", systemImage: "slider.horizontal.3")
+            }
+            Button(role: .destructive) {
+                modelContext.delete(favorite)
+                try? modelContext.save()
+            } label: {
+                Label("Retirer des favoris", systemImage: "star.slash")
             }
         }
-        .listSectionSeparator(.hidden)
     }
 
     private var emptyHint: some View {
@@ -396,12 +547,13 @@ struct FoodSearchView: View {
     }
 
     @ViewBuilder
-    private func searchContent(text: String, custom: [CustomFood]) -> some View {
+    private func searchContent(text: String, custom: [CustomFood], recent: [String: Double]) -> some View {
         if !custom.isEmpty {
             Section {
                 sectionHeaderRow("Mes aliments")
                 ForEach(custom) { food in
-                    foodRow(food.item, highlight: text)
+                    let item = food.item
+                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: text)
                 }
             }
             .listSectionSeparator(.hidden)
@@ -411,14 +563,14 @@ struct FoodSearchView: View {
             Section {
                 resultsHeaderRow
                 ForEach(results) { item in
-                    foodRow(item, highlight: text)
+                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: text)
                 }
             }
             .listSectionSeparator(.hidden)
         }
     }
 
-    /// "OPENNUTRITION · 60 RÉSULTATS" line above the database results (hairline below).
+    /// "OPENNUTRITION · 60 RÉSULTATS" line above the database results.
     private var resultsHeaderRow: some View {
         HStack(spacing: 6) {
             Text(resultsCountText)
@@ -446,55 +598,28 @@ struct FoodSearchView: View {
             .modifier(SearchHeaderRowStyle())
     }
 
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(SearchKindFilter.allCases) { option in
-                    Button {
-                        filter = option
-                    } label: {
-                        SearchFilterPill(option: option, isSelected: filter == option)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .sensoryFeedback(.selection, trigger: filter)
-    }
-
-    private func foodRow(_ item: FoodItem, highlight: String? = nil) -> some View {
-        HStack(spacing: 10) {
-            FoodRowView(item: item, highlight: highlight)
+    /// Icon tile, name, "🔥 kcal · G · P · L · quantity", trailing round "+" / check.
+    private func foodRow(_ item: FoodItem, grams: Double, highlight: String? = nil) -> some View {
+        let checked = isSelected(item)
+        return HStack(spacing: 10) {
             Button {
-                activeSheet = .add(item)
+                open(item)
             } label: {
-                SearchAddCircle()
+                FoodRowView(item: item, grams: grams, highlight: highlight)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Ajouter au journal")
-        }
-        .background {
-            // Hidden link: the whole row pushes the detail, without the disclosure chevron.
-            // Wrapper so FoodDetailView's init (and its @Query) only runs when pushed,
-            // not for every visible row on every keystroke.
-            NavigationLink {
-                SearchDetailDestination(item: item, context: context, onLogged: closeSheetAfterLogging)
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-        }
-        .swipeActions(edge: .leading) {
+
             Button {
-                activeSheet = .add(item)
+                toggle(item, grams: grams)
             } label: {
-                Label("Ajouter", systemImage: "plus")
+                SearchCheckCircle(isOn: checked)
             }
-            .tint(Theme.textQuaternary)
+            .buttonStyle(.borderless)
+            .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
         .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
-        .listRowBackground(Theme.background)
+        .listRowBackground(checked ? Theme.raised : Theme.background)
         .listRowSeparatorTint(Theme.separator)
     }
 
@@ -531,32 +656,74 @@ struct FoodSearchView: View {
         isSearching = false
     }
 
-    /// When presented as a sheet, closes the whole search after logging from a pushed screen.
-    private var closeSheetAfterLogging: (() -> Void)? {
-        guard isSheet else { return nil }
-        let dismissSearch = self.dismiss
-        return { dismissSearch() }
+    /// Opens the quantity sheet for one food.
+    private func open(_ item: FoodItem) {
+        refocusAfterSheet = isSearchFocused
+        isSearchFocused = false
+        activeSheet = .add(item)
+    }
+
+    private func toggle(_ item: FoodItem, grams: Double) {
+        if let index = selection.firstIndex(where: { $0.id == item.id }) {
+            selection.remove(at: index)
+        } else {
+            selection.append(SearchSelection(item: item, grams: grams))
+        }
+    }
+
+    /// Return key: logs the checked foods, or opens the first result.
+    private func submit() {
+        if !selection.isEmpty {
+            logSelection()
+        } else if let first = results.first, !trimmedQuery.isEmpty {
+            open(first)
+        }
+    }
+
+    private func logSelection() {
+        logFoods(selection)
+    }
+
+    /// Logs foods with the given quantities at the context time, then closes.
+    private func logFoods(_ foods: [SearchSelection]) {
+        guard !foods.isEmpty else { return }
+        for food in foods {
+            modelContext.insert(JournalEntry(item: food.item, grams: food.grams, day: context.day,
+                                             meal: context.meal, at: context.time))
+        }
+        try? modelContext.save()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        selection = []
+        isSearchFocused = false
+        finishAfterLogging()
+    }
+
+    private func finishAfterLogging() {
+        if let onLogged {
+            onLogged()
+        } else if isSheet {
+            dismiss()
+        }
     }
 
     private func sheetDismissed() {
         if dismissAfterSheet {
             dismissAfterSheet = false
-            dismiss()
+            finishAfterLogging()
+        } else if refocusAfterSheet {
+            refocusAfterSheet = false
+            isSearchFocused = true
         }
     }
 }
 
 // MARK: - Private helpers
 
-/// Defers building `FoodDetailView` until the row is actually pushed.
-private struct SearchDetailDestination: View {
+/// One checked food and the quantity it will be logged with.
+private struct SearchSelection: Identifiable {
     let item: FoodItem
-    let context: LogContext
-    let onLogged: (() -> Void)?
-
-    var body: some View {
-        FoodDetailView(item: item, context: context, onLogged: onLogged)
-    }
+    let grams: Double
+    var id: String { item.id }
 }
 
 private struct SearchQueryKey: Equatable {
@@ -601,62 +768,63 @@ private enum SearchKindFilter: String, CaseIterable, Identifiable {
 }
 
 private enum SearchSheet: Identifiable {
-    case scanner
     case quickAdd
     case add(FoodItem)
 
     var id: String {
         switch self {
-        case .scanner: "scanner"
         case .quickAdd: "quickAdd"
         case .add(let item): "add:\(item.id)"
         }
     }
 }
 
-private struct SearchShortcutLabel: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .regular))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 32, height: 32)
-            Text(title)
-                .font(Theme.body)
-                .foregroundStyle(Theme.textBody)
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-    }
-}
-
-/// Section title row: Theme.label, uppercase, textTertiary.
+/// Section title ("Favoris", "Souvent à 9 h", "Récents").
 private struct SearchSectionHeader: View {
     let title: String
 
     var body: some View {
-        Text(title.uppercased())
-            .font(Theme.label)
-            .tracking(0.6)
-            .foregroundStyle(Theme.textTertiary)
+        Text(title)
+            .font(Theme.font(14, .bold, relativeTo: .subheadline))
+            .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// List row style of the in-list section headers (no top hairline, hairline below).
+/// List row style of the in-list section headers (no hairlines).
 private struct SearchHeaderRowStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .listRowInsets(EdgeInsets(top: 18, leading: 16, bottom: 6, trailing: 16))
+            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 4, trailing: 16))
             .listRowBackground(Theme.background)
-            .listRowSeparator(.hidden, edges: .top)
-            .listRowSeparatorTint(Theme.separator)
-            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .listRowSeparator(.hidden)
+    }
+}
+
+/// Big favorite tile: icon with a small white "+" badge, name below.
+private struct SearchFavoriteTile: View {
+    let item: FoodItem
+
+    var body: some View {
+        VStack(spacing: 5) {
+            FoodIconView(item: item, size: 52)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.onAccent)
+                        .frame(width: 19, height: 19)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .offset(x: 4, y: 4)
+                }
+            Text(item.name)
+                .font(Theme.font(11, .medium, relativeTo: .caption2))
+                .foregroundStyle(Theme.textBody)
+                .lineLimit(1)
+                .frame(width: 62)
+        }
+        .frame(width: 62)
+        .contentShape(Rectangle())
     }
 }
 
@@ -686,17 +854,25 @@ private struct SearchFilterPill: View {
     }
 }
 
-/// Trailing outlined "+" circle of a result row.
-private struct SearchAddCircle: View {
+/// Trailing round "+" of a row; white with a check when the row is selected.
+private struct SearchCheckCircle: View {
+    let isOn: Bool
+
     var body: some View {
-        Image(systemName: "plus")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Theme.textPrimary)
+        Image(systemName: isOn ? "checkmark" : "plus")
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(isOn ? Theme.onAccent : Theme.textPrimary)
             .frame(width: 30, height: 30)
-            .overlay {
-                Circle().strokeBorder(Theme.textQuaternary, lineWidth: Theme.hairline)
+            .background {
+                if isOn {
+                    Circle().fill(Theme.accent)
+                } else {
+                    Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+                }
             }
-            .contentShape(Circle())
+            .frame(width: 40, height: 40)
+            .contentShape(Rectangle())
+            .animation(.snappy(duration: 0.18), value: isOn)
     }
 }
 

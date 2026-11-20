@@ -83,7 +83,7 @@ struct ProfileNumberField: View {
     }
 }
 
-/// Horizontal bar showing the share of energy from protein / carbs / fat.
+/// Horizontal bar showing the share of energy from carbs / protein / fat.
 struct ProfileMacroSplitView: View {
     var protein: Double
     var carbs: Double
@@ -95,10 +95,15 @@ struct ProfileMacroSplitView: View {
         var id: NutrientKey { key }
     }
 
+    /// Always carbs / protein / fat (`Theme.macroOrder`).
     private var parts: [Part] {
-        [Part(key: .protein, kcal: protein * 4),
-         Part(key: .carbohydrates, kcal: carbs * 4),
-         Part(key: .totalFat, kcal: fat * 9)]
+        Theme.macroOrder.map { key in
+            switch key {
+            case .carbohydrates: return Part(key: key, kcal: carbs * 4)
+            case .protein: return Part(key: key, kcal: protein * 4)
+            default: return Part(key: key, kcal: fat * 9)
+            }
+        }
     }
 
     private var totalKcal: Double { parts.reduce(0) { $0 + $1.kcal } }
@@ -124,7 +129,7 @@ struct ProfileMacroSplitView: View {
                         Text("\(part.key.shortLabel) \(Formatters.percent(fraction(part.kcal)))")
                             .monospacedDigit()
                     }
-                    if part.key != .totalFat { Spacer(minLength: 4) }
+                    if part.key != Theme.macroOrder.last { Spacer(minLength: 4) }
                 }
             }
             .font(Theme.caption)

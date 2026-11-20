@@ -3,31 +3,66 @@ import SwiftUI
 import UIKit
 
 private enum QuickAddField: Hashable {
-    case name, calories, protein, carbs, fat
+    case calories, carbs, protein, fat, name
+
+    /// Keyboard "next" order: kcal → G → P → L → name.
+    var next: QuickAddField? {
+        switch self {
+        case .calories: .carbs
+        case .carbs: .protein
+        case .protein: .fat
+        case .fat: .name
+        case .name: nil
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .calories: "Énergie"
+        case .carbs: "Glucides"
+        case .protein: "Protéines"
+        case .fat: "Lipides"
+        case .name: "Nom"
+        }
+    }
+
+    static func field(for key: NutrientKey) -> QuickAddField {
+        switch key {
+        case .carbohydrates: .carbs
+        case .protein: .protein
+        default: .fat
+        }
+    }
 }
 
-/// Log calories (and optionally macros) typed by hand.
+/// Log calories (and optionally G / P / L) typed by hand, at the context time.
+/// The energy field is focused on appear. `QuickAddSheet(context:onLogged:)` is the standalone
+/// sheet (own NavigationStack); `AddFlowView` embeds it with `isEmbedded: true`.
 struct QuickAddSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
     private let context: LogContext
     private let onLogged: (() -> Void)?
+    private let isEmbedded: Bool
 
-    @State private var name = "Ajout rapide"
+    @State private var name = ""
     @State private var caloriesText = ""
-    @State private var proteinText = ""
     @State private var carbsText = ""
+    @State private var proteinText = ""
     @State private var fatText = ""
-    @State private var meal: Meal
-    @State private var day: Date
+    /// Confirmation of the last "Ajouter et continuer".
+    @State private var lastAdded: String?
     @FocusState private var focus: QuickAddField?
 
     init(context: LogContext, onLogged: (() -> Void)? = nil) {
+        self.init(context: context, isEmbedded: false, onLogged: onLogged)
+    }
+
+    init(context: LogContext, isEmbedded: Bool, onLogged: (() -> Void)? = nil) {
         self.context = context
+        self.isEmbedded = isEmbedded
         self.onLogged = onLogged
-        _meal = State(initialValue: context.meal)
-        _day = State(initialValue: context.day.startOfDay)
     }
 
     // MARK: - Parsing
@@ -41,269 +76,292 @@ struct QuickAddSheet: View {
     }
 
     private var calories: Double? { QuickAddSheet.parse(caloriesText) }
-    private var protein: Double? { QuickAddSheet.parse(proteinText) }
     private var carbs: Double? { QuickAddSheet.parse(carbsText) }
+    private var protein: Double? { QuickAddSheet.parse(proteinText) }
     private var fat: Double? { QuickAddSheet.parse(fatText) }
 
-    /// Energy estimated from the macros (4 / 4 / 9 kcal per g).
+    /// Energy from the macros (4 / 4 / 9 kcal per g).
     private var macroCalories: Double {
-        (protein ?? 0) * 4 + (carbs ?? 0) * 4 + (fat ?? 0) * 9
+        (carbs ?? 0) * 4 + (protein ?? 0) * 4 + (fat ?? 0) * 9
     }
 
-    private func hasInvalidInput(_ text: String) -> Bool {
+    /// Typed energy, or the macro sum when the energy is left empty.
+    private var energy: Double? {
+        if let calories { return calories }
+        return macroCalories > 0 ? macroCalories : nil
+    }
+
+    private func isInvalid(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespaces).isEmpty && QuickAddSheet.parse(text) == nil
     }
 
     private var canSave: Bool {
-        calories != nil
-            && !hasInvalidInput(proteinText)
-            && !hasInvalidInput(carbsText)
-            && !hasInvalidInput(fatText)
+        energy != nil
+            && !isInvalid(caloriesText)
+            && !isInvalid(carbsText)
+            && !isInvalid(proteinText)
+            && !isInvalid(fatText)
+    }
+
+    private var timeLabel: String { AddTime.label(AddTime.effectiveTime(of: context)) }
+
+    private func text(for key: NutrientKey) -> Binding<String> {
+        switch key {
+        case .carbohydrates: $carbsText
+        case .protein: $proteinText
+        default: $fatText
+        }
     }
 
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            Form {
-                descriptionSection
-                energySection
-                macrosSection
-                whenSection
+        if isEmbedded {
+            form
+        } else {
+            NavigationStack {
+                form
+                    .navigationTitle("Ajout rapide")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Annuler") { dismiss() }
+                                .tint(Theme.textSecondary)
+                        }
+                    }
             }
-            .listSectionSpacing(.compact)
-            .themedBackground()
-            .safeAreaInset(edge: .bottom) { primaryButton }
-            .navigationTitle("Ajout rapide")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
-            .onAppear {
-                if focus == nil { focus = .calories }
+            .presentationBackground(Theme.background)
+        }
+    }
+
+    private var form: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if let lastAdded {
+                    confirmation(lastAdded)
+                        .padding(.bottom, 12)
+                }
+                fieldLabel("Énergie", color: Theme.textBody)
+                energyRow
+                macroSumNote
+                    .padding(.top, 7)
+                HStack(spacing: 8) {
+                    ForEach(Theme.macroOrder, id: \.self) { key in
+                        macroField(key)
+                    }
+                }
+                .padding(.top, 16)
+                nameField
+                    .padding(.top, 16)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
+        }
+        .scrollDismissesKeyboard(.never)
+        .background(Theme.background.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        .task {
+            // Keyboard first: energy field focused as soon as the screen appears.
+            try? await Task.sleep(for: .milliseconds(50))
+            if focus == nil { focus = .calories }
         }
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("Annuler") { dismiss() }
-                .tint(Theme.textSecondary)
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            Button("Ajouter") { save() }
-                .font(Theme.font(17, .bold, relativeTo: .body))
-                .tint(Theme.textPrimary)
-                .disabled(!canSave)
-        }
-        ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button("OK") { focus = nil }
-                .font(Theme.font(17, .bold, relativeTo: .body))
-                .tint(Theme.textPrimary)
-        }
+    // MARK: - Fields
+
+    private func fieldLabel(_ title: String, color: Color) -> some View {
+        Text(title)
+            .font(Theme.font(12, .bold, relativeTo: .caption))
+            .foregroundStyle(color)
+            .padding(.bottom, 6)
     }
 
-    // MARK: - Sections
-
-    private var descriptionSection: some View {
-        Section {
-            TextField("Nom", text: $name)
-                .focused($focus, equals: .name)
-                .submitLabel(.next)
-                .onSubmit { focus = .calories }
-                .font(Theme.body)
-                .foregroundStyle(Theme.textPrimary)
-                .tint(Theme.textPrimary)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .modifier(QuickAddFieldBox(isFocused: focus == .name))
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-        } header: {
-            QuickAddSectionHeader(title: "Description")
-        }
-    }
-
-    private var energySection: some View {
-        Section {
-            caloriesField
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-            if macroCalories > 0 {
-                computeFromMacrosButton
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 2, bottom: 2, trailing: 0))
-            }
-        } header: {
-            QuickAddSectionHeader(title: "Énergie")
-        } footer: {
-            energyFooter
-        }
-        .listRowSeparator(.hidden)
-    }
-
-    private var caloriesField: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Theme.flame)
-            TextField("0", text: $caloriesText)
-                .keyboardType(.decimalPad)
-                .focused($focus, equals: .calories)
-                .font(Theme.font(34, .bold, relativeTo: .largeTitle))
-                .monospacedDigit()
-                .foregroundStyle(Theme.textPrimary)
-                .tint(Theme.textPrimary)
-            Text("kcal")
-                .font(Theme.body)
-                .foregroundStyle(Theme.textSecondary)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .modifier(QuickAddFieldBox(isFocused: focus == .calories))
-        .contentShape(Rectangle())
-        .onTapGesture { focus = .calories }
-    }
-
-    private var computeFromMacrosButton: some View {
-        Button {
-            caloriesText = Formatters.number(macroCalories, maxFractionDigits: 0)
-                .filter { !$0.isWhitespace }
-        } label: {
-            Label {
-                Text("Calculer depuis les macros (≈ \(Formatters.kcal(macroCalories)))")
-                    .font(Theme.callout)
+    private var energyRow: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Theme.flame)
+                TextField("0", text: $caloriesText,
+                          prompt: Text(macroCalories > 0 ? Formatters.number(macroCalories, maxFractionDigits: 0) : "0")
+                            .foregroundColor(Theme.textQuaternary))
+                    .keyboardType(.decimalPad)
+                    .focused($focus, equals: .calories)
+                    .font(Theme.font(30, .bold, relativeTo: .largeTitle))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-            } icon: {
-                Image(systemName: "function")
+                    .tint(Theme.textPrimary)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 60)
+            .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText)))
+            .contentShape(Rectangle())
+            .onTapGesture { focus = .calories }
+
+            Text("kcal")
+                .font(Theme.font(15, .medium, relativeTo: .body))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 72, height: 60)
+                .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    /// "Somme des macros : 316 kcal", warning color when far from the typed energy.
+    @ViewBuilder
+    private var macroSumNote: some View {
+        let sum = Formatters.kcal(macroCalories)
+        if let calories, macroCalories > 0, abs(macroCalories - calories) > max(30, calories * 0.15) {
+            Label("Somme des macros : \(sum), loin de l'énergie saisie", systemImage: "exclamationmark.triangle")
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.fat)
+        } else if calories == nil, macroCalories > 0 {
+            Text("Somme des macros : \(sum) (utilisée comme énergie)")
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
+        } else {
+            Text("Somme des macros : \(sum)")
+                .font(Theme.caption)
+                .monospacedDigit()
+                .foregroundStyle(Theme.textTertiary)
+        }
+    }
+
+    private func macroField(_ key: NutrientKey) -> some View {
+        let field = QuickAddField.field(for: key)
+        let binding = text(for: key)
+        return VStack(alignment: .leading, spacing: 0) {
+            fieldLabel(key.label, color: Theme.color(for: key))
+            HStack(spacing: 4) {
+                TextField("0", text: binding,
+                          prompt: Text("0").foregroundColor(Theme.textQuaternary))
+                    .keyboardType(.decimalPad)
+                    .focused($focus, equals: field)
+                    .font(Theme.font(18, .bold, relativeTo: .body))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .tint(Theme.textPrimary)
+                Text("g")
+                    .font(Theme.callout)
                     .foregroundStyle(Theme.textTertiary)
             }
+            .padding(.horizontal, 12)
+            .frame(height: 46)
+            .modifier(QuickAddFieldBox(isFocused: focus == field, isInvalid: isInvalid(binding.wrappedValue)))
+            .contentShape(Rectangle())
+            .onTapGesture { focus = field }
         }
-        .buttonStyle(.borderless)
+        .frame(maxWidth: .infinity)
     }
 
-    @ViewBuilder
-    private var energyFooter: some View {
-        if hasInvalidInput(caloriesText) {
-            Text("Valeur invalide.")
-                .font(Theme.caption)
-                .foregroundStyle(Theme.overTarget)
-        } else {
-            Text("Obligatoire.")
-                .font(Theme.caption)
-                .foregroundStyle(Theme.textTertiary)
-        }
+    private var nameField: some View {
+        TextField("Nom (facultatif)", text: $name,
+                  prompt: Text("Nom (facultatif)").foregroundColor(Theme.textTertiary))
+            .focused($focus, equals: .name)
+            .submitLabel(.done)
+            .onSubmit { save(continuing: false) }
+            .font(Theme.body)
+            .foregroundStyle(Theme.textPrimary)
+            .tint(Theme.textPrimary)
+            .padding(.horizontal, 12)
+            .frame(height: 46)
+            .modifier(QuickAddFieldBox(isFocused: focus == .name, isInvalid: false))
     }
 
-    private var macrosSection: some View {
-        Section {
-            macroRow(.protein, text: $proteinText, field: .protein)
-            macroRow(.carbohydrates, text: $carbsText, field: .carbs)
-            macroRow(.totalFat, text: $fatText, field: .fat)
-        } header: {
-            QuickAddSectionHeader(title: "Macronutriments (facultatif)")
-        } footer: {
-            macroFooter
-        }
-        .listRowBackground(Theme.background)
-        .listRowSeparatorTint(Theme.separator)
+    private func confirmation(_ text: String) -> some View {
+        Label(text, systemImage: "checkmark.circle.fill")
+            .font(Theme.font(13, .medium, relativeTo: .footnote))
+            .foregroundStyle(Theme.good)
+            .transition(.opacity)
     }
 
-    private var whenSection: some View {
-        Section {
-            Picker(selection: $meal) {
-                ForEach(Meal.allCases) { meal in
-                    Label(meal.label, systemImage: meal.systemImage).tag(meal)
+    // MARK: - Bottom bar (kept above the keyboard)
+
+    private var bottomBar: some View {
+        VStack(spacing: 8) {
+            if let current = focus, let next = current.next {
+                HStack {
+                    Spacer()
+                    Button {
+                        focus = next
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("Suivant : \(next.title)")
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .font(Theme.font(13, .medium, relativeTo: .footnote))
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .overlay {
+                            Capsule().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+                        }
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
-            } label: {
-                QuickAddFieldLabel(title: "Repas", systemImage: "fork.knife")
             }
-            .tint(Theme.textSecondary)
-            DatePicker(selection: $day, displayedComponents: .date) {
-                QuickAddFieldLabel(title: "Jour", systemImage: "calendar")
+            HStack(spacing: 8) {
+                Button {
+                    save(continuing: true)
+                } label: {
+                    Text("Ajouter et continuer")
+                        .font(Theme.font(15, .medium, relativeTo: .body))
+                        .foregroundStyle(canSave ? Theme.textPrimary : Theme.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSave)
+
+                Button {
+                    save(continuing: false)
+                } label: {
+                    Text("Ajouter à \(timeLabel)")
+                        .font(Theme.font(15, .bold, relativeTo: .body))
+                        .monospacedDigit()
+                        .foregroundStyle(canSave ? Theme.onAccent : Theme.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(canSave ? Theme.accent : Theme.separatorStrong,
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSave)
             }
-            .tint(Theme.calories)
-        } header: {
-            QuickAddSectionHeader(title: "Quand")
         }
-        .font(Theme.body)
-        .listRowBackground(Theme.background)
-        .listRowSeparatorTint(Theme.separator)
-    }
-
-    @ViewBuilder
-    private var macroFooter: some View {
-        if let calories, macroCalories > 0, abs(macroCalories - calories) > max(30, calories * 0.25) {
-            Label("Les macros correspondent à environ \(Formatters.kcal(macroCalories)), assez loin des calories saisies.",
-                  systemImage: "exclamationmark.triangle")
-                .font(Theme.caption)
-                .foregroundStyle(Theme.fat)
-        } else {
-            Text("4 kcal par gramme de protéines ou de glucides, 9 kcal par gramme de lipides.")
-                .font(Theme.caption)
-                .foregroundStyle(Theme.textTertiary)
-        }
-    }
-
-    private var primaryButton: some View {
-        Button {
-            save()
-        } label: {
-            Text("Ajouter au journal")
-                .font(Theme.font(16, .bold, relativeTo: .headline))
-                .foregroundStyle(canSave ? Theme.onAccent : Theme.textTertiary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(canSave ? Theme.accent : Theme.separatorStrong,
-                            in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!canSave)
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background {
-            Theme.background.ignoresSafeArea(edges: .bottom)
+            Theme.background.ignoresSafeArea(.container, edges: .bottom)
         }
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Theme.separator)
                 .frame(height: Theme.hairline)
         }
-    }
-
-    private func macroRow(_ key: NutrientKey, text: Binding<String>, field: QuickAddField) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(Theme.color(for: key))
-                .frame(width: 8, height: 8)
-            Text(key.label)
-                .font(Theme.body)
-                .foregroundStyle(Theme.textBody)
-            Spacer()
-            TextField("0", text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .focused($focus, equals: field)
-                .font(Theme.font(17, .bold, relativeTo: .body))
-                .monospacedDigit()
-                .foregroundStyle(Theme.color(for: key))
-                .tint(Theme.textPrimary)
-                .frame(maxWidth: 110)
-            Text("g")
-                .font(Theme.callout)
-                .foregroundStyle(Theme.textTertiary)
-        }
+        .animation(.snappy(duration: 0.2), value: focus)
     }
 
     // MARK: - Save
 
-    private func save() {
-        guard let calories else { return }
-        var values = NutrientValues([.calories: calories])
-        if let protein { values[.protein] = protein }
+    private func save(continuing: Bool) {
+        guard canSave, let energy else {
+            focus = .calories
+            return
+        }
+        var values = NutrientValues([.calories: energy])
         if let carbs { values[.carbohydrates] = carbs }
+        if let protein { values[.protein] = protein }
         if let fat { values[.totalFat] = fat }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -320,54 +378,43 @@ struct QuickAddSheet: View {
             ean: nil,
             per100: values
         )
-        modelContext.insert(JournalEntry(item: item, grams: 100, day: day, meal: meal))
+        // Quick adds store absolute values with grams = 100 (per100 == logged amounts).
+        modelContext.insert(JournalEntry(item: item, grams: 100, day: context.day, meal: context.meal,
+                                         at: context.time))
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onLogged?()
-        dismiss()
+
+        if continuing {
+            withAnimation(.snappy) {
+                lastAdded = "\(item.name) ajouté : \(Formatters.kcal(energy)) à \(timeLabel)"
+            }
+            name = ""
+            caloriesText = ""
+            carbsText = ""
+            proteinText = ""
+            fatText = ""
+            focus = .calories
+        } else if isEmbedded {
+            if let onLogged { onLogged() } else { dismiss() }
+        } else {
+            onLogged?()
+            dismiss()
+        }
     }
 }
 
-/// Raised input surface with a 1 px border (brighter while focused).
+/// Input surface (raised2) with a 1 px border: brighter while focused, red when invalid.
 private struct QuickAddFieldBox: ViewModifier {
     let isFocused: Bool
+    let isInvalid: Bool
 
     func body(content: Content) -> some View {
         content
-            .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                    .strokeBorder(isFocused ? Theme.textTertiary : Theme.separatorStrong, lineWidth: Theme.hairline)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isInvalid ? Theme.overTarget : (isFocused ? Theme.textTertiary : Color.clear),
+                                  lineWidth: Theme.hairline)
             }
-    }
-}
-
-/// Section header per DESIGN.md: small uppercase DM Sans in textTertiary.
-private struct QuickAddSectionHeader: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(Theme.label)
-            .textCase(.uppercase)
-            .tracking(0.6)
-            .foregroundStyle(Theme.textTertiary)
-    }
-}
-
-/// Form row label with a muted monochrome icon.
-private struct QuickAddFieldLabel: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        Label {
-            Text(title)
-                .font(Theme.body)
-                .foregroundStyle(Theme.textBody)
-        } icon: {
-            Image(systemName: systemImage)
-                .foregroundStyle(Theme.textTertiary)
-        }
     }
 }

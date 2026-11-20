@@ -21,9 +21,13 @@ final class FoodDatabase: @unchecked Sendable {
         + nutrientColumns.map { "f.\($0)" }.joined(separator: ", ")
     /// Column index of `icon` in `selectColumns` (always present: NULL on older databases).
     private static let iconColumn = Int32(11 + nutrientColumns.count)
+    /// Column index of `fluent` (Fluent Emoji name), right after `icon`; NULL on older databases.
+    private static let fluentColumn = iconColumn + 1
+    /// First column after the shared SELECT list (e.g. the bm25 score in `search`).
+    private static let extraColumn = fluentColumn + 1
 
-    /// SELECT list shared by every query. Databases built before the `icon` column existed
-    /// get `NULL` instead, so the layout (and `readFood`) never changes.
+    /// SELECT list shared by every query. Databases built before the `icon` / `fluent`
+    /// columns existed get `NULL` instead, so the layout (and `readFood`) never changes.
     private let selectColumns: String
 
     /// Small in-memory cache for `food(id:)` (journal rows, icon lookups). Thread-safe.
@@ -36,21 +40,24 @@ final class FoodDatabase: @unchecked Sendable {
     init(url: URL? = Bundle.main.url(forResource: "foods", withExtension: "sqlite")) {
         guard let url else {
             openError = "Base d'aliments introuvable dans l'application."
-            selectColumns = Self.baseColumns + ", NULL"
+            selectColumns = Self.baseColumns + ", NULL, NULL"
             return
         }
         var handle: OpaquePointer?
         let uri = "file:\(url.path)?immutable=1"
         let flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX
         var hasIcon = false
+        var hasFluent = false
         if sqlite3_open_v2(uri, &handle, flags, nil) == SQLITE_OK, let handle {
             db = handle
             hasIcon = Self.hasColumn("icon", table: "food", in: handle)
+            hasFluent = Self.hasColumn("fluent", table: "food", in: handle)
         } else {
             openError = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "sqlite open failed"
             sqlite3_close(handle)
         }
         selectColumns = Self.baseColumns + (hasIcon ? ", f.icon" : ", NULL")
+            + (hasFluent ? ", f.fluent" : ", NULL")
     }
 
     /// `PRAGMA table_info` check, run once at open time.
@@ -114,7 +121,7 @@ final class FoodDatabase: @unchecked Sendable {
         // Grab a generous candidate set ordered by FTS relevance, then re-rank in Swift.
         sql += " ORDER BY score LIMIT \(max(limit * 4, 200))"
         let rows: [(Food, Double)] = (try? query(sql, bind: [.text(match)]) { stmt in
-            (Self.readFood(stmt), sqlite3_column_double(stmt, Self.iconColumn + 1))
+            (Self.readFood(stmt), sqlite3_column_double(stmt, Self.extraColumn))
         }) ?? []
 
         let tokens = Self.tokens(of: text)
@@ -145,6 +152,12 @@ final class FoodDatabase: @unchecked Sendable {
     /// Illustration basename of a food (see `FoodIconView`), nil when none / unknown id.
     func iconName(forFoodId id: Int64) -> String? {
         food(id: id)?.icon
+    }
+
+    /// Both icon sources of a food: bundled Fluent Emoji name and OpenNutrition illustration.
+    func iconNames(forFoodId id: Int64) -> FoodIconNames {
+        let food = food(id: id)
+        return FoodIconNames(fluent: food?.fluent, icon: food?.icon)
     }
 
     /// Lookup by barcode. Accepts EAN-13, UPC-A (12 digits, zero-padded) and EAN-8.
@@ -258,7 +271,8 @@ final class FoodDatabase: @unchecked Sendable {
             isLiquid: sqlite3_column_int(stmt, 9) != 0,
             packageGrams: double(10),
             per100: values,
-            icon: text(iconColumn).flatMap { $0.isEmpty ? nil : $0 }
+            icon: text(iconColumn).flatMap { $0.isEmpty ? nil : $0 },
+            fluent: text(fluentColumn).flatMap { $0.isEmpty ? nil : $0 }
         )
     }
 }
@@ -270,6 +284,12 @@ extension FoodDatabase {
             search(text, kinds: kinds, limit: limit)
         }.value
     }
+}
+
+/// Icon sources of a dataset food, in display order (see `FoodIconView`).
+struct FoodIconNames: Hashable, Sendable {
+    var fluent: String?
+    var icon: String?
 }
 
 /// Boxed `food(id:)` result for NSCache (nil = known miss).

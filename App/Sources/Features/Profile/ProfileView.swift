@@ -38,19 +38,22 @@ private struct ProfileSettingsForm: View {
     @State private var successTrigger = 0
     @State private var warningTrigger = 0
 
+    @AppStorage(CoachingSettings.collaborativeKey) private var collaborative = false
+
     private static let currentYear = Calendar.current.component(.year, from: .now)
     private static let years: [Int] = Array((currentYear - 100)...(currentYear - 10)).reversed()
-    private static let baseRates: [Double] = [0.25, 0.5, 0.75, 1.0]
 
-    private var computed: GoalCalculator.Targets { GoalCalculator.targets(for: profile) }
-
-    /// Binding that recomputes the targets after each change.
+    /// Binding for personal info. Until the first weekly check-in the starting expenditure still
+    /// comes from the formula (`initialExpenditure == nil`), so the coach refreshes the targets;
+    /// afterwards the adaptive estimate no longer depends on these fields.
     private func binding<T>(_ keyPath: ReferenceWritableKeyPath<UserProfile, T>) -> Binding<T> {
         Binding(
             get: { profile[keyPath: keyPath] },
             set: { newValue in
                 profile[keyPath: keyPath] = newValue
-                GoalCalculator.apply(to: profile)
+                if profile.initialExpenditure == nil {
+                    CoachingService.refreshTargets(profile: profile, context: modelContext)
+                }
             }
         )
     }
@@ -69,9 +72,7 @@ private struct ProfileSettingsForm: View {
                 .profileListRow()
             personalSection
                 .profileListRow()
-            goalSection
-                .profileListRow()
-            targetsSection
+            programSection
                 .profileListRow()
             foodsSection
                 .profileListRow()
@@ -107,7 +108,7 @@ private struct ProfileSettingsForm: View {
             Button("Tout effacer", role: .destructive) { eraseAll() }
             Button("Annuler", role: .cancel) {}
         } message: {
-            Text("Journal, pesées, eau, aliments personnels, favoris et profil seront supprimés définitivement. Pensez à exporter une sauvegarde avant.")
+            Text("Journal, pesées, eau, aliments personnels, favoris, historique du programme et profil seront supprimés définitivement. Pensez à exporter une sauvegarde avant.")
         }
         .alert(alertTitle, isPresented: Binding(get: { alertMessage != nil },
                                                 set: { if !$0 { alertMessage = nil } })) {
@@ -169,7 +170,7 @@ private struct ProfileSettingsForm: View {
         } header: {
             ProfileSectionHeader("Mes informations")
         } footer: {
-            ProfileSectionFooter("\(profile.activity.detail). Enregistrez vos pesées dans l'onglet Progrès pour suivre votre évolution.")
+            ProfileSectionFooter("\(profile.activity.detail). Enregistrez vos pesées avec le bouton + pour suivre votre évolution.")
         }
     }
 
@@ -177,90 +178,38 @@ private struct ProfileSettingsForm: View {
         Self.years.contains(profile.birthYear) ? Self.years : ([profile.birthYear] + Self.years).sorted(by: >)
     }
 
-    private var rateOptions: [Double] {
-        Self.baseRates.contains(profile.weeklyRateKg)
-            ? Self.baseRates : (Self.baseRates + [profile.weeklyRateKg]).sorted()
-    }
+    private var mode: CoachingMode { CoachingMode.current(profile: profile, collaborative: collaborative) }
 
-    private var goalSection: some View {
-        Section {
-            Picker("Objectif", selection: binding(\.goal)) {
-                ForEach(WeightGoal.allCases) { Text($0.label).tag($0) }
-            }
-            if profile.goal != .maintain {
-                Picker("Rythme", selection: binding(\.weeklyRateKg)) {
-                    ForEach(rateOptions, id: \.self) { rate in
-                        Text("\(Formatters.number(rate, maxFractionDigits: 2)) kg / semaine").tag(rate)
-                    }
-                }
-                ProfileNumberField("Poids cible", value: plain(\.targetWeightKg), unit: "kg",
-                                   maxFractionDigits: 1, placeholder: "Facultatif")
-            }
-        } header: {
-            ProfileSectionHeader("Objectif")
-        } footer: {
-            if let text = goalFooter { ProfileSectionFooter(text) }
+    private var programSummary: String {
+        var parts = [CoachingFormat.goalShort(profile.goal)]
+        if profile.goal != .maintain {
+            parts.append("\(Formatters.number(profile.effectiveRatePercent, maxFractionDigits: 2)) %/sem.")
         }
+        parts.append(mode.adjective)
+        return parts.joined(separator: " · ")
     }
 
-    private var goalFooter: String? {
-        guard profile.goal != .maintain else { return nil }
-        let delta = profile.weeklyRateKg * GoalCalculator.kcalPerKg / 7
-        var text = "\(profile.goal == .lose ? "Déficit" : "Surplus") d'environ \(Formatters.kcal(delta)) par jour."
-        if let target = profile.targetWeightKg, profile.weeklyRateKg > 0 {
-            let diff = profile.goal == .lose ? profile.weightKg - target : target - profile.weightKg
-            if diff > 0 {
-                let weeks = Int((diff / profile.weeklyRateKg).rounded(.up))
-                text += " Poids cible atteint dans environ \(weeks) semaine\(weeks > 1 ? "s" : "")."
-            } else {
-                text += " Poids cible déjà atteint."
-            }
-        }
-        return text
-    }
-
-    private var targetsSection: some View {
+    /// Goal & program live in the Programme tab; here a shortcut to the editor, the current
+    /// targets (read-only) and the fiber / water preferences.
+    private var programSection: some View {
         Section {
-            Toggle(isOn: Binding(
-                get: { profile.manualTargets },
-                set: { manual in
-                    withAnimation {
-                        profile.manualTargets = manual
-                        if !manual { GoalCalculator.apply(to: profile) }
-                    }
-                }
-            )) {
-                Text("Objectifs personnalisés")
-                    .foregroundStyle(Theme.textBody)
-            }
-            .tint(Theme.textSecondary)
-
-            if profile.manualTargets {
-                ProfileNumberField("Calories", value: plain(\.calorieTarget), unit: "kcal", maxFractionDigits: 0)
-                ProfileNumberField("Protéines", value: plain(\.proteinTarget), unit: "g", maxFractionDigits: 0)
-                ProfileNumberField("Glucides", value: plain(\.carbsTarget), unit: "g", maxFractionDigits: 0)
-                ProfileNumberField("Lipides", value: plain(\.fatTarget), unit: "g", maxFractionDigits: 0)
-                Button {
-                    let t = computed
-                    profile.calorieTarget = t.calories
-                    profile.proteinTarget = t.protein
-                    profile.carbsTarget = t.carbs
-                    profile.fatTarget = t.fat
-                    successTrigger += 1
+            NavigationLink {
+                CoachingGoalEditor(profile: profile, initialFocus: .target, isSheet: false)
+            } label: {
+                LabeledContent {
+                    Text(programSummary)
+                        .font(Theme.callout)
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
                 } label: {
-                    Label("Reprendre les valeurs calculées", systemImage: "arrow.counterclockwise")
-                        .font(Theme.font(15, .medium, relativeTo: .body))
-                        .foregroundStyle(Theme.textPrimary)
+                    rowLabel("Objectif et programme", systemImage: "target")
                 }
-            } else {
-                ProfileTargetRow(title: "Calories", value: Formatters.kcal(profile.calorieTarget),
-                                 color: Theme.calories)
-                ProfileTargetRow(title: NutrientKey.protein.label, value: grams(profile.proteinTarget),
-                                 color: Theme.protein)
-                ProfileTargetRow(title: NutrientKey.carbohydrates.label, value: grams(profile.carbsTarget),
-                                 color: Theme.carbs)
-                ProfileTargetRow(title: NutrientKey.totalFat.label, value: grams(profile.fatTarget),
-                                 color: Theme.fat)
+            }
+
+            ProfileTargetRow(title: "Calories", value: Formatters.kcal(profile.calorieTarget),
+                             color: Theme.calories)
+            ForEach(Theme.macroOrder, id: \.self) { key in
+                ProfileTargetRow(title: key.label, value: grams(macroTarget(key)), color: Theme.color(for: key))
             }
 
             ProfileMacroSplitView(protein: profile.proteinTarget, carbs: profile.carbsTarget, fat: profile.fatTarget)
@@ -274,18 +223,27 @@ private struct ProfileSettingsForm: View {
         }
     }
 
-    private var targetsFooter: String {
-        let t = computed
-        var text = "Métabolisme de base : \(Formatters.kcal(t.bmr)). Dépense estimée : \(Formatters.kcal(t.tdee)) (formule de Mifflin-St Jeor)."
-        if profile.manualTargets {
-            let macroKcal = profile.proteinTarget * 4 + profile.carbsTarget * 4 + profile.fatTarget * 9
-            if abs(macroKcal - profile.calorieTarget) > 50 {
-                text += " Vos macros totalisent \(Formatters.kcal(macroKcal))."
-            }
-        } else {
-            text += " Recalculés automatiquement quand votre profil change."
+    private func macroTarget(_ key: NutrientKey) -> Double {
+        switch key {
+        case .carbohydrates: return profile.carbsTarget
+        case .protein: return profile.proteinTarget
+        default: return profile.fatTarget
         }
-        return text
+    }
+
+    private var targetsFooter: String {
+        switch mode {
+        case .manual:
+            return "Objectifs manuels : ils ne changent pas automatiquement. Modifiez-les dans Objectif et programme."
+        case .coached, .collaborative:
+            let next = CoachingFormat.weekdayDay(CoachingService.nextCheckInDate(profile: profile))
+            var text = "Mis à jour par le bilan hebdomadaire (prochain : \(next))."
+            if profile.initialExpenditure == nil {
+                let t = GoalCalculator.targets(for: profile)
+                text += " Dépense de départ : \(Formatters.kcal(t.tdee)) (formule de Mifflin-St Jeor), affinée ensuite avec vos repas et vos pesées."
+            }
+            return text
+        }
     }
 
     private func grams(_ v: Double) -> String { "\(Formatters.number(v, maxFractionDigits: 0)) g" }

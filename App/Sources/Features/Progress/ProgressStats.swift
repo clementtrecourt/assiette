@@ -1,9 +1,8 @@
 import Foundation
 import SwiftData
 
-/// Range shown by the progress dashboard.
+/// Range of the detail charts pushed from the dashboard.
 enum ProgressRange: Int, CaseIterable, Identifiable {
-    case week = 7
     case month = 30
     case quarter = 90
 
@@ -13,7 +12,6 @@ enum ProgressRange: Int, CaseIterable, Identifiable {
 
     var longLabel: String {
         switch self {
-        case .week: "7 derniers jours"
         case .month: "30 derniers jours"
         case .quarter: "90 derniers jours"
         }
@@ -25,134 +23,37 @@ enum ProgressRange: Int, CaseIterable, Identifiable {
     }
 }
 
-/// Aggregated nutrition for one day of the journal.
-struct ProgressDayStat: Identifiable, Hashable {
-    let day: Date
-    var calories: Double = 0
-    var protein: Double = 0
-    var carbs: Double = 0
-    var fat: Double = 0
-    var entryCount: Int = 0
-
-    var id: Date { day }
-    var isLogged: Bool { entryCount > 0 }
-
-    mutating func accumulate(calories: Double, protein: Double, carbs: Double, fat: Double) {
-        self.calories += calories
-        self.protein += protein
-        self.carbs += carbs
-        self.fat += fat
-        entryCount += 1
-    }
+/// One dated value of a chart (one per calendar day).
+struct ProgressChartPoint: Identifiable, Hashable {
+    var date: Date
+    var value: Double
+    var id: Date { date }
 }
 
-/// One weighing with its 7-day moving average.
-struct ProgressWeightPoint: Identifiable {
-    let id: PersistentIdentifier
-    let date: Date
-    let kg: Double
-    let average: Double
+/// One day of the energy balance chart: logged intake vs estimated expenditure.
+struct ProgressBalancePoint: Identifiable, Hashable {
+    var date: Date
+    /// Logged intake (kcal), nil when the day was not logged.
+    var intake: Double?
+    var expenditure: Double
+    /// Today: the log is not finished yet (drawn lighter, not counted in averages).
+    var isPartial: Bool = false
+    var id: Date { date }
 }
 
-/// Pure aggregation helpers for the progress dashboard.
+/// Small pure helpers shared by the dashboard and the weight screens.
 enum ProgressStats {
-    /// One stat per day from `start` (inclusive), `days` days long. Days without entries have zeros.
-    static func dailyStats(entries: [JournalEntry], from start: Date, days: Int) -> [ProgressDayStat] {
-        var byDay: [Date: ProgressDayStat] = [:]
-        byDay.reserveCapacity(days)
-        for entry in entries {
-            let day = entry.day.startOfDay
-            // Read the (memoized) per-100 g bag once and scale only the 4 values needed,
-            // instead of building a full scaled NutrientValues per entry.
-            let per100 = entry.per100
-            let factor = entry.grams / 100
-            byDay[day, default: ProgressDayStat(day: day)].accumulate(
-                calories: per100.calories * factor, protein: per100.protein * factor,
-                carbs: per100.carbs * factor, fat: per100.fat * factor)
+    /// Mean scale weight per calendar day (weights sorted ascending), from `start` on.
+    static func dailyScaleWeights(_ weights: [WeightEntry], from start: Date = .distantPast) -> [ProgressChartPoint] {
+        var byDay: [Date: (sum: Double, count: Int)] = [:]
+        for entry in weights where entry.date >= start {
+            let day = entry.date.startOfDay
+            let current = byDay[day] ?? (sum: 0, count: 0)
+            byDay[day] = (sum: current.sum + entry.kg, count: current.count + 1)
         }
-        let first = start.startOfDay
-        return (0..<max(days, 0)).map { offset in
-            let day = first.adding(days: offset).startOfDay
-            return byDay[day] ?? ProgressDayStat(day: day)
-        }
-    }
-
-    /// Weighings (sorted ascending by date) with a trailing 7-day moving average.
-    static func weightPoints(_ weights: [WeightEntry]) -> [ProgressWeightPoint] {
-        var result: [ProgressWeightPoint] = []
-        result.reserveCapacity(weights.count)
-        var windowStart = 0
-        var windowSum = 0.0
-        for (index, entry) in weights.enumerated() {
-            windowSum += entry.kg
-            let limit = entry.date.addingTimeInterval(-7 * 24 * 3600)
-            while windowStart < index && weights[windowStart].date <= limit {
-                windowSum -= weights[windowStart].kg
-                windowStart += 1
-            }
-            let count = Double(index - windowStart + 1)
-            result.append(ProgressWeightPoint(id: entry.persistentModelID, date: entry.date,
-                                              kg: entry.kg, average: windowSum / count))
-        }
-        return result
-    }
-
-    /// Number of consecutive days with at least one entry, ending today (or yesterday if
-    /// nothing has been logged yet today). Uses `loggedDays` inside the range; older days are
-    /// read in batches of `day` values only (newest first) instead of one count query per day.
-    static func streak(loggedDays: Set<Date>, rangeStart: Date, today: Date,
-                       context: ModelContext) -> Int {
-        let rangeStart = rangeStart.startOfDay
-        var olderDays: [Date] = []      // distinct start-of-days before rangeStart, newest first
-        var olderExhausted = false
-        var olderOffset = 0
-        let batchSize = 512
-
-        func loadMoreOlderDays() {
-            guard !olderExhausted else { return }
-            let limit = rangeStart
-            var descriptor = FetchDescriptor<JournalEntry>(
-                predicate: #Predicate<JournalEntry> { entry in
-                    entry.day < limit
-                },
-                sortBy: [SortDescriptor(\JournalEntry.day, order: .reverse)]
-            )
-            descriptor.propertiesToFetch = [\JournalEntry.day]
-            descriptor.fetchOffset = olderOffset
-            descriptor.fetchLimit = batchSize
-            let batch = (try? context.fetch(descriptor)) ?? []
-            olderOffset += batch.count
-            if batch.count < batchSize { olderExhausted = true }
-            for entry in batch {
-                let day = entry.day.startOfDay
-                if olderDays.last != day { olderDays.append(day) }
-            }
-        }
-
-        var olderIndex = 0
-        func isOlderDayLogged(_ day: Date) -> Bool {
-            while true {
-                while olderIndex < olderDays.count, olderDays[olderIndex] > day {
-                    olderIndex += 1
-                }
-                if olderIndex < olderDays.count { return olderDays[olderIndex] == day }
-                if olderExhausted { return false }
-                loadMoreOlderDays()
-            }
-        }
-
-        func isLogged(_ day: Date) -> Bool {
-            day >= rangeStart ? loggedDays.contains(day) : isOlderDayLogged(day)
-        }
-
-        var day = today.startOfDay
-        if !isLogged(day) { day = day.adding(days: -1).startOfDay }
-        var count = 0
-        while count < 3650, isLogged(day) {
-            count += 1
-            day = day.adding(days: -1).startOfDay
-        }
-        return count
+        return byDay
+            .map { ProgressChartPoint(date: $0.key, value: $0.value.sum / Double($0.value.count)) }
+            .sorted { $0.date < $1.date }
     }
 
     /// Signed kg string: "+1,2 kg", "−0,8 kg", "0 kg".
@@ -168,6 +69,8 @@ enum ProgressStats {
 }
 
 /// Keeps `UserProfile.weightKg` in sync with the most recent weighing.
+/// Targets are not recomputed here: they only change at check-ins and program edits
+/// (`CoachingService`).
 enum ProgressWeightSync {
     static func syncProfileWeight(in context: ModelContext) {
         // Persist pending inserts/deletes first so the fetch below sees them.
@@ -180,7 +83,6 @@ enum ProgressWeightSync {
            let profile = try? context.fetch(FetchDescriptor<UserProfile>()).first,
            abs(profile.weightKg - latest.kg) > 0.0001 {
             profile.weightKg = latest.kg
-            GoalCalculator.apply(to: profile)
         }
         try? context.save()
     }

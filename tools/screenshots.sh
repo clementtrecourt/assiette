@@ -23,7 +23,8 @@ shot 03-fiche-aliment -startTab today -startSheet detail
 shot 04-ajout-quantite -startTab today -startSheet add
 shot 05-ajout-rapide -startTab today -startSheet quickadd
 shot 06-scanner -startTab today -startSheet scan
-shot 07-progres -startTab progress
+shot 07-accueil -startTab progress
+shot 09-programme -startTab program
 shot 08-profil -startTab profile
 xcrun simctl uninstall "$SIM" "$BID"
 xcrun simctl install "$SIM" "$APP"

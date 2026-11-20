@@ -1,0 +1,15 @@
+{
+  "images": [
+    {
+      "filename": "shallow_pan_of_food.svg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}

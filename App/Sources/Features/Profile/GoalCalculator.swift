@@ -82,6 +82,8 @@ struct GoalCalculator {
 
     /// Recomputes calorie and macro targets of `profile` unless `manualTargets` is set.
     /// Fiber and water targets are left untouched (user preferences).
+    /// Only for the very first targets (onboarding): afterwards the adaptive coach owns the targets
+    /// (`CoachingService.refreshTargets` / weekly check-in), so do not call this on profile edits.
     static func apply(to profile: UserProfile) {
         guard !profile.manualTargets else { return }
         let t = targets(for: profile)

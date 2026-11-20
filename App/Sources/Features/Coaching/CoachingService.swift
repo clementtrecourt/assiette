@@ -64,6 +64,24 @@ enum CoachingService {
     /// Correction rate (% of body weight per week) used in maintenance when the trend leaves the band.
     static let maintenanceCorrectionPercent = 0.15
 
+    /// Smallest calorie target a check-in or a manual adjustment can propose.
+    static var minimumCalories: Double { EngineParameters.calibrated.minimumCalories }
+
+    /// Calendar weekday (1 = Sunday … 7 = Saturday) of `date`.
+    static func weekday(of date: Date = .now) -> Int {
+        Calendar.current.component(.weekday, from: date)
+    }
+
+    /// Day of the next check-in (today when it is due).
+    static func nextCheckInDate(profile: UserProfile, today: Date = .now) -> Date {
+        Calendar.current.startOfDay(for: today).adding(days: daysUntilCheckIn(profile: profile, today: today))
+    }
+
+    /// Weekly change in kg for a rate in % of body weight (positive number).
+    static func weeklyKg(ratePercent: Double, weightKg: Double) -> Double {
+        ratePercent * weightKg / 100
+    }
+
     // MARK: Snapshot
 
     static func snapshot(profile: UserProfile, context: ModelContext, today: Date = .now) -> CoachingSnapshot {
@@ -186,8 +204,12 @@ enum CoachingService {
         profile.carbsTarget = proposal.carbs
         profile.proteinTarget = proposal.protein
         profile.fatTarget = proposal.fat
-        if profile.initialExpenditure == nil { profile.initialExpenditure = snapshot.initialExpenditure }
-        if kind == "weekly" { profile.lastCheckInDate = day }
+        // The formula keeps driving the starting estimate until the first weekly check-in freezes it
+        // (so profile edits before that, e.g. height or age, still refine it).
+        if kind == "weekly" {
+            if profile.initialExpenditure == nil { profile.initialExpenditure = snapshot.initialExpenditure }
+            profile.lastCheckInDate = day
+        }
 
         // Several program edits on the same day update one history row.
         let existing = (try? context.fetch(FetchDescriptor<CoachingCheckIn>()))?

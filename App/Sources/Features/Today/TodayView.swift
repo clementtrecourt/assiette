@@ -1,8 +1,9 @@
 import SwiftData
 import SwiftUI
 
-/// Journal tab: large "Journal" title + date line with day chevrons, then the content of the
-/// selected day (pinned macro header, timeline log, floating add button).
+/// Journal tab: "Journal" title + date line with day navigation, then the content of the
+/// selected day (pinned remaining header, hourly timeline). The floating search bar is added
+/// below this view by RootView.
 /// The title bar is drawn by `TodayDayContent` (it also hosts the day's "…" menu), so the
 /// system navigation bar is hidden on this root screen; pushed screens show theirs.
 struct TodayView: View {
@@ -18,8 +19,8 @@ struct TodayView: View {
     }
 }
 
-/// "Journal" large title + small date line (tap → date picker), "Aujourd'hui" shortcut when
-/// another day is shown, day chevrons and a trailing accessory (the day's "…" menu).
+/// "Journal" title + small date line (tap → date picker), "Aujourd'hui" shortcut when another
+/// day is shown, round day chevrons, calendar button and a trailing accessory (the "…" menu).
 struct TodayTitleBar<Accessory: View>: View {
     let day: Date
     let onShiftDay: (Int) -> Void
@@ -42,50 +43,42 @@ struct TodayTitleBar<Accessory: View>: View {
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 2) {
+        HStack(alignment: .center, spacing: 6) {
             titleButton
-            Spacer(minLength: 8)
+                .layoutPriority(1)
+            Spacer(minLength: 4)
             if !isToday {
                 todayButton
             }
-            chevron("chevron.left", label: "Jour précédent", delta: -1)
-            chevron("chevron.right", label: "Jour suivant", delta: 1)
+            roundButton("chevron.left", label: "Jour précédent") { onShiftDay(-1) }
+            roundButton("chevron.right", label: "Jour suivant") { onShiftDay(1) }
+            roundButton("calendar", label: "Choisir une date", action: onPickDate)
             accessory
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 8)
+        .padding(.horizontal, 16)
         .padding(.top, 6)
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
     }
 
     private var titleButton: some View {
         Button(action: onPickDate) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Journal")
-                    .font(Theme.font(28, .bold, relativeTo: .largeTitle))
-                    .tracking(-0.6)
+                    .font(Theme.font(26, .bold, relativeTo: .largeTitle))
+                    .tracking(-0.8)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
-                dateLine
+                Text(TodayDayFormat.dateLine(for: day))
+                    .font(Theme.font(12, .medium, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Journal, \(TodayDayFormat.dateLine(for: day))")
         .accessibilityHint("Choisir une date")
-    }
-
-    private var dateLine: some View {
-        HStack(spacing: 4) {
-            Text(TodayDayFormat.dateLine(for: day))
-                .font(Theme.font(13, .medium, relativeTo: .subheadline))
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
-        }
     }
 
     private var todayButton: some View {
@@ -95,25 +88,16 @@ struct TodayTitleBar<Accessory: View>: View {
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .overlay {
-                    Capsule().strokeBorder(Theme.separatorStrong, lineWidth: 1)
-                }
+                .frame(height: 32)
+                .background(Capsule().fill(Theme.raised2))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .padding(.trailing, 4)
     }
 
-    private func chevron(_ systemName: String, label: String, delta: Int) -> some View {
-        Button {
-            onShiftDay(delta)
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 34, height: 34)
-                .contentShape(Rectangle())
+    private func roundButton(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            TodayRoundIcon(systemName: systemName)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -138,7 +122,7 @@ struct TodayDatePickerSheet: View {
                 )
                 .datePickerStyle(.graphical)
                 .labelsHidden()
-                // White would hide the selected day's (white) number: use the calories teal.
+                // White would hide the selected day's (white) number: use the calories blue.
                 .tint(Theme.calories)
                 .padding(.horizontal)
                 Spacer(minLength: 0)

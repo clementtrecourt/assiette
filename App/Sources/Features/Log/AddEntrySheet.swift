@@ -2,39 +2,63 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+/// Unit the quantity is typed in.
+private enum AddEntryUnit: Hashable {
+    /// Grams (or ml for liquids).
+    case base
+    /// Number of servings (quick adds: 1 portion = the quick add itself).
+    case serving
+    /// Number of packages (when the food knows its package size).
+    case package
+}
+
 private struct AddEntryChip: Hashable {
     let label: String
     let value: Double
 }
 
-private enum AddEntryUnit: Hashable {
-    /// Number of servings.
-    case serving
-    /// Grams (or ml for liquids).
-    case base
+/// Keys of the in-sheet numeric keypad.
+private enum AddEntryKey: Hashable {
+    case digit(Int)
+    case comma
+    case delete
 }
 
-/// Log a food (new entry) or edit an existing journal entry.
+/// Food detail + quantity entry: log a food (new entry) or edit an existing journal entry.
+/// The quantity is typed on an in-sheet numeric keypad (no system keyboard, ready instantly).
 struct AddEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
+    @Query private var favoriteMatches: [FavoriteFood]
 
     private let item: FoodItem
     private let entry: JournalEntry?
     private let onLogged: (() -> Void)?
+    /// Time slot of the log context (journal hour), nil = default time.
+    private let contextTime: Date?
 
     @State private var unit: AddEntryUnit
     @State private var quantityText: String
+    /// True while the displayed quantity is "selected": the next digit replaces it.
+    @State private var replacesOnType = true
     @State private var meal: Meal
+    /// Day of a new entry.
     @State private var day: Date
+    /// Time of the edited entry (createdAt).
+    @State private var time: Date
     @State private var showDeleteConfirm = false
-    @FocusState private var quantityFocused: Bool
+    @State private var showCustomEditor = false
+    @State private var caretOn = false
+    @State private var favoriteToggles = 0
 
     init(item: FoodItem, context: LogContext, onLogged: (() -> Void)? = nil) {
         self.item = item
         self.entry = nil
         self.onLogged = onLogged
+        self.contextTime = context.time
+        let key = item.id
+        _favoriteMatches = Query(filter: #Predicate<FavoriteFood> { $0.key == key })
         let remembered = UserDefaults.standard.object(forKey: AddEntrySheet.defaultsKey(for: item)) as? Double
         let grams: Double
         if let remembered, remembered > 0, item.source != .quickAdd {
@@ -47,6 +71,7 @@ struct AddEntrySheet: View {
         _quantityText = State(initialValue: initial.text)
         _meal = State(initialValue: context.meal)
         _day = State(initialValue: context.day.startOfDay)
+        _time = State(initialValue: context.time ?? JournalEntry.defaultTime(on: context.day))
     }
 
     init(editing entry: JournalEntry) {
@@ -54,11 +79,15 @@ struct AddEntrySheet: View {
         self.item = item
         self.entry = entry
         self.onLogged = nil
+        self.contextTime = nil
+        let key = item.id
+        _favoriteMatches = Query(filter: #Predicate<FavoriteFood> { $0.key == key })
         let initial = AddEntrySheet.initialQuantity(grams: entry.grams, item: item)
         _unit = State(initialValue: initial.unit)
         _quantityText = State(initialValue: initial.text)
         _meal = State(initialValue: entry.meal)
         _day = State(initialValue: entry.day)
+        _time = State(initialValue: entry.createdAt)
     }
 
     // MARK: - Helpers (static, usable from init)
@@ -84,7 +113,7 @@ struct AddEntrySheet: View {
     }
 
     private static func format(_ value: Double) -> String {
-        // No grouping separator so the field stays easy to edit and parse.
+        // No grouping separator so the value stays easy to edit and parse.
         value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never).locale(Formatters.locale))
     }
 
@@ -96,70 +125,160 @@ struct AddEntrySheet: View {
         return value
     }
 
+    /// `time`'s hour and minute on `day`.
+    private static func moving(_ time: Date, to day: Date) -> Date {
+        let calendar = Calendar.current
+        let parts = calendar.dateComponents([.hour, .minute, .second], from: time)
+        return calendar.date(bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0,
+                             second: parts.second ?? 0, of: day) ?? time
+    }
+
     // MARK: - Derived values
 
     private var servingGrams: Double? { AddEntrySheet.servingGrams(of: item) }
     private var isQuickAdd: Bool { item.source == .quickAdd }
+    private var isFavorite: Bool { !favoriteMatches.isEmpty }
     private var quantity: Double? { AddEntrySheet.parse(quantityText) }
 
+    private var packageGrams: Double? {
+        guard !isQuickAdd, let grams = item.packageGrams, grams > 0 else { return nil }
+        if let servingGrams, abs(servingGrams - grams) < 0.5 { return nil }
+        return grams
+    }
+
+    private var availableUnits: [AddEntryUnit] {
+        if isQuickAdd { return [.serving] }
+        var units: [AddEntryUnit] = [.base]
+        if servingGrams != nil { units.append(.serving) }
+        if packageGrams != nil { units.append(.package) }
+        return units
+    }
+
+    private func gramsPerUnit(_ unit: AddEntryUnit) -> Double? {
+        switch unit {
+        case .base: return 1
+        case .serving: return servingGrams
+        case .package: return packageGrams
+        }
+    }
+
     private var grams: Double? {
-        guard let quantity else { return nil }
-        if unit == .serving, let servingGrams { return quantity * servingGrams }
-        return quantity
+        guard let quantity, let perUnit = gramsPerUnit(unit) else { return nil }
+        return quantity * perUnit
     }
 
     private var portion: NutrientValues { item.per100.forGrams(grams ?? 0) }
 
-    private var servingTitle: String {
-        isQuickAdd ? "Portion" : "Portions"
+    private func unitWord(_ unit: AddEntryUnit, count: Double) -> String {
+        switch unit {
+        case .base: return item.unitSymbol
+        case .serving: return count > 1 ? "portions" : "portion"
+        case .package: return count > 1 ? "emballages" : "emballage"
+        }
     }
 
-    private var unitSuffix: String {
+    private func unitTitle(_ unit: AddEntryUnit) -> String {
         switch unit {
-        case .serving:
-            let n = quantity ?? 0
-            return n > 1 ? "portions" : "portion"
-        case .base:
-            return item.unitSymbol
+        case .base: return item.unitSymbol
+        case .serving: return "portion"
+        case .package: return "emballage"
         }
     }
 
     private var step: Double {
         switch unit {
         case .serving: return 0.5
+        case .package: return 0.25
         case .base: return (quantity ?? 0) >= 200 ? 25 : 10
         }
+    }
+
+    /// "portions · 500 ml", "g · ≈ 1,5 portion".
+    private var quantityDetail: String {
+        guard let quantity, let grams else { return "Saisissez une quantité" }
+        let word = unitWord(unit, count: quantity)
+        if isQuickAdd { return word }
+        let gramsText = "\(Formatters.number(grams, maxFractionDigits: 0)) \(item.unitSymbol)"
+        switch unit {
+        case .base:
+            guard let servingGrams else { return word }
+            let n = grams / servingGrams
+            return "\(word) · ≈ \(Formatters.number(n, maxFractionDigits: 2)) \(n > 1 ? "portions" : "portion")"
+        case .serving, .package:
+            return "\(word) · \(gramsText)"
+        }
+    }
+
+    /// "Marque · 1 portion = 100 ml".
+    private var subtitle: String {
+        var parts: [String] = []
+        if let brand = item.brand, !brand.isEmpty {
+            parts.append(brand)
+        } else if isQuickAdd {
+            parts.append(FoodSource.quickAdd.label)
+        } else if let kind = item.kind {
+            parts.append(kind.label)
+        } else if item.source != .openNutrition {
+            parts.append(item.source.label)
+        }
+        if !isQuickAdd, let servingGrams {
+            let label = item.servingLabel ?? "1 portion"
+            parts.append("\(label) = \(Formatters.number(servingGrams, maxFractionDigits: 0)) \(item.unitSymbol)")
+        } else if !isQuickAdd {
+            parts.append("\(Formatters.number(item.per100.calories, maxFractionDigits: 0)) kcal / 100 \(item.unitSymbol)")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var showsDatasetAttribution: Bool {
+        item.source == .openNutrition || item.source == .openFoodFacts
     }
 
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
-            Form {
-                headerSection
-                quantitySection
-                whenSection
-                previewSection
-
-                if entry != nil {
-                    deleteSection
-                }
-
-                if item.source == .openNutrition || item.source == .openFoodFacts {
-                    Section {
-                    } footer: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    header
+                    AddEntryMacroSummary(per100: item.per100, portion: portion)
+                        .padding(.top, 14)
+                    if !isQuickAdd {
+                        actionsRow
+                            .padding(.top, 12)
+                    }
+                    AddEntryHairline()
+                        .padding(.top, 14)
+                    dayShare
+                        .padding(.top, 12)
+                    AddEntryHairline()
+                        .padding(.top, 14)
+                    whenRow
+                    if showsDatasetAttribution {
                         AttributionFooter(includeOpenFoodFacts: item.source == .openFoodFacts)
+                            .padding(.top, 10)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
-            .listSectionSpacing(.compact)
-            .themedBackground()
-            .safeAreaInset(edge: .bottom) { primaryButton }
+            .scrollIndicators(.hidden)
+            .safeAreaInset(edge: .bottom, spacing: 0) { entryPanel }
+            .background(Theme.raised.ignoresSafeArea())
             .navigationTitle(entry == nil ? "Ajouter" : "Modifier")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
-            .onChange(of: unit) { oldValue, newValue in
-                convertQuantity(from: oldValue, to: newValue)
+            .toolbarBackground(Theme.raised, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .accessibilityLabel("Fermer")
+                }
             }
             .confirmationDialog(
                 "Supprimer cet aliment du journal ?",
@@ -169,197 +288,182 @@ struct AddEntrySheet: View {
                 Button("Supprimer", role: .destructive) { deleteEntry() }
                 Button("Annuler", role: .cancel) {}
             }
+            .sheet(isPresented: $showCustomEditor) {
+                CustomFoodEditor(food: nil, prefill: item)
+            }
+            .sensoryFeedback(.selection, trigger: favoriteToggles)
+            .onAppear { caretOn = true }
         }
+        .presentationBackground(Theme.raised)
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("Annuler") { dismiss() }
-                .tint(Theme.textSecondary)
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            Button(entry == nil ? "Ajouter" : "Enregistrer") { save() }
-                .font(Theme.font(17, .bold, relativeTo: .body))
-                .tint(Theme.textPrimary)
-                .disabled(grams == nil)
-        }
-        ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button("OK") { quantityFocused = false }
-                .font(Theme.font(17, .bold, relativeTo: .body))
-                .tint(Theme.textPrimary)
-        }
-    }
+    // MARK: - Top (scrollable)
 
-    // MARK: - Sections
-
-    private var primaryButton: some View {
-        let enabled = grams != nil
-        return Button {
-            save()
-        } label: {
-            Text(entry == nil ? "Ajouter au journal" : "Enregistrer")
-                .font(Theme.font(16, .bold, relativeTo: .headline))
-                .foregroundStyle(enabled ? Theme.onAccent : Theme.textTertiary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(enabled ? Theme.accent : Theme.separatorStrong,
-                            in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background {
-            Theme.background.ignoresSafeArea(edges: .bottom)
-        }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: Theme.hairline)
-        }
-    }
-
-    private var headerSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 12) {
-                    FoodIconView(item: item, size: 56)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(item.name)
-                            .font(Theme.title)
-                            .foregroundStyle(Theme.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let brand = item.brand, !brand.isEmpty {
-                            Text(brand)
-                                .font(Theme.callout)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                }
-                headerMetaRow
-                if !isQuickAdd, let label = item.servingLabel, let servingGrams {
-                    Text("1 portion = \(label) (\(Formatters.number(servingGrams, maxFractionDigits: 0)) \(item.unitSymbol))")
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            FoodIconView(item: item, size: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name)
+                    .font(Theme.font(17, .bold, relativeTo: .headline))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
                         .font(Theme.caption)
                         .monospacedDigit()
                         .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
             }
-            .padding(.vertical, 4)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 6)
+    }
+
+    private var actionsRow: some View {
+        HStack(spacing: 8) {
+            Button(action: toggleFavorite) {
+                Label("Favori", systemImage: isFavorite ? "heart.fill" : "heart")
+                    .labelStyle(AddEntryOutlineLabelStyle(iconColor: isFavorite ? Theme.protein : Theme.textSecondary))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
+
+            if item.source != .custom {
+                Button {
+                    showCustomEditor = true
+                } label: {
+                    Label("Créer un aliment perso", systemImage: "square.on.square")
+                        .labelStyle(AddEntryOutlineLabelStyle(iconColor: Theme.textSecondary))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
         }
     }
 
-    private var headerMetaRow: some View {
+    private var dayShare: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Part de la journée")
+                .font(Theme.font(13, .bold, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textPrimary)
+            HStack(spacing: 0) {
+                AddEntryDayRing(fraction: share(of: .calories), color: Theme.calories, title: "Calories")
+                ForEach(Theme.macroOrder, id: \.self) { key in
+                    AddEntryDayRing(fraction: share(of: key), color: Theme.color(for: key), title: key.label)
+                }
+            }
+        }
+    }
+
+    private func share(of key: NutrientKey) -> Double {
+        var target: Double?
+        if let profile = profiles.first {
+            switch key {
+            case .calories: target = profile.calorieTarget
+            case .carbohydrates: target = profile.carbsTarget
+            case .protein: target = profile.proteinTarget
+            case .totalFat: target = profile.fatTarget
+            default: target = nil
+            }
+        }
+        if (target ?? 0) <= 0 { target = key.dailyReference }
+        guard let target, target > 0 else { return 0 }
+        return portion.value(key) / target
+    }
+
+    private var whenRow: some View {
         HStack(spacing: 10) {
-            Label(item.kind?.label ?? item.source.label,
-                  systemImage: item.kind?.systemImage ?? sourceSymbol)
-                .font(Theme.font(12, .medium, relativeTo: .caption))
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .overlay {
-                    Capsule().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+            Picker(selection: $meal) {
+                ForEach(Meal.allCases) { meal in
+                    Label(meal.label, systemImage: meal.systemImage).tag(meal)
                 }
-            if !isQuickAdd {
-                HStack(spacing: 3) {
-                    KcalLabel(kcal: item.per100.calories)
-                    Text("/ 100 \(item.unitSymbol)")
-                        .font(Theme.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                }
+            } label: {
+                Text("Repas")
+            }
+            .pickerStyle(.menu)
+            .tint(Theme.textBody)
+            .labelsHidden()
+
+            Spacer(minLength: 0)
+
+            if entry != nil {
+                DatePicker("Heure", selection: $time, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .tint(Theme.calories)
+                    .accessibilityLabel("Date et heure")
+            } else {
+                DatePicker("Jour", selection: $day, displayedComponents: .date)
+                    .labelsHidden()
+                    .tint(Theme.calories)
+                    .accessibilityLabel("Jour")
             }
         }
+        .font(Theme.callout)
+        .padding(.vertical, 8)
     }
 
-    private var sourceSymbol: String {
-        switch item.source {
-        case .openNutrition: return "leaf"
-        case .custom: return "person.crop.circle"
-        case .openFoodFacts: return "barcode"
-        case .quickAdd: return "bolt"
-        }
-    }
+    // MARK: - Bottom panel (quantity + keypad + actions)
 
-    private var quantitySection: some View {
-        Section {
-            if servingGrams != nil, !isQuickAdd {
-                unitToggle
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 6, trailing: 0))
-            }
-
-            quantityRow
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
-
-            chipsRow
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 2, trailing: 0))
-        } header: {
-            AddEntrySectionHeader(title: "Quantité")
-        } footer: {
-            quantityFooter
-        }
-        .listRowSeparator(.hidden)
-    }
-
-    @ViewBuilder
-    private var quantityFooter: some View {
-        if let equivalence {
-            Text(equivalence)
-                .font(Theme.caption)
-                .monospacedDigit()
-                .foregroundStyle(Theme.textTertiary)
-        } else if quantity == nil {
-            Text("Saisissez une quantité supérieure à 0.")
-                .font(Theme.caption)
-                .foregroundStyle(Theme.overTarget)
-        }
-    }
-
-    /// Portions / g switch: selected segment = white fill + near-black text.
-    private var unitToggle: some View {
-        HStack(spacing: 4) {
-            AddEntrySegment(title: servingTitle, isSelected: unit == .serving) {
-                unit = .serving
-            }
-            AddEntrySegment(title: item.unitSymbol, isSelected: unit == .base) {
-                unit = .base
-            }
-        }
-        .padding(3)
-        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Unité")
-    }
-
-    private var quantityRow: some View {
-        HStack(alignment: .center, spacing: 10) {
+    private var entryPanel: some View {
+        VStack(spacing: 8) {
             quantityField
-            AddEntryStepButton(systemImage: "minus", label: "Diminuer") {
-                adjust(by: -step)
-            }
-            AddEntryStepButton(systemImage: "plus", label: "Augmenter") {
-                adjust(by: step)
-            }
+            unitRow
+            AddEntryKeypad(onKey: press, onClear: clearQuantity)
+            actionButtons
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .background(Theme.raised.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { AddEntryHairline() }
+    }
+
+    private var quantityField: some View {
+        HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 1) {
+                Text(quantityText.isEmpty ? " " : quantityText)
+                    .font(Theme.font(24, .bold, relativeTo: .title2))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, replacesOnType ? 3 : 0)
+                    .background {
+                        if replacesOnType && !quantityText.isEmpty {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Theme.calories.opacity(0.32))
+                        }
+                    }
+                if !replacesOnType || quantityText.isEmpty {
+                    Rectangle()
+                        .fill(Theme.textPrimary)
+                        .frame(width: 2, height: 24)
+                        .opacity(caretOn ? 1 : 0.1)
+                        .animation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true), value: caretOn)
+                }
+            }
+            Spacer(minLength: 4)
+            Text(quantityDetail)
+                .font(Theme.callout)
+                .monospacedDigit()
+                .foregroundStyle(quantity == nil ? Theme.overTarget : Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            AddEntryStepButton(systemImage: "minus", label: "Diminuer") { adjust(by: -step) }
+            AddEntryStepButton(systemImage: "plus", label: "Augmenter") { adjust(by: step) }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .frame(height: 52)
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .strokeBorder(quantityFocused ? Theme.textTertiary : Theme.separatorStrong,
-                              lineWidth: Theme.hairline)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Theme.textBody, lineWidth: 1.5)
         }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Quantité")
+        .accessibilityValue("\(quantityText) \(quantityDetail)")
         .accessibilityAdjustableAction { direction in
             if direction == .increment {
                 adjust(by: step)
@@ -369,34 +473,30 @@ struct AddEntrySheet: View {
         }
     }
 
-    private var quantityField: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            TextField("0", text: $quantityText)
-                .keyboardType(.decimalPad)
-                .focused($quantityFocused)
-                .font(Theme.font(34, .bold, relativeTo: .largeTitle))
-                .monospacedDigit()
-                .foregroundStyle(Theme.textPrimary)
-                .tint(Theme.textPrimary)
-                .fixedSize()
-            Text(unitSuffix)
-                .font(Theme.body)
-                .foregroundStyle(Theme.textSecondary)
-            Spacer(minLength: 0)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture { quantityFocused = true }
-    }
-
-    private var chipsRow: some View {
+    private var unitRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                if availableUnits.count > 1 {
+                    ForEach(availableUnits, id: \.self) { candidate in
+                        Button {
+                            select(candidate)
+                        } label: {
+                            AddEntryChipLabel(label: unitTitle(candidate), isSelected: unit == candidate)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(unit == candidate ? .isSelected : [])
+                    }
+                    Rectangle()
+                        .fill(Theme.separatorStrong)
+                        .frame(width: Theme.hairline, height: 20)
+                        .padding(.horizontal, 3)
+                }
                 ForEach(chips, id: \.self) { chip in
                     Button {
                         quantityText = AddEntrySheet.format(chip.value)
-                        quantityFocused = false
+                        replacesOnType = true
                     } label: {
-                        AddEntryChipLabel(label: chip.label, isSelected: isSelected(chip.value))
+                        AddEntryChipLabel(label: chip.label, isSelected: false, isOutlined: isSelected(chip.value))
                     }
                     .buttonStyle(.plain)
                 }
@@ -415,6 +515,12 @@ struct AddEntrySheet: View {
                 AddEntryChip(label: "2", value: 2),
                 AddEntryChip(label: "3", value: 3),
             ]
+        case .package:
+            return [
+                AddEntryChip(label: "¼", value: 0.25),
+                AddEntryChip(label: "½", value: 0.5),
+                AddEntryChip(label: "1", value: 1),
+            ]
         case .base:
             let symbol = item.unitSymbol
             let values: [Double] = [50, 100, 150, 200, 250]
@@ -429,63 +535,69 @@ struct AddEntrySheet: View {
         return abs(quantity - value) < 0.001
     }
 
-    private var equivalence: String? {
-        guard !isQuickAdd, let grams, let servingGrams else { return nil }
-        switch unit {
-        case .serving:
-            return "= \(Formatters.number(grams, maxFractionDigits: 0)) \(item.unitSymbol)"
-        case .base:
-            let n = grams / servingGrams
-            return "≈ \(Formatters.number(n, maxFractionDigits: 2)) \(n > 1 ? "portions" : "portion")"
-        }
-    }
-
-    private var whenSection: some View {
-        Section {
-            Picker(selection: $meal) {
-                ForEach(Meal.allCases) { meal in
-                    Label(meal.label, systemImage: meal.systemImage).tag(meal)
+    private var actionButtons: some View {
+        let enabled = grams != nil
+        return HStack(spacing: 8) {
+            if entry != nil {
+                Button {
+                    showDeleteConfirm = true
+                } label: {
+                    Text("Supprimer")
+                        .foregroundStyle(Theme.overTarget)
                 }
-            } label: {
-                AddEntryFieldLabel(title: "Repas", systemImage: "fork.knife")
+                .buttonStyle(AddEntryActionButtonStyle(isPrimary: false))
+
+                Button("Enregistrer") { save(andContinue: false) }
+                    .buttonStyle(AddEntryActionButtonStyle(isPrimary: true))
+                    .disabled(!enabled)
+            } else {
+                Button("Ajouter et continuer") { save(andContinue: true) }
+                    .buttonStyle(AddEntryActionButtonStyle(isPrimary: false))
+                    .disabled(!enabled)
+
+                Button("Ajouter") { save(andContinue: false) }
+                    .buttonStyle(AddEntryActionButtonStyle(isPrimary: true))
+                    .disabled(!enabled)
             }
-            .tint(Theme.textSecondary)
-            DatePicker(selection: $day, displayedComponents: .date) {
-                AddEntryFieldLabel(title: "Jour", systemImage: "calendar")
-            }
-            .tint(Theme.calories)
-        } header: {
-            AddEntrySectionHeader(title: "Quand")
         }
-        .font(Theme.body)
-        .listRowBackground(Theme.background)
-        .listRowSeparatorTint(Theme.separator)
+        .padding(.top, 2)
     }
 
-    private var previewSection: some View {
-        Section {
-            AddEntryMacroPreview(values: portion, targets: profiles.first?.targets)
-                .listRowBackground(Theme.background)
-                .listRowInsets(EdgeInsets())
-        } header: {
-            AddEntrySectionHeader(title: "Apport")
-        }
-    }
+    // MARK: - Input
 
-    private var deleteSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showDeleteConfirm = true
-            } label: {
-                Label("Supprimer du journal", systemImage: "trash")
-                    .font(Theme.body)
-                    .foregroundStyle(Theme.overTarget)
+    private func press(_ key: AddEntryKey) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)
+        switch key {
+        case .delete:
+            if replacesOnType {
+                quantityText = ""
+            } else if !quantityText.isEmpty {
+                quantityText.removeLast()
             }
-            .listRowBackground(Theme.background)
+        case .comma:
+            if replacesOnType || quantityText.isEmpty {
+                quantityText = "0,"
+            } else if !quantityText.contains(",") {
+                quantityText.append(",")
+            }
+        case .digit(let digit):
+            let character = String(digit)
+            if replacesOnType || quantityText == "0" {
+                quantityText = character
+            } else if let comma = quantityText.firstIndex(of: ",") {
+                let decimals = quantityText.distance(from: comma, to: quantityText.endIndex) - 1
+                if decimals < 2 { quantityText.append(character) }
+            } else if quantityText.count < 5 {
+                quantityText.append(character)
+            }
         }
+        replacesOnType = false
     }
 
-    // MARK: - Actions
+    private func clearQuantity() {
+        quantityText = ""
+        replacesOnType = false
+    }
 
     private func adjust(by delta: Double) {
         let current = quantity ?? 0
@@ -498,37 +610,57 @@ struct AddEntrySheet: View {
         }
         next = max(stepValue, next)
         quantityText = AddEntrySheet.format(next)
+        replacesOnType = true
     }
 
-    private func convertQuantity(from old: AddEntryUnit, to new: AddEntryUnit) {
-        guard old != new, let servingGrams, let current = quantity else { return }
-        switch (old, new) {
-        case (.serving, .base):
-            quantityText = AddEntrySheet.format((current * servingGrams).rounded())
-        case (.base, .serving):
-            let servings = current / servingGrams
-            let quarters = (servings * 4).rounded() / 4
-            quantityText = AddEntrySheet.format(quarters > 0 ? quarters : servings)
-        default:
-            break
+    /// Switches unit, converting the current quantity so the grams stay the same.
+    private func select(_ newUnit: AddEntryUnit) {
+        guard newUnit != unit else { return }
+        if let currentGrams = grams, let perUnit = gramsPerUnit(newUnit), perUnit > 0 {
+            let converted = currentGrams / perUnit
+            switch newUnit {
+            case .base:
+                quantityText = AddEntrySheet.format(converted.rounded())
+            case .serving, .package:
+                let quarters = (converted * 4).rounded() / 4
+                quantityText = AddEntrySheet.format(quarters > 0 ? quarters : converted)
+            }
         }
+        unit = newUnit
+        replacesOnType = true
     }
 
-    private func save() {
+    // MARK: - Actions
+
+    private func toggleFavorite() {
+        if favoriteMatches.isEmpty {
+            modelContext.insert(FavoriteFood(item: item))
+        } else {
+            for favorite in favoriteMatches { modelContext.delete(favorite) }
+        }
+        try? modelContext.save()
+        favoriteToggles += 1
+    }
+
+    /// Logs (or updates) the entry. "Ajouter et continuer" only closes this sheet, without
+    /// `onLogged`, so the caller (search) stays open to add more.
+    private func save(andContinue: Bool) {
         guard let grams else { return }
         if let entry {
             entry.grams = grams
             entry.meal = meal
-            entry.day = day.startOfDay
+            entry.createdAt = time
+            entry.day = time.startOfDay
         } else {
-            modelContext.insert(JournalEntry(item: item, grams: grams, day: day, meal: meal))
+            let at = contextTime.map { AddEntrySheet.moving($0, to: day) }
+            modelContext.insert(JournalEntry(item: item, grams: grams, day: day, meal: meal, at: at))
         }
         try? modelContext.save()
         if !isQuickAdd {
             UserDefaults.standard.set(grams, forKey: AddEntrySheet.defaultsKey(for: item))
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onLogged?()
+        if !andContinue { onLogged?() }
         dismiss()
     }
 
@@ -541,50 +673,262 @@ struct AddEntrySheet: View {
     }
 }
 
-/// Quick quantity pill: outlined, white fill + near-black text when it matches the current quantity.
+// MARK: - Components
+
+/// Big kcal + G / P / L for the current quantity, each macro with a pill showing the share of
+/// the food's energy it provides.
+private struct AddEntryMacroSummary: View {
+    let per100: NutrientValues
+    let portion: NutrientValues
+
+    /// Energy used for the % pills: the food's kcal, or the macro sum when kcal is unknown.
+    private var energy: Double {
+        if per100.calories > 0 { return per100.calories }
+        return per100.carbs * 4 + per100.protein * 4 + per100.fat * 9
+    }
+
+    private func energyShare(_ key: NutrientKey) -> String {
+        guard energy > 0 else { return "– %" }
+        let perGram: Double = key == .totalFat ? 9 : 4
+        return Formatters.percent(min(per100.value(key) * perGram / energy, 1))
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            VStack(spacing: 2) {
+                Text(Formatters.number(portion.calories, maxFractionDigits: 0))
+                    .font(Theme.font(34, .bold, relativeTo: .largeTitle))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text("kcal")
+                    .font(Theme.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .layoutPriority(1)
+            .accessibilityElement(children: .combine)
+
+            ForEach(Theme.macroOrder, id: \.self) { key in
+                VStack(spacing: 2) {
+                    Text(energyShare(key))
+                        .font(Theme.font(11, .bold, relativeTo: .caption2))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.color(for: key))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Theme.color(for: key).opacity(0.16),
+                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .padding(.bottom, 4)
+                    Text(Formatters.number(portion.value(key), maxFractionDigits: 1))
+                        .font(Theme.font(20, .bold, relativeTo: .title3))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(key.label)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .animation(.snappy, value: portion)
+    }
+}
+
+/// Small ring: share of the day's target that the current quantity represents.
+private struct AddEntryDayRing: View {
+    let fraction: Double
+    let color: Color
+    let title: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .stroke(Theme.track, lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: min(max(fraction, 0), 1))
+                    .stroke(fraction > 1.05 ? Theme.overTarget : color,
+                            style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text(Formatters.percent(fraction))
+                    .font(Theme.font(11, .bold, relativeTo: .caption2))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, 5)
+            }
+            .frame(width: 48, height: 48)
+            .animation(.snappy, value: fraction)
+            Text(title)
+                .font(Theme.caption)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue("\(Formatters.percent(fraction)) de l'objectif du jour")
+    }
+}
+
+/// 4 × 3 numeric keypad: 1–9, ",", 0, ⌫ (long press on ⌫ clears).
+private struct AddEntryKeypad: View {
+    let onKey: (AddEntryKey) -> Void
+    let onClear: () -> Void
+
+    private static let rows: [[AddEntryKey]] = [
+        [.digit(1), .digit(2), .digit(3)],
+        [.digit(4), .digit(5), .digit(6)],
+        [.digit(7), .digit(8), .digit(9)],
+        [.comma, .digit(0), .delete],
+    ]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(0..<AddEntryKeypad.rows.count, id: \.self) { row in
+                HStack(spacing: 6) {
+                    ForEach(AddEntryKeypad.rows[row], id: \.self) { key in
+                        keyButton(key)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func keyButton(_ key: AddEntryKey) -> some View {
+        let button = Button {
+            onKey(key)
+        } label: {
+            Group {
+                switch key {
+                case .digit(let digit):
+                    Text(String(digit))
+                case .comma:
+                    Text(",")
+                case .delete:
+                    Image(systemName: "delete.left")
+                        .font(.system(size: 18, weight: .medium))
+                }
+            }
+            .font(Theme.font(21, .medium, relativeTo: .title3))
+            .foregroundStyle(Theme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(AddEntryKeyButtonStyle())
+
+        switch key {
+        case .delete:
+            button
+                .simultaneousGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in onClear() })
+                .accessibilityLabel("Effacer")
+        case .comma:
+            button.accessibilityLabel("Virgule")
+        case .digit:
+            button
+        }
+    }
+}
+
+private struct AddEntryKeyButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
+/// Bottom action: white fill (primary) or raised2 (secondary).
+private struct AddEntryActionButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.font(15, .bold, relativeTo: .headline))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var foreground: Color {
+        if !isEnabled { return Theme.textQuaternary }
+        return isPrimary ? Theme.onAccent : Theme.textBody
+    }
+
+    private var background: Color {
+        if isPrimary && isEnabled { return Theme.accent }
+        return Theme.raised2
+    }
+}
+
+/// Unit / quick-value chip: white fill + near-black text when selected, raised2 otherwise.
 private struct AddEntryChipLabel: View {
     let label: String
     let isSelected: Bool
+    var isOutlined: Bool = false
 
     var body: some View {
         Text(label)
             .font(Theme.font(13, isSelected ? .bold : .medium, relativeTo: .subheadline))
             .monospacedDigit()
-            .foregroundStyle(isSelected ? Theme.onAccent : Theme.textSecondary)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 30)
-            .background(isSelected ? Theme.accent : Color.clear, in: Capsule())
+            .foregroundStyle(isSelected ? Theme.onAccent : Theme.textBody)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 32)
+            .background(isSelected ? Theme.accent : Theme.raised2,
+                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
             .overlay {
-                Capsule()
-                    .strokeBorder(isSelected ? Theme.accent : Theme.separatorStrong, lineWidth: Theme.hairline)
+                if isOutlined {
+                    RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                        .strokeBorder(Theme.textTertiary, lineWidth: Theme.hairline)
+                }
             }
-            .contentShape(Capsule())
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 }
 
-/// One segment of the Portions / g switch.
-private struct AddEntrySegment: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
+/// Outlined small button label ("♡ Favori", "Créer un aliment perso").
+private struct AddEntryOutlineLabelStyle: LabelStyle {
+    let iconColor: Color
 
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(Theme.font(13, isSelected ? .bold : .medium, relativeTo: .subheadline))
-                .foregroundStyle(isSelected ? Theme.onAccent : Theme.textSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 30)
-                .background(isSelected ? Theme.accent : Color.clear,
-                            in: RoundedRectangle(cornerRadius: Theme.cornerRadius - 3, style: .continuous))
-                .contentShape(Rectangle())
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(iconColor)
+            configuration.title
+                .font(Theme.font(13, .medium, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textBody)
+                .lineLimit(1)
         }
-        .buttonStyle(.borderless)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .padding(.horizontal, 11)
+        .frame(height: 32)
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 }
 
-/// Outlined circular − / + button next to the quantity field.
+/// Round − / + button inside the quantity field.
 private struct AddEntryStepButton: View {
     let systemImage: String
     let label: String
@@ -593,191 +937,21 @@ private struct AddEntryStepButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
-                .frame(width: 36, height: 36)
-                .overlay {
-                    Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-                }
+                .frame(width: 34, height: 34)
+                .background(Theme.raised2, in: Circle())
                 .contentShape(Circle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 }
 
-/// Form row label with a muted monochrome icon.
-private struct AddEntryFieldLabel: View {
-    let title: String
-    let systemImage: String
-
+private struct AddEntryHairline: View {
     var body: some View {
-        Label {
-            Text(title)
-                .font(Theme.body)
-                .foregroundStyle(Theme.textBody)
-        } icon: {
-            Image(systemName: systemImage)
-                .foregroundStyle(Theme.textTertiary)
-        }
-    }
-}
-
-/// Section header per DESIGN.md: small uppercase DM Sans in textTertiary.
-private struct AddEntrySectionHeader: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(Theme.label)
-            .textCase(.uppercase)
-            .tracking(0.6)
-            .foregroundStyle(Theme.textTertiary)
-    }
-}
-
-/// Nutrition of the portion, laid out like the journal's pinned header:
-/// 4 columns separated by hairlines, tiny colored label, big number, 2 pt bar, caption.
-private struct AddEntryMacroPreview: View {
-    let values: NutrientValues
-    let targets: NutrientValues?
-
-    private static let keys: [NutrientKey] = [.calories, .protein, .carbohydrates, .totalFat]
-
-    private var energyFromMacros: Double {
-        values.protein * 4 + values.carbs * 4 + values.fat * 9
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ForEach(Array(AddEntryMacroPreview.keys.enumerated()), id: \.offset) { index, key in
-                AddEntryMacroColumn(
-                    key: key,
-                    amount: values.value(key),
-                    fraction: fraction(for: key),
-                    caption: caption(for: key),
-                    showsLeadingHairline: index > 0
-                )
-            }
-        }
-        .overlay(alignment: .top) { hairline }
-        .overlay(alignment: .bottom) { hairline }
-    }
-
-    private var hairline: some View {
         Rectangle()
             .fill(Theme.separator)
             .frame(height: Theme.hairline)
-    }
-
-    private func targetValue(for key: NutrientKey) -> Double? {
-        guard let targets, let target = targets[key], target > 0 else { return nil }
-        return target
-    }
-
-    private func fraction(for key: NutrientKey) -> Double {
-        if let target = targetValue(for: key) {
-            return values.value(key) / target
-        }
-        if key == .calories {
-            guard let ref = NutrientKey.calories.dailyReference, ref > 0 else { return 0 }
-            return values.calories / ref
-        }
-        guard energyFromMacros > 0 else { return 0 }
-        let perGram: Double = key == .totalFat ? 9 : 4
-        return values.value(key) * perGram / energyFromMacros
-    }
-
-    private func caption(for key: NutrientKey) -> String {
-        if let target = targetValue(for: key) {
-            return "sur \(Formatters.number(target, maxFractionDigits: 0))"
-        }
-        let percent = Formatters.percent(fraction(for: key))
-        if key == .calories { return "\(percent) AR" }
-        return energyFromMacros > 0 ? "\(percent) énergie" : "—"
-    }
-}
-
-private struct AddEntryMacroColumn: View {
-    let key: NutrientKey
-    let amount: Double
-    let fraction: Double
-    let caption: String
-    let showsLeadingHairline: Bool
-
-    private var title: String {
-        key == .calories ? "Kcal" : key.shortLabel
-    }
-
-    private var number: String {
-        Formatters.number(amount, maxFractionDigits: key == .calories || amount >= 10 ? 0 : 1)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(Theme.font(10, .bold, relativeTo: .caption2))
-                .textCase(.uppercase)
-                .tracking(0.7)
-                .foregroundStyle(Theme.color(for: key))
-                .lineLimit(1)
-            valueLine
-                .padding(.top, 6)
-            AddEntryThinBar(fraction: fraction, color: Theme.color(for: key))
-                .padding(.top, 8)
-            Text(caption)
-                .font(Theme.font(11, .regular, relativeTo: .caption2))
-                .monospacedDigit()
-                .foregroundStyle(Theme.textTertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.top, 6)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .leading) {
-            if showsLeadingHairline {
-                Rectangle()
-                    .fill(Theme.separator)
-                    .frame(width: Theme.hairline)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var valueLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 1) {
-            Text(number)
-                .font(Theme.numberLarge)
-                .monospacedDigit()
-                .foregroundStyle(Theme.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            if key != .calories {
-                Text("g")
-                    .font(Theme.font(11, .medium, relativeTo: .caption2))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-        }
-    }
-}
-
-/// 2 pt bar: macro color on separatorStrong (red when over target).
-private struct AddEntryThinBar: View {
-    let fraction: Double
-    let color: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            let clamped = min(max(fraction, 0), 1)
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.separatorStrong)
-                Capsule()
-                    .fill(fraction > 1.05 ? Theme.overTarget : color)
-                    .frame(width: geo.size.width * clamped)
-            }
-        }
-        .frame(height: 2)
     }
 }
