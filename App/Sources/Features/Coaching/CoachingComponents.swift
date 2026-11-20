@@ -347,11 +347,11 @@ struct CoachingCountdownRing<Center: View>: View {
         self.center = center()
     }
 
-    private static let size: CGFloat = 156
-    private static let outerDiameter: CGFloat = 138
-    private static let innerDiameter: CGFloat = 116
+    private static var size: CGFloat { 156 }
+    private static var outerDiameter: CGFloat { 138 }
+    private static var innerDiameter: CGFloat { 116 }
     /// Half of the gap between two day segments, as a fraction of the circle.
-    private static let halfGap: CGFloat = 0.008
+    private static var halfGap: CGFloat { 0.008 }
 
     var body: some View {
         ZStack {
