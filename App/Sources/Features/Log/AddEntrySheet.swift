@@ -810,6 +810,8 @@ enum AddEntryPanel {
     static let chip = Theme.hex(0x232323)
     static let digitKey = Theme.hex(0x6F6F71)
     static let sideKey = Theme.hex(0x4B4B4D)
+    /// Labels under the big figures (measured on the reference).
+    static let label = Theme.hex(0x787878)
 
     /// Filled pill behind the macro energy share (dark tone of the macro color).
     static func pill(_ key: NutrientKey) -> Color {
@@ -851,7 +853,7 @@ private struct AddEntryMacroSummary: View {
                     .minimumScaleFactor(0.6)
                 Text("Calories")
                     .font(Theme.font(16, .regular, relativeTo: .callout))
-                    .foregroundStyle(Theme.textSecondary)
+                    .foregroundStyle(AddEntryPanel.label)
                     .padding(.top, -6)
             }
             .frame(maxWidth: .infinity)
@@ -875,7 +877,7 @@ private struct AddEntryMacroSummary: View {
                         .minimumScaleFactor(0.6)
                     Text(key.label)
                         .font(Theme.font(16, .regular, relativeTo: .callout))
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(AddEntryPanel.label)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .padding(.top, -4)
