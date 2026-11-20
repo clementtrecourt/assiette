@@ -1,0 +1,214 @@
+# French display names for staple foods (used by tools/build_db.py).
+# Format: <key>\t<French name>[\t<*>[\t<fluent>]]. The key is an OpenNutrition id (fd_…) or the exact English
+# name of an everyday / prepared food (first match wins). The English name is kept in the
+# full-text index (alt column), so English searches still find these foods. Renamed foods
+# are stored with their English name in `name_en` and flagged as staples (`staple` column),
+# ranked first by the app's search when they match. "*" marks the reference food of a
+# family (e.g. "Œufs entiers" among the eggs), ranked before the others. <fluent> forces the
+# bundled Fluent Emoji icon (App/Resources/Assets.xcassets/FoodEmoji/<fluent>), for staples
+# that tools/map_fluent.py leaves without one.
+# Oeufs
+Large Eggs	Œufs entiers	*
+Hard-Boiled Eggs	Œufs durs
+Soft-Boiled Egg	Œuf à la coque
+Fried Egg	Œuf au plat
+Scrambled Eggs	Œufs brouillés		egg
+Poached Egg	Œuf poché		egg
+Egg Whites	Blancs d'œufs		egg
+Egg Yolk	Jaune d'œuf		egg
+# Lait & produits laitiers
+Whole Milk	Lait entier
+2% Reduced-Fat Milk	Lait demi-écrémé	*
+Nonfat Milk	Lait écrémé
+Greek Yogurt	Yaourt grec	*
+Nonfat Yogurt	Yaourt nature 0 %
+Whole Milk Yogurt	Yaourt nature au lait entier
+Butter	Beurre doux	*
+Salted Butter	Beurre demi-sel
+Heavy Cream	Crème liquide entière
+Sour Cream	Crème aigre
+Cream Cheese	Fromage à tartiner nature		cheese_wedge
+Swiss Cheese	Emmental
+Comté Cheese	Comté		cheese_wedge
+Gruyère Cheese	Gruyère		cheese_wedge
+Camembert Cheese	Camembert		cheese_wedge
+Brie Cheese	Brie		cheese_wedge
+Goat Cheese	Fromage de chèvre		cheese_wedge
+Feta Cheese	Feta		cheese_wedge
+Fresh Mozzarella	Mozzarella		cheese_wedge
+Parmesan Cheese	Parmesan
+Cheddar Cheese	Cheddar
+# Pains & céréales
+White Bread	Pain blanc, pain de mie	*
+Baguette	Baguette
+Whole Wheat Bread	Pain complet
+Sourdough Bread	Pain au levain
+Rye Bread	Pain de seigle
+Croissants	Croissant
+fd_VoAECiJlRO4t	Riz basmati cru
+fd_rhmHl8WBly89	Riz complet cru
+fd_gbtVB7G9twmc	Riz cuit	*
+fd_8P5faGPYoPZ1	Pâtes crues, spaghetti
+Spaghetti, Cooked	Pâtes cuites, spaghetti	*
+Penne, Cooked	Pâtes cuites, penne		spaghetti
+fd_r3FR60zh9Wz4	Quinoa cru
+fd_zkscDlk1dkn8	Couscous cru
+Rolled Oats	Flocons d'avoine		bowl_with_spoon
+Oatmeal, Cooked	Porridge, flocons d'avoine cuits
+Red Lentils	Lentilles corail crues		beans
+Lentils, Cooked	Lentilles cuites		beans
+Chickpeas, Dry	Pois chiches secs		beans
+Chickpeas, Canned and Drained	Pois chiches en conserve, égouttés		beans
+Potatoes	Pommes de terre
+Sweet Potatoes	Patates douces
+Mashed Potatoes	Purée de pommes de terre		potato
+# Fruits
+Apples	Pomme	*
+Banana	Banane
+Orange	Orange
+Pear	Poire
+Peach	Pêche
+Nectarine	Nectarine
+Apricots	Abricots
+Strawberries	Fraises
+Raspberries	Framboises
+Blueberries	Myrtilles
+Cherries	Cerises
+Grapes	Raisin
+Kiwi	Kiwi
+Pineapple	Ananas
+Mango	Mangue
+Watermelon	Pastèque
+Lemon	Citron
+Clementines	Clémentines
+Plums	Prunes
+Dried Apricots	Abricots secs
+Dried Figs	Figues sèches
+Medjool Dates	Dattes Medjool
+Raisins	Raisins secs		grapes
+# Légumes
+Avocado	Avocat
+Tomatoes	Tomates
+Carrots	Carottes
+Onions	Oignons
+Garlic	Ail
+Zucchini	Courgette
+Eggplant	Aubergine
+Cucumber	Concombre
+Romaine Lettuce	Salade romaine
+Mixed Greens	Salade verte, mélange de jeunes pousses		green_salad
+Spinach	Épinards
+Broccoli	Brocoli
+Cauliflower	Chou-fleur
+Green Beans	Haricots verts		pea_pod
+Green Peas	Petits pois
+Mushrooms	Champignons de Paris
+Bell Peppers	Poivrons
+Corn	Maïs
+Leeks	Poireaux
+Celery	Céleri
+Beets	Betteraves
+Radishes	Radis
+Asparagus	Asperges
+Green Cabbage	Chou vert		leafy_green
+Fennel	Fenouil
+Butternut Squash	Courge butternut
+Pumpkin	Potiron
+# Viandes
+fd_ScotusF79jyh	Poulet cru, entier découpé		poultry_leg
+fd_57Ne2bwpolgJ	Poulet cuit, entier
+fd_z3bVu8Loyy6a	Blanc de poulet cuit, grillé
+Boneless Skinless Chicken Breast, Raw	Blanc de poulet cru	*
+Chicken Thighs, Boneless Skinless, Raw	Hauts de cuisse de poulet désossés, crus
+Chicken Wings, Raw	Ailes de poulet crues
+Turkey Breast, Raw	Blanc de dinde cru		cut_of_meat
+Turkey Breast, Sliced	Blanc de dinde en tranches		cut_of_meat
+Ground Beef, Raw	Steak haché cru		cut_of_meat
+Ground Beef, Cooked	Steak haché cuit		cut_of_meat
+95% Extra Lean Ground Beef, Raw	Steak haché 5 % MG, cru	*	cut_of_meat
+90% Extra Lean Ground Beef	Steak haché 10 % MG, cru		cut_of_meat
+85% Lean Ground Beef, Raw	Steak haché 15 % MG, cru		cut_of_meat
+80% Lean Ground Beef, Raw	Steak haché 20 % MG, cru		cut_of_meat
+Ham	Jambon		cut_of_meat
+Deli Ham, Sliced	Jambon blanc en tranches	*	cut_of_meat
+Bacon, Raw	Bacon cru
+Bacon, Cooked	Bacon cuit
+Pork Loin Chop, Raw	Côte de porc crue		cut_of_meat
+Lamb Chops, Raw	Côtelettes d'agneau crues
+# Poissons
+Atlantic Salmon, Raw	Saumon cru	*
+Atlantic Salmon, Cooked	Saumon cuit
+Smoked Salmon	Saumon fumé
+Yellowfin Tuna, Canned in Water	Thon au naturel, en conserve	*	canned_food
+Canned Tuna, Drained	Thon en conserve, égoutté		canned_food
+Cod, Raw	Cabillaud cru
+Cod, Cooked	Cabillaud cuit
+Shrimp, Raw	Crevettes crues
+Cooked Shrimp	Crevettes cuites
+Canned Sardines in Oil	Sardines à l'huile		fish
+Smoked Mackerel	Maquereau fumé
+# Fruits à coque, matières grasses, sucré
+Almonds	Amandes
+Walnuts	Noix
+Hazelnuts	Noisettes		chestnut
+Peanuts	Cacahuètes
+Cashews	Noix de cajou
+Peanut Butter	Beurre de cacahuète		peanuts
+Olive Oil	Huile d'olive		olive
+Canola Oil	Huile de colza
+Sunflower Oil	Huile de tournesol
+Sugar	Sucre
+Brown Sugar	Sucre roux
+Honey	Miel
+Strawberry Jam	Confiture de fraises		jar
+Apricot Jam	Confiture d'abricots		jar
+Dark Chocolate	Chocolat noir
+Milk Chocolate	Chocolat au lait
+Chocolate Hazelnut Spread	Pâte à tartiner chocolat-noisette		jar
+Dijon Mustard	Moutarde de Dijon		jar
+Tomato Ketchup	Ketchup
+Hummus	Houmous
+Lasagna	Lasagnes		shallow_pan_of_food
+Whey Protein Powder	Protéine en poudre (whey)		glass_of_milk
+# Boissons
+Water	Eau
+Sparkling Water	Eau gazeuse
+Coffee	Café
+Espresso	Expresso
+Green Tea	Thé vert
+Black Tea	Thé noir
+Orange Juice	Jus d'orange		beverage_box
+Apple Juice	Jus de pomme		beverage_box
+Beer	Bière
+Red Wine	Vin rouge
+White Wine	Vin blanc		wine_glass
+Rosé Wine	Vin rosé		wine_glass
+# Autres aliments du quotidien
+Cantaloupe	Melon (cantaloup)
+Chia Seeds	Graines de chia
+Chicken Nuggets	Nuggets de poulet		poultry_leg
+Chocolate Chip Cookies	Cookies aux pépites de chocolat
+Chocolate Cake	Gâteau au chocolat
+Chocolate Chip Muffin	Muffin aux pépites de chocolat		cupcake
+Plain Crepe	Crêpe nature		pancakes
+Sweet Crepe	Crêpe sucrée		pancakes
+Pancakes	Pancakes
+Corn Tortillas	Tortillas de maïs
+Enriched Flour Tortilla	Tortilla de blé (wrap)		flatbread
+Chocolate Croissant	Pain au chocolat		croissant
+Light Cream	Crème légère
+Ground Turkey	Dinde hachée		cut_of_meat
+French Fries	Frites
+French Fries, Frozen	Frites surgelées
+Vanilla Ice Cream	Glace à la vanille
+Chocolate Ice Cream	Glace au chocolat
+Yellow Mustard	Moutarde		jar
+Oat Flour	Farine d'avoine
+Protein Bar	Barre protéinée		chocolate_bar
+Rice Cakes	Galettes de riz soufflé		rice_cracker
+Soy Sauce	Sauce soja
+Spinach, Cooked	Épinards cuits
+Green Leaf Lettuce	Laitue
+Cherry Tomatoes	Tomates cerises
+Unsweetened Coconut Milk	Lait de coco		coconut
+Salmon Fillets, Raw	Pavé de saumon cru		fish

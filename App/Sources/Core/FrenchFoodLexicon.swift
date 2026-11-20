@@ -3,9 +3,9 @@ import Foundation
 /// French → English food vocabulary used to search the (US English) OpenNutrition dataset
 /// with French words. All keys are lowercased and accent-folded ("oeuf", "pates", "creme").
 ///
-/// * `translations(for:)` is used by `FoodDatabase.ftsQuery(for:)`: every French token is
-///   OR-ed with its English equivalents. Single-word translations are prefix-matched by
-///   FTS ("egg" matches "Eggs"), multi-word translations are matched as phrases.
+/// * `translations(for:)` is used by `FoodDatabase.searchTerms(for:)`: every French token is
+///   OR-ed with its English equivalents, matched as whole words with their plural forms
+///   ("egg" matches "Eggs" but not "Eggplant"); multi-word translations are phrases.
 /// * `rewritingPhrases(_:)` turns common French compound names ("pomme de terre",
 ///   "haricots verts", "blanc de poulet") into their English name before searching, since
 ///   they cannot be translated word by word.
@@ -39,6 +39,14 @@ enum FrenchFoodLexicon {
         }
         guard w.count >= 3 else { return [] }
         return prefixTranslations(for: w)
+    }
+
+    /// True when `word` (or its singular / masculine form) is a French word of the lexicon,
+    /// i.e. a complete word rather than the beginning of one being typed ("poulet", not "poul").
+    static func isKnownWord(_ word: String) -> Bool {
+        let w = normalize(word)
+        guard w.count >= 2 else { return false }
+        return variants(of: w).contains { table[$0] != nil }
     }
 
     /// Rewrites known French multi-word food names into their English dataset name, e.g.
@@ -233,6 +241,7 @@ enum FrenchFoodLexicon {
     bifteck: steak
     entrecote: ribeye, rib eye, steak
     filet: fillet, filet, tenderloin
+    pave: fillet, steak
     rumsteck: rump, sirloin
     romsteck: rump, sirloin
     bavette: flank steak, skirt steak
@@ -666,7 +675,7 @@ enum FrenchFoodLexicon {
     bagel: bagel
     bretzel: pretzel
     galette: galette, pancake, rice cake
-    crepe: crepe, pancake
+    crepe: crepe
     gaufre: waffle
     pancake: pancake
     blini: blini
@@ -1014,6 +1023,7 @@ enum FrenchFoodLexicon {
     jaune d oeuf = egg yolk
     blanc de poulet = chicken breast
     filet de poulet = chicken breast
+    pave de saumon = salmon fillet
     escalope de poulet = chicken breast
     cuisse de poulet = chicken thigh
     haut de cuisse = chicken thigh

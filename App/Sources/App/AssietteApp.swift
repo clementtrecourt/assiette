@@ -28,7 +28,7 @@ struct AssietteApp: App {
             guard database.isAvailable else { return }
             // "a" is a stop word (no SQL would run): use a real word that also goes
             // through the lexicon ("pomme" → apple).
-            _ = database.search(FrenchFoodLexicon.rewritingPhrases("pomme"), limit: 1)
+            _ = database.search("pomme", limit: 1)
             _ = database.count
         }
     }

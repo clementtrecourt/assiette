@@ -37,14 +37,15 @@ final class FoodDatabaseTests: XCTestCase {
     }
 
     func testSearchCommonFoods() {
+        // Staples are shown with their French name (tools/data/french_names.tsv).
         let eggs = db.search("large eggs")
-        XCTAssertTrue(names(eggs).contains("Large Eggs"), "\(names(eggs))")
+        XCTAssertTrue(names(eggs).contains("Œufs entiers"), "\(names(eggs))")
 
         let rice = db.search("white rice")
         XCTAssertTrue(names(rice).contains { $0.contains("White Rice") }, "\(names(rice))")
 
         let banana = db.search("banana")
-        XCTAssertTrue(names(banana).contains("Banana"), "\(names(banana))")
+        XCTAssertTrue(names(banana).contains("Banane"), "\(names(banana))")
     }
 
     func testGenericFoodsRankFirst() throws {
@@ -129,6 +130,78 @@ final class FoodDatabaseTests: XCTestCase {
         }
         // Non-digit characters are ignored.
         XCTAssertEqual(db.food(barcode: " \(ean) ")?.id, bread.id)
+    }
+
+    // MARK: Ranking
+
+    /// Everyday queries (French first, as typed in the app) and a food expected in the top 3.
+    /// Includes the owner's usual foods (MacroFactor history).
+    private static let goldenQueries: [(query: String, expected: String)] = [
+        ("oeuf", "Œufs entiers"), ("oeu", "Œuf"), ("egg", "Œufs entiers"), ("lait", "Lait"),
+        ("milk", "Lait"), ("pain", "Pain"), ("riz", "Riz cuit"), ("pomme", "Pomme"),
+        ("thon", "Thon"), ("avocat", "Avocat"), ("banane", "Banane"), ("poulet", "poulet"),
+        ("poul", "Poulet"), ("blanc de poulet", "Blanc de poulet"), ("chicken breast", "Blanc de poulet"),
+        ("steak hache", "Steak haché"), ("steak 5%", "Steak haché 5 %"), ("jambon blanc", "Jambon blanc"),
+        ("yaourt grec", "Yaourt grec"), ("yao", "Yaourt"), ("fromage blanc", "Fromage Blanc"),
+        ("pates", "Pâtes"), ("pommes de terre", "Pommes de terre"), ("haricots verts", "Haricots verts"),
+        ("saumon", "Saumon"), ("pave de saumon", "Pavé de saumon"), ("whey", "Protéine en poudre"),
+        ("flocons d'avoine", "Flocons d'avoine"), ("baguette", "Baguette"), ("croissant", "Croissant"),
+        ("pain au chocolat", "Pain au chocolat"), ("crepe", "Crêpe"), ("glace", "Glace"),
+        ("galette de riz", "Galettes de riz"), ("barre proteinee", "Barre protéinée"),
+        ("nutella", "chocolat-noisette"), ("cookie", "Cookies"), ("frites", "Frites"),
+        ("eau", "Eau"), ("fraises", "Fraises"), ("tomate", "Tomates"), ("concombre", "Concombre"),
+        ("dinde hachee", "Dinde hachée"), ("lait de coco", "Lait de coco"), ("sauce soja", "Sauce soja"),
+        ("large eggs", "Œufs entiers"), ("white rice", "White Rice"), ("banana", "Banane"),
+    ]
+
+    func testGoldenQueries() {
+        var failures: [String] = []
+        for (query, expected) in Self.goldenQueries {
+            let top = names(db.search(query, limit: 10), first: 3)
+            if !top.contains(where: { $0.localizedCaseInsensitiveContains(expected) }) {
+                failures.append("\(query) -> \(top) (expected \(expected))")
+            }
+        }
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
+    func testCompleteFrenchWordsDoNotPrefixMatchOtherWords() {
+        let bread = names(db.search("pain", limit: 30), first: 30)
+        XCTAssertFalse(bread.contains { $0.lowercased().contains("painkiller") }, "\(bread)")
+        let rice = names(db.search("riz", limit: 30), first: 30)
+        XCTAssertFalse(rice.contains { $0.contains("Rizo") || $0.contains("Řízek") }, "\(rice)")
+        let apple = names(db.search("pomme", limit: 30), first: 30)
+        XCTAssertFalse(apple.contains { $0.contains("Pommersche") }, "\(apple)")
+        let ham = names(db.search("jambon blanc", limit: 10))
+        XCTAssertFalse(ham.prefix(5).contains { $0.contains("Hamburger") }, "\(ham)")
+    }
+
+    func testAlternateNameOnlyMatchesRankLast() throws {
+        // "Île Flottante" only matches "oeuf" through its alternate name "Oeufs à la neige".
+        let first = try XCTUnwrap(db.search("oeuf").first)
+        XCTAssertNotEqual(first.name, "Île Flottante")
+        XCTAssertEqual(first.fluent, "egg")
+    }
+
+    func testLoggedFoodsRankFirst() throws {
+        let plain = db.search("poulet", limit: 30)
+        let logged = try XCTUnwrap(plain.dropFirst(10).first)
+        let boosted = db.search("poulet", limit: 30, history: [logged.id: 3])
+        XCTAssertEqual(boosted.first?.id, logged.id, "\(names(boosted))")
+        // A logged food that does not match the query is not added.
+        XCTAssertFalse(db.search("banane", history: [logged.id: 3]).contains { $0.id == logged.id })
+    }
+
+    func testUnknownWordDoesNotEmptyTheResults() {
+        let results = db.search("saumon xyzzyq", limit: 10)
+        XCTAssertTrue(names(results).contains { $0.contains("Saumon") }, "\(names(results))")
+    }
+
+    func testStaplesHaveIcons() throws {
+        for query in ["oeuf", "lait", "riz", "pomme", "banane", "thon", "steak hache", "poulet", "pain"] {
+            let first = try XCTUnwrap(db.search(query).first, query)
+            XCTAssertTrue(first.fluent != nil || first.icon != nil, "\(query): \(first.name) has no icon")
+        }
     }
 
     func testSearchAsyncMatchesSearch() async {

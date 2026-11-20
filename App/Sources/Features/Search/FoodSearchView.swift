@@ -33,7 +33,12 @@ struct FoodSearchView: View {
     @State private var filter: SearchKindFilter = .all
     /// Database results, already converted to `FoodItem` off the main thread.
     @State private var results: [FoodItem] = []
+    /// "Mes aliments" matches of `searchedText`, published together with `results` so the two
+    /// sections never update at different times while typing.
+    @State private var customResults: [CustomFood] = []
     @State private var searchedText = ""
+    /// Bumped on every published result set (new text or filter): scrolls back to the top.
+    @State private var resultsGeneration = 0
     @State private var isSearching = false
     @State private var activeSheet: SearchSheet?
     @State private var dismissAfterSheet = false
@@ -148,7 +153,20 @@ struct FoodSearchView: View {
         return items
     }
 
-    /// Custom foods whose name/brand contains every query word. Computed once per body pass.
+    /// OpenNutrition food id -> times logged (last 30 days, plus the latest entries): those
+    /// foods are ranked first by the search when they match.
+    private var loggedFoodCounts: [Int64: Int] {
+        var counts: [Int64: Int] = [:]
+        for entry in monthEntries where entry.source == .openNutrition {
+            if let id = entry.ref.flatMap({ Int64($0) }) { counts[id, default: 0] += 1 }
+        }
+        for entry in recentEntries where entry.source == .openNutrition {
+            if let id = entry.ref.flatMap({ Int64($0) }), counts[id] == nil { counts[id] = 1 }
+        }
+        return counts
+    }
+
+    /// Custom foods whose name/brand contains every query word (run with each search).
     private func matchingCustomFoods(for text: String) -> [CustomFood] {
         guard filter == .all, !text.isEmpty, !customFoods.isEmpty else { return [] }
         let words = FoodDatabase.tokens(of: text)
@@ -173,7 +191,7 @@ struct FoodSearchView: View {
 
     var body: some View {
         let text = trimmedQuery
-        let custom = matchingCustomFoods(for: text)
+        let custom = customResults
         let recent = lastLoggedGrams
         Group {
             if isEmbedded {
@@ -192,6 +210,10 @@ struct FoodSearchView: View {
             isSearchFocused = true
         }
         .onChange(of: initialContext) { _, newValue in context = newValue }
+        .onChange(of: customFoods.count) { _, _ in
+            // A food created from this screen shows up without retyping.
+            customResults = matchingCustomFoods(for: searchedText)
+        }
         .sheet(item: $activeSheet, onDismiss: sheetDismissed) { sheet in
             sheetContent(sheet)
         }
@@ -213,24 +235,43 @@ struct FoodSearchView: View {
     }
 
     private func resultsList(text: String, custom: [CustomFood], recent: [String: Double]) -> some View {
-        List {
-            if !FoodDatabase.shared.isAvailable {
-                databaseErrorSection
+        ScrollViewReader { proxy in
+            List {
+                // Scroll anchor: every new result set starts at the top.
+                Color.clear
+                    .frame(height: 0)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Theme.raised)
+                    .listRowSeparator(.hidden)
+                    .id(Self.listTopID)
+                resultsListContent(text: text, custom: custom, recent: recent)
             }
-            if text.isEmpty {
-                emptyQueryContent(recent: recent)
-            } else {
-                searchContent(text: text, custom: custom, recent: recent)
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 1)
+            .scrollDismissesKeyboard(.immediately)
+            .scrollContentBackground(.hidden)
+            .background(Theme.raised)
+            .onChange(of: resultsGeneration) { _, _ in
+                proxy.scrollTo(Self.listTopID, anchor: .top)
             }
-            AttributionFooter()
-                .listRowBackground(Theme.raised)
-                .listRowSeparator(.hidden)
         }
-        .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, 1)
-        .scrollDismissesKeyboard(.immediately)
-        .scrollContentBackground(.hidden)
-        .background(Theme.raised)
+    }
+
+    private static let listTopID = "search-top"
+
+    @ViewBuilder
+    private func resultsListContent(text: String, custom: [CustomFood], recent: [String: Double]) -> some View {
+        if !FoodDatabase.shared.isAvailable {
+            databaseErrorSection
+        }
+        if text.isEmpty {
+            emptyQueryContent(recent: recent)
+        } else {
+            searchContent(text: text, custom: custom, recent: recent)
+        }
+        AttributionFooter()
+            .listRowBackground(Theme.raised)
+            .listRowSeparator(.hidden)
     }
 
     @ViewBuilder
@@ -555,7 +596,7 @@ struct FoodSearchView: View {
                 sectionHeaderRow("Mes aliments")
                 ForEach(custom) { food in
                     let item = food.item
-                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: text)
+                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: searchedText)
                 }
             }
             .listSectionSeparator(.hidden)
@@ -565,7 +606,7 @@ struct FoodSearchView: View {
             Section {
                 resultsHeaderRow
                 ForEach(results) { item in
-                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: text)
+                    foodRow(item, grams: usualGrams(for: item, recent: recent), highlight: searchedText)
                 }
             }
             .listSectionSeparator(.hidden)
@@ -629,33 +670,43 @@ struct FoodSearchView: View {
 
     private func runSearch(_ key: SearchQueryKey) async {
         guard !key.text.isEmpty else {
-            results = []
-            searchedText = ""
+            publish(results: [], custom: [], for: "")
             isSearching = false
             return
         }
         if !isSearching { isSearching = true }
-        // Debounce typing (the task is cancelled on every keystroke); a filter change on
-        // the text already searched runs immediately.
+        // Debounce typing (the task is cancelled on every keystroke; a query takes ~20-60 ms);
+        // a filter change on the text already searched runs immediately.
         if key.text != searchedText {
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(nanoseconds: 120_000_000)
             if Task.isCancelled { return }
         }
         var found: [FoodItem] = []
         if FoodDatabase.shared.isAvailable {
             let text = key.text
             let kinds = key.filter.kinds
-            // Lexicon rewrite, SQLite query, ranking and Food → FoodItem conversion all run
+            let history = loggedFoodCounts
+            // Phrase rewrite, SQLite queries, ranking and Food → FoodItem conversion all run
             // off the main thread.
             found = await Task.detached(priority: .userInitiated) { () -> [FoodItem] in
-                let rewritten = FrenchFoodLexicon.rewritingPhrases(text)
-                return FoodDatabase.shared.search(rewritten, kinds: kinds, limit: 60).map { $0.item }
+                FoodDatabase.shared.search(text, kinds: kinds, limit: 60, history: history).map { $0.item }
             }.value
         }
         if Task.isCancelled { return }
-        results = found
-        searchedText = key.text
+        publish(results: found, custom: matchingCustomFoods(for: key.text), for: key.text)
         isSearching = false
+    }
+
+    /// Replaces both result sections at once, without animation (no rows sliding around).
+    private func publish(results found: [FoodItem], custom: [CustomFood], for text: String) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            results = found
+            customResults = custom
+            searchedText = text
+            resultsGeneration &+= 1
+        }
     }
 
     /// Opens the quantity sheet for one food.

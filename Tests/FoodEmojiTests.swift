@@ -127,7 +127,7 @@ final class FoodEmojiTests: XCTestCase {
         let db = FoodDatabase.shared
         try XCTSkipUnless(db.isAvailable, "foods.sqlite unavailable")
         let foods = db.search("banana", limit: 30)
-        let banana = try XCTUnwrap(foods.first { $0.name == "Banana" }, "\(foods.prefix(5).map(\.name))")
+        let banana = try XCTUnwrap(foods.first { $0.name == "Banane" }, "\(foods.prefix(5).map(\.name))")
         try XCTSkipIf(banana.fluent == nil, "database built without the fluent column")
         XCTAssertEqual(banana.fluent, "banana")
         XCTAssertEqual(banana.item.fluent, "banana")

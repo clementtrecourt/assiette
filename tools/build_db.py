@@ -32,6 +32,9 @@ BY_RE = re.compile(r"^(.*) by (.+)$")
 WORD_RE = re.compile(r"[a-z0-9]+")
 ICONS_TSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "icons.tsv")
 MAP_FLUENT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "map_fluent.py")
+FLUENT_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "App", "Resources",
+                             "Assets.xcassets", "FoodEmoji")
+FRENCH_NAMES_TSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "french_names.tsv")
 
 
 def load_fluent_matcher(path=MAP_FLUENT):
@@ -58,6 +61,36 @@ def load_icons(path=ICONS_TSV):
     return icons
 
 
+def load_french_names(path=FRENCH_NAMES_TSV):
+    """(by_id, by_name): (French display name, staple rank, fluent icon or None) of staple
+    foods, keyed by OpenNutrition id ("fd_...") or by exact English name (see
+    tools/data/french_names.tsv). Rank 2 = the reference food of its family ("*" in the
+    third column), 1 otherwise."""
+    by_id, by_name = {}, {}
+    if not os.path.exists(path):
+        return by_id, by_name
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line.strip() or line.startswith("#"):
+                continue
+            key, french, flag, fluent = (line.split("\t") + ["", "", ""])[:4]
+            key, french, fluent = key.strip(), french.strip(), fluent.strip() or None
+            if not key or not french:
+                continue
+            if fluent and not os.path.isdir(os.path.join(FLUENT_ASSETS, f"{fluent}.imageset")):
+                sys.exit(f"{path}: unknown Fluent Emoji {fluent!r} for {key!r}")
+            rank = 2 if flag.strip() == "*" else 1
+            (by_id if key.startswith("fd_") else by_name)[key] = (french, rank, fluent)
+    return by_id, by_name
+
+
+def fold_ligatures(text):
+    """"Œufs" -> "Oeufs": FTS5 remove_diacritics does not split ligatures."""
+    return (text.replace("œ", "oe").replace("Œ", "Oe")
+            .replace("æ", "ae").replace("Æ", "Ae"))
+
+
 def norm_word(w):
     """Crude singular form, applied identically to keys and names (only consistency matters):
     eggs -> egg, tomatoes -> tomato, peaches -> peach, berries/berry -> berry,
@@ -78,12 +111,14 @@ def name_words(name):
     return [norm_word(w) for w in WORD_RE.findall(name.lower())]
 
 
-def assign_fallback_icons(db):
-    """Give foods without an icon the icon of the best-matching short generic food name."""
+def assign_fallback_icons(db, english_names=None):
+    """Give foods without an icon the icon of the best-matching short generic food name.
+    `english_names` (row id -> dataset name) undoes the French renaming for the matching."""
+    english_names = english_names or {}
     index = {}  # "white rice" -> icon
-    rows = db.execute("SELECT name, icon FROM food WHERE icon IS NOT NULL AND type IN (0, 1) ORDER BY id")
-    for name, icon in rows:
-        words = name_words(name)
+    rows = db.execute("SELECT id, name, icon FROM food WHERE icon IS NOT NULL AND type IN (0, 1) ORDER BY id")
+    for food_id, name, icon in rows:
+        words = name_words(english_names.get(food_id, name))
         if not 1 <= len(words) <= 3:
             continue
         key = " ".join(words)
@@ -93,7 +128,7 @@ def assign_fallback_icons(db):
     updates = []
     misses = db.execute("SELECT id, name FROM food WHERE icon IS NULL").fetchall()
     for food_id, name in misses:
-        words = name_words(name)
+        words = name_words(english_names.get(food_id, name))
         found = None
         for size in (3, 2, 1):
             # Rightmost n-gram first: English head nouns come last ("chocolate chip cookie").
@@ -141,27 +176,24 @@ def main(src, dst):
         package_g REAL,
         {cols},
         icon TEXT,
-        fluent TEXT)""")
+        fluent TEXT,
+        name_en TEXT,
+        staple INTEGER NOT NULL DEFAULT 0)""")
     db.execute("""CREATE VIRTUAL TABLE food_fts USING fts5(
         name, alt, content='', columnsize=0,
         tokenize='unicode61 remove_diacritics 2', prefix='2 3')""")
     db.execute("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
 
-    # Localized names for staple foods with a known preparation state.
-    french_names = {
-        "fd_VoAECiJlRO4t": "Riz basmati cru",
-        "fd_rhmHl8WBly89": "Riz complet cru",
-        "fd_gbtVB7G9twmc": "Riz cuit",
-        "fd_ScotusF79jyh": "Poulet cru, entier découpé",
-        "fd_57Ne2bwpolgJ": "Poulet cuit, entier",
-        "fd_z3bVu8Loyy6a": "Blanc de poulet cuit, grillé",
-        "fd_8P5faGPYoPZ1": "Pâtes crues, spaghetti",
-        "fd_r3FR60zh9Wz4": "Quinoa cru",
-        "fd_zkscDlk1dkn8": "Couscous cru",
-    }
+    # French display names of staple foods (tools/data/french_names.tsv). The dataset name
+    # is kept in `name_en`; `staple` (1, or 2 for the reference food of its family) makes
+    # the app rank them first when they match.
+    french_by_id, french_by_name = load_french_names()
+    renamed = {}  # row id -> dataset (English) name
+    used_names = set()
+    used_ids = set()
     icons = load_icons()
     fluent_match = load_fluent_matcher()
-    placeholders = ",".join("?" * (13 + len(NUTRIENTS)))
+    placeholders = ",".join("?" * (15 + len(NUTRIENTS)))
     n = 0
     exact = 0
     fluent_count = 0
@@ -205,19 +237,36 @@ def main(src, dst):
             fluent = fluent_match(name) if fluent_match else None
             if fluent:
                 fluent_count += 1
-            if localized := french_names.get(row["id"]):
-                alt = f"{name} {alt}"
+            localized = french_by_id.get(row["id"])
+            if localized:
+                used_ids.add(row["id"])
+            staple = 0
+            if (localized is None and t <= 1 and name in french_by_name
+                    and name not in used_names):
+                localized = french_by_name[name]
+                used_names.add(name)
+            name_en = None
+            if localized:
+                localized, staple, fluent_override = localized
+                if fluent_override:
+                    if not fluent:
+                        fluent_count += 1
+                    fluent = fluent_override
+                folded = fold_ligatures(localized)
+                alt = f"{name} {folded if folded != localized else ''} {alt}"
+                renamed[n] = name
+                name_en = name
                 name = localized
             db.execute(
                 f"INSERT INTO food VALUES({placeholders})",
                 (n, row["id"], name, brand, t, row["ean_13"] or None,
                  common.get("unit"), num(common.get("quantity")),
                  num(metric.get("quantity")), is_liquid, pkg,
-                 *[num(nut.get(k)) for k in NUTRIENTS], icon, fluent),
+                 *[num(nut.get(k)) for k in NUTRIENTS], icon, fluent, name_en, staple),
             )
             db.execute("INSERT INTO food_fts(rowid, name, alt) VALUES(?,?,?)", (n, name, alt))
     if icons:
-        keys, missing, matched = assign_fallback_icons(db)
+        keys, missing, matched = assign_fallback_icons(db, renamed)
         total = exact + matched
         print(f"icons: {len(icons)} mapped, {exact} exact, {matched}/{missing} fallback "
               f"({keys} keys) -> {total}/{n} foods ({100 * total / max(n, 1):.1f} %)")
@@ -226,6 +275,10 @@ def main(src, dst):
             print(f"  {t_name:10s} {w}/{c} ({100 * w / max(c, 1):.1f} %)")
     else:
         print(f"icons: {ICONS_TSV} not found, icon column left NULL")
+    missing_names = [k for k in french_by_name if k not in used_names]
+    missing_names += [k for k in french_by_id if k not in used_ids]
+    print(f"french names: {len(renamed)} foods renamed"
+          + (f", NOT FOUND: {missing_names}" if missing_names else ""))
     if fluent_match:
         print(f"fluent: {fluent_count}/{n} foods ({100 * fluent_count / max(n, 1):.1f} %)")
     else:
@@ -236,7 +289,7 @@ def main(src, dst):
         ("dataset", "OpenNutrition 2025.1"),
         ("license", "ODbL 1.0"),
         ("count", str(n)),
-        ("schema", "3"),
+        ("schema", "4"),
     ])
     db.commit()
     db.execute("VACUUM")

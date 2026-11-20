@@ -84,6 +84,45 @@ final class FoodDatabaseQueryTests: XCTestCase {
     func testTokens() {
         XCTAssertEqual(FoodDatabase.tokens(of: "Crème  Fraîche, 30%"), ["creme", "fraiche", "30"])
         XCTAssertEqual(FoodDatabase.tokens(of: "  "), [])
+        XCTAssertEqual(FoodDatabase.tokens(of: "Œufs brouillés"), ["oeufs", "brouilles"])
+        // ASCII fast path and Unicode path agree.
+        XCTAssertEqual(FoodDatabase.tokens(of: "Chicken Breast, Raw (USDA) 2%"),
+                       ["chicken", "breast", "raw", "usda", "2"])
+    }
+
+    func testWordForms() {
+        XCTAssertEqual(Set(FoodDatabase.wordForms("egg")), ["egg", "eggs"])
+        XCTAssertTrue(FoodDatabase.wordForms("eggs").contains("egg"))
+        XCTAssertTrue(FoodDatabase.wordForms("berry").contains("berries"))
+        XCTAssertTrue(FoodDatabase.wordForms("cherries").contains("cherry"))
+        XCTAssertTrue(FoodDatabase.wordForms("tomatoes").contains("tomato"))
+        XCTAssertTrue(FoodDatabase.wordForms("potato").contains("potatoes"))
+        XCTAssertTrue(FoodDatabase.wordForms("gateau").contains("gateaux"))
+        XCTAssertTrue(FoodDatabase.wordForms("oeufs").contains("oeuf"))
+        XCTAssertEqual(FoodDatabase.wordForms("2"), ["2"])
+    }
+
+    func testOnlyTheLastWordBeingTypedIsAPrefix() throws {
+        // Unknown last word: still being typed.
+        let typing = FoodDatabase.searchTerms(for: "poul")
+        XCTAssertEqual(typing.first?.alternatives.first, SearchAlternative(tokens: ["poul"], isPrefix: true))
+        // Complete French word: whole word only ("riz" must not match "Rizo", "Řízek").
+        let rice = try XCTUnwrap(FoodDatabase.searchTerms(for: "riz").first)
+        XCTAssertFalse(rice.alternatives.contains { $0.isPrefix }, "\(rice)")
+        XCTAssertTrue(rice.alternatives.contains { $0.tokens == ["rice"] })
+        // Words before the last one are complete.
+        let two = FoodDatabase.searchTerms(for: "chicken bre")
+        XCTAssertEqual(two.map { $0.alternatives.contains { $0.isPrefix } }, [false, true])
+        // A word produced by a phrase rewrite is complete and not translated again.
+        let ham = FoodDatabase.searchTerms(for: "ham", lastWordIsComplete: true)
+        XCTAssertEqual(Set(ham.flatMap(\.alternatives).map { $0.tokens.joined(separator: " ") }), ["ham", "hams"])
+    }
+
+    func testRelaxedQueryUsesOr() throws {
+        let terms = FoodDatabase.searchTerms(for: "xyzzyq wqzzyx")
+        let q = try XCTUnwrap(FoodDatabase.ftsQuery(terms, requireAll: false))
+        XCTAssertTrue(q.contains(") OR \"wqzzyx\"*"), q)
+        XCTAssertFalse(q.contains(" AND "), q)
     }
 
     func testEmptyOrStopWordsOnlyQuery() {
@@ -98,25 +137,27 @@ final class FoodDatabaseQueryTests: XCTestCase {
 
     func testFrenchWordIsOredWithTranslation() throws {
         let q = try XCTUnwrap(FoodDatabase.ftsQuery(for: "poulet"))
-        XCTAssertTrue(q.contains("\"poulet\"*"), q)
-        XCTAssertTrue(q.contains("\"chicken\"*"), q)
+        XCTAssertTrue(q.contains("\"poulet\""), q)
+        XCTAssertTrue(q.contains("\"chicken\""), q)
+        XCTAssertTrue(q.contains("\"chickens\""), q)
+        XCTAssertFalse(q.contains("*"), q)
         XCTAssertTrue(q.contains(" OR "), q)
         XCTAssertTrue(q.hasPrefix("(") && q.hasSuffix(")"), q)
     }
 
     func testAccentsAreFolded() throws {
         let q = try XCTUnwrap(FoodDatabase.ftsQuery(for: "Crème"))
-        XCTAssertTrue(q.contains("\"creme\"*"), q)
-        XCTAssertTrue(q.contains("\"cream\"*"), q)
+        XCTAssertTrue(q.contains("\"creme\""), q)
+        XCTAssertTrue(q.contains("\"cream\""), q)
         XCTAssertFalse(q.contains("è"))
     }
 
     func testWordsAreAndedAndStopWordsRemoved() throws {
         let q = try XCTUnwrap(FoodDatabase.ftsQuery(for: "xyzzyq de wqzzyx"))
-        XCTAssertEqual(q, "\"xyzzyq\"* AND \"wqzzyx\"*")
+        XCTAssertEqual(q, "(\"xyzzyq\" OR \"xyzzyqs\") AND \"wqzzyx\"*")
         let french = try XCTUnwrap(FoodDatabase.ftsQuery(for: "poulet et riz"))
         XCTAssertEqual(french.components(separatedBy: " AND ").count, 2, french)
-        XCTAssertTrue(french.contains("\"rice\"*"), french)
+        XCTAssertTrue(french.contains("\"rice\""), french)
     }
 
     func testMultiWordTranslationsArePhrases() throws {

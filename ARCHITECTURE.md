@@ -78,8 +78,17 @@ final report.
 ### Core (already written — read the files)
 * `NutrientKey`, `NutrientValues` (per-100 g storage, `forGrams`, `+`, `.data`), `FoodKind`,
   `FoodSource`, `Food` (DB row, `.item`), `FoodItem` (unified loggable value; `.id` = "source:ref").
-* `FoodDatabase.shared`: `search(_:kinds:limit:)`, `searchAsync(_:kinds:limit:)`,
+* `FoodDatabase.shared`: `search(_:kinds:limit:history:)`, `searchAsync(_:kinds:limit:history:)`,
   `food(id:)`, `food(barcode:)`, `count`, `datasetVersion`, `isAvailable`, `openError`.
+  Search pipeline: French phrase rewrite (`FrenchFoodLexicon.rewritingPhrases`), query terms
+  (`searchTerms`: only the last word still being typed is a prefix; complete French words and
+  translations match whole words, singular or plural), candidates (every generic / dish /
+  restaurant match, the 400 best FTS brand matches, the user's logged foods), then
+  `SearchRanking` on the names (whole words, main word of the name, few extra words, staples,
+  generic before brands, `history` = food id → times logged). Alternate names only retrieve.
+  Staples: `tools/data/french_names.tsv` renames ~200 everyday foods in French at build time
+  (`food.name_en` keeps the dataset name, `food.staple` = 1, or 2 for the reference food of a
+  family, optional Fluent Emoji override).
 * SwiftData models: `JournalEntry(item:grams:day:meal:)`, `UserProfile` (`current(in:)`),
   `WeightEntry(date:kg:)`, `WaterEntry(day:ml:)`, `CustomFood(name:brand:per100:)`,
   `RecipeIngredient`, `FavoriteFood(item:)`. Enums `Meal`, `Sex`, `ActivityLevel`, `WeightGoal`.

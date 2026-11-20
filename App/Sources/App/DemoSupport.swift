@@ -53,7 +53,7 @@ enum DemoSupport {
         Planned(query: "basmati rice cooked", grams: 200, hour: 12, minute: 51, meal: .lunch),
         Planned(query: "skyr plain", grams: 150, hour: 16, minute: 15, meal: .snack),
         Planned(query: "almonds", grams: 30, hour: 16, minute: 16, meal: .snack),
-        Planned(query: "salmon fillet cooked", grams: 160, hour: 20, minute: 10, meal: .dinner),
+        Planned(query: "atlantic salmon cooked", grams: 160, hour: 20, minute: 10, meal: .dinner),
         Planned(query: "sweet potato baked", grams: 200, hour: 20, minute: 11, meal: .dinner),
         Planned(query: "broccoli steamed", grams: 120, hour: 20, minute: 12, meal: .dinner),
     ]

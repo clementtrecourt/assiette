@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data
-          key: dataset-${{ env.DATASET_URL }}-${{ hashFiles('tools/build_db.py', 'tools/map_fluent.py', 'tools/data/icons.tsv') }}
+          key: dataset-${{ env.DATASET_URL }}-${{ hashFiles('tools/build_db.py', 'tools/map_fluent.py', 'tools/data/icons.tsv', 'tools/data/french_names.tsv') }}
 
       - name: Build food database
         if: steps.dataset.outputs.cache-hit != 'true'
