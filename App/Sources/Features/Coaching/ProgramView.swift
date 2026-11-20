@@ -82,6 +82,8 @@ private struct ProgramContent: View {
     @State private var trendKg: Double?
     @State private var deleteTick = 0
     @State private var showWizard = false
+    /// Goal flow: true = new goal, false = edit goal.
+    @State private var goalFlowIsNew: Bool?
     /// Global x of the hero header (List header inset), see the "En cours" section header.
     @State private var heroMinX: CGFloat = 16
 
@@ -196,9 +198,17 @@ private struct ProgramContent: View {
             ProgramWizardView(profile: profile,
                               initialStep: DemoSupport.startSheet == "wizard-summary" ? 5 : 0)
         }
+        .fullScreenCover(isPresented: Binding(get: { goalFlowIsNew != nil },
+                                              set: { if !$0 { goalFlowIsNew = nil } })) {
+            GoalFlowView(profile: profile, isNew: goalFlowIsNew ?? true,
+                         initialPage: DemoSupport.startSheet == "goal-rate" ? .target : .intro)
+        }
         .task {
-            // CI screenshots: -startTab program -startSheet wizard | wizard-summary
-            if let sheet = DemoSupport.startSheet, sheet.hasPrefix("wizard") { showWizard = true }
+            // CI screenshots: -startTab program -startSheet wizard | wizard-summary | goal-new | goal-rate
+            guard let sheet = DemoSupport.startSheet else { return }
+            if sheet.hasPrefix("wizard") { showWizard = true }
+            if sheet == "goal-new" { goalFlowIsNew = true }
+            if sheet == "goal-rate" { goalFlowIsNew = false }
         }
     }
 
@@ -492,13 +502,13 @@ private struct ProgramContent: View {
                 .padding(.top, 10)
             HStack(spacing: 6) {
                 Button {
-                    sheet = .goal(.target)
+                    goalFlowIsNew = true
                 } label: {
                     CoachingChipLabel(title: "Nouvel objectif", systemImage: "plus")
                 }
                 .buttonStyle(.borderless)
                 Button {
-                    sheet = .goal(profile.goal == .maintain ? .target : .rate)
+                    goalFlowIsNew = false
                 } label: {
                     CoachingChipLabel(title: "Modifier", systemImage: "pencil")
                 }

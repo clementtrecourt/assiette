@@ -45,9 +45,10 @@ struct AssietteApp: App {
         let selected = UIColor(Theme.textPrimary)
         var normalAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: normal]
         var selectedAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: selected]
-        if let font = UIFont(name: "DMSans-Medium", size: 10) {
-            normalAttributes[.font] = font
-            selectedAttributes[.font] = font
+        // Reference tab bar: 14 pt labels, regular for idle tabs and medium for the selected one.
+        if let regular = UIFont(name: "DMSans-Regular", size: 14), let medium = UIFont(name: "DMSans-Medium", size: 14) {
+            normalAttributes[.font] = regular
+            selectedAttributes[.font] = medium
         }
         let itemAppearances = [
             appearance.stackedLayoutAppearance,
@@ -57,6 +58,8 @@ struct AssietteApp: App {
         for item in itemAppearances {
             item.normal.iconColor = normal
             item.normal.titleTextAttributes = normalAttributes
+            item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 2)
+            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 2)
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = selectedAttributes
         }
@@ -149,7 +152,7 @@ struct RootView: View {
                 .tag(AppTab.program)
 
             ProfileView()
-                .tabItem { Label("Profil", image: "Glyph-profil") }
+                .tabItem { Label("Profil", image: appState.selectedTab == .profile ? "Glyph-profil-active" : "Glyph-profil") }
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
@@ -205,15 +208,17 @@ struct RootView: View {
 /// The white rounded "+" of the central tab (drawn once, rendered in original colors).
 private enum RootTabPlusImage {
     static let image: UIImage = {
-        let size = CGSize(width: 40, height: 40)
+        // Reference: 44 pt white disc, thin 2.2 pt plus, 18 pt wide.
+        let size = CGSize(width: 46, height: 46)
         return UIGraphicsImageRenderer(size: size).image { _ in
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
             UIColor(Theme.accent).setFill()
             UIBezierPath(ovalIn: rect).fill()
+            let c = size.width / 2
             let plus = UIBezierPath()
-            plus.move(to: CGPoint(x: 20, y: 12)); plus.addLine(to: CGPoint(x: 20, y: 28))
-            plus.move(to: CGPoint(x: 12, y: 20)); plus.addLine(to: CGPoint(x: 28, y: 20))
-            plus.lineWidth = 3
+            plus.move(to: CGPoint(x: c, y: c - 9)); plus.addLine(to: CGPoint(x: c, y: c + 9))
+            plus.move(to: CGPoint(x: c - 9, y: c)); plus.addLine(to: CGPoint(x: c + 9, y: c))
+            plus.lineWidth = 2.2
             plus.lineCapStyle = .round
             UIColor(Theme.onAccent).setStroke()
             plus.stroke()

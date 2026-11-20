@@ -124,10 +124,10 @@ struct ProgramWizardView: View {
 
     private func question(_ text: String) -> some View {
         Text(text)
-            .font(Theme.font(28, .bold, relativeTo: .title))
+            .font(Theme.font(25, .bold, relativeTo: .title))
             .foregroundStyle(Theme.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.bottom, 26)
+            .padding(.bottom, 24)
             .accessibilityAddTraits(.isHeader)
     }
 
@@ -352,11 +352,11 @@ struct ProgramWizardOptionCard: View {
                     .frame(width: 40)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title)
-                        .font(Theme.font(18, .regular, relativeTo: .body))
+                        .font(Theme.font(17, .regular, relativeTo: .body))
                         .foregroundStyle(Theme.textPrimary)
                     if let detail {
                         Text(detail)
-                            .font(Theme.font(16, .regular, relativeTo: .callout))
+                            .font(Theme.font(15, .regular, relativeTo: .subheadline))
                             .foregroundStyle(Theme.textBody)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -366,8 +366,8 @@ struct ProgramWizardOptionCard: View {
             }
             .padding(.leading, 16)
             .padding(.trailing, 20)
-            .padding(.vertical, 18)
-            .frame(minHeight: 96)
+            .padding(.vertical, 16)
+            .frame(minHeight: 86)
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(isSelected ? Theme.textPrimary : Theme.raised2,

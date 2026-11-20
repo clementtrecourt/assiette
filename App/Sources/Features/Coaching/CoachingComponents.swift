@@ -425,7 +425,7 @@ struct CoachingWeekColumns: View {
     /// block height = 36 pt + 73 pt × (grams / largest macro of the week).
     private func column(_ index: Int, day: Day, maxGrams: Double) -> some View {
         let isToday = index == todayIndex
-        let scale: CGFloat = isLarge ? 1.25 : 1
+        let scale: CGFloat = isLarge ? 1.1 : 1
         return VStack(spacing: 4) {
             Text(CoachingFormat.kcalNumber(day.calories))
                 .font(Theme.font(13, .regular, relativeTo: .caption))
