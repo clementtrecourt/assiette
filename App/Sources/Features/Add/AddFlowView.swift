@@ -69,6 +69,7 @@ struct AddFlowView: View {
         VStack(spacing: 0) {
             AddFlowHeader(context: $context, onClose: { dismiss() })
             AddFlowModeTabs(selection: $mode)
+                .background(Theme.raised)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -115,7 +116,7 @@ private struct AddFlowHeader: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 44, height: 44)
                     .background(Theme.raised2, in: Circle())
                     .contentShape(Circle())
             }
@@ -135,11 +136,8 @@ private struct AddFlowHeader: View {
                         .foregroundStyle(Theme.textBody)
                 }
                 .padding(.horizontal, 10)
-                .frame(height: 34)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-                }
+                .frame(height: 44)
+                .background(Theme.raised2, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -258,14 +256,14 @@ private struct AddFlowRemaining: View {
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.track)
-                    Capsule()
+                ZStack(alignment: .trailing) {
+                    Rectangle().fill(Theme.track)
+                    Rectangle()
                         .fill(Theme.color(for: key))
                         .frame(width: geo.size.width * fraction)
                 }
             }
-            .frame(height: 2)
+            .frame(height: 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -404,7 +402,7 @@ struct AddShortcutsSheet: View {
 
     private var header: some View {
         ZStack {
-            Text("Ajouter")
+            Text("Raccourcis")
                 .font(Theme.font(16, .bold, relativeTo: .headline))
                 .foregroundStyle(Theme.textPrimary)
             HStack {
@@ -442,7 +440,7 @@ struct AddShortcutsSheet: View {
                             .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(Theme.textPrimary)
                             .frame(width: 50, height: 50)
-                            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(Theme.raised2, in: Circle())
                         Text(mode.addFlowTitle)
                             .font(Theme.font(12, .medium, relativeTo: .caption))
                             .foregroundStyle(Theme.textBody)
@@ -708,9 +706,8 @@ struct AddSearchBar: View {
         }
         .frame(height: 46)
         .background(Theme.raised2, in: Capsule())
-        .shadow(color: Color.black.opacity(0.35), radius: 10, y: 4)
-        .padding(.horizontal, 12)
-        .padding(.top, 14)
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
         .padding(.bottom, 6)
         .background {
             // Fades the scrolling content into the background behind the bar.

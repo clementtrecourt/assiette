@@ -89,7 +89,7 @@ enum Theme {
 
     static let cornerRadius: CGFloat = 8
     /// Cards (dashboard tiles, food cards, program cards).
-    static let cardRadius: CGFloat = 16
+    static let cardRadius: CGFloat = 10
     static let hairline: CGFloat = 1
 
     // MARK: Typography (DM Sans, bundled in Resources/Fonts, registered at launch)

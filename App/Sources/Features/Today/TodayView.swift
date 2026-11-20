@@ -63,16 +63,17 @@ struct TodayTitleBar<Accessory: View>: View {
     private var titleButton: some View {
         Button(action: onPickDate) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Journal")
+                Text(isToday ? "AUJOURD’HUI" : "JOURNAL")
                     .font(Theme.font(26, .bold, relativeTo: .largeTitle))
                     .tracking(-0.8)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
-                Text(TodayDayFormat.dateLine(for: day))
-                    .font(Theme.font(12, .medium, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                if !isToday {
+                    Text(TodayDayFormat.dateLine(for: day))
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
             }
             .contentShape(Rectangle())
         }

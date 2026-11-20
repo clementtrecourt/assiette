@@ -423,8 +423,8 @@ struct CoachingWeekColumns: View {
                 .background(Theme.calories, in: Capsule())
             ForEach(Theme.macroOrder, id: \.self) { key in
                 let value = grams(key)
-                Text(Formatters.number(value, maxFractionDigits: 0))
-                    .font(Theme.font(9.5, .bold, relativeTo: .caption2))
+                Text("\(Formatters.number(value, maxFractionDigits: 0)) \(Theme.letter(for: key))")
+                    .font(Theme.font(10, .bold, relativeTo: .caption2))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)

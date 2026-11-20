@@ -66,7 +66,7 @@ private struct DashboardContent: View {
                     header
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Nutrition du jour")
-                            .font(Theme.headline)
+                            .font(Theme.title)
                         Spacer(minLength: 10)
                         DashboardHero(consumed: totals.calories, target: targets.calories,
                                       showRemaining: showRemaining)
@@ -80,7 +80,7 @@ private struct DashboardContent: View {
                     .frame(minHeight: 382)
                 }
                 .padding(.horizontal, 16)
-                .background(Theme.raised)
+                .background(Theme.raised.ignoresSafeArea(edges: .top))
                 .padding(.horizontal, -16)
 
                 trendsSection(goal: goal, todayKcal: totals.calories)

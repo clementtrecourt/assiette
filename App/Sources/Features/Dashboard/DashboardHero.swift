@@ -102,7 +102,6 @@ private struct DashboardHeroSide: View {
 
     var body: some View {
         VStack(spacing: 3) {
-            DashboardCapsLabel(text: caption)
             Text(Formatters.number(value, maxFractionDigits: 0))
                 .font(Theme.font(20, .bold, relativeTo: .title3))
                 .tracking(-0.5)
@@ -110,7 +109,7 @@ private struct DashboardHeroSide: View {
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text("kcal")
+            Text(caption)
                 .font(Theme.font(12, .regular, relativeTo: .caption))
                 .foregroundStyle(Theme.textSecondary)
         }
@@ -192,18 +191,13 @@ struct DashboardMacroBars: View {
                              : "\(Formatters.number(eaten, maxFractionDigits: 0)) g mangés")
 
         return VStack(spacing: 6) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
-                Text(key.label.uppercased())
-                    .font(Theme.font(11, .bold, relativeTo: .caption2))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.textBody)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            DashboardBar(fraction: fraction, color: isOver ? Theme.overTarget : color, height: 5)
+            Text(key.label)
+                .font(Theme.font(14, .regular, relativeTo: .subheadline))
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            DashboardBar(fraction: fraction, color: isOver ? Theme.overTarget : color,
+                         fromTrailing: showRemaining)
             (main + rest)
                 .font(Theme.font(12, .medium, relativeTo: .caption))
                 .monospacedDigit()
@@ -239,7 +233,7 @@ struct DashboardModePicker: View {
                 .font(Theme.font(13, selected ? .bold : .medium, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textSecondary)
                 .padding(.horizontal, 18)
-                .frame(minHeight: 30)
+                .frame(minHeight: 38)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)

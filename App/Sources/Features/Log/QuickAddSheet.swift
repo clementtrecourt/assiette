@@ -159,7 +159,7 @@ struct QuickAddSheet: View {
             .padding(.bottom, 16)
         }
         .scrollDismissesKeyboard(.never)
-        .background(Theme.background.ignoresSafeArea())
+        .background(Theme.raised.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .task {
             // Keyboard first: energy field focused as soon as the screen appears.
@@ -180,9 +180,6 @@ struct QuickAddSheet: View {
     private var energyRow: some View {
         HStack(spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Theme.flame)
                 TextField("0", text: $caloriesText,
                           prompt: Text(macroCalories > 0 ? Formatters.number(macroCalories, maxFractionDigits: 0) : "0")
                             .foregroundColor(Theme.textQuaternary))
@@ -194,7 +191,7 @@ struct QuickAddSheet: View {
                     .tint(Theme.textPrimary)
             }
             .padding(.horizontal, 14)
-            .frame(height: 60)
+            .frame(height: 48)
             .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText)))
             .contentShape(Rectangle())
             .onTapGesture { focus = .calories }
@@ -202,7 +199,7 @@ struct QuickAddSheet: View {
             Text("kcal")
                 .font(Theme.font(15, .medium, relativeTo: .body))
                 .foregroundStyle(Theme.textSecondary)
-                .frame(width: 72, height: 60)
+                .frame(width: 88, height: 48)
                 .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
@@ -233,7 +230,7 @@ struct QuickAddSheet: View {
         let field = QuickAddField.field(for: key)
         let binding = text(for: key)
         return VStack(alignment: .leading, spacing: 0) {
-            fieldLabel(key.label, color: Theme.color(for: key))
+            fieldLabel(key.label, color: Theme.textBody)
             HStack(spacing: 4) {
                 TextField("0", text: binding,
                           prompt: Text("0").foregroundColor(Theme.textQuaternary))
@@ -304,7 +301,7 @@ struct QuickAddSheet: View {
                     .buttonStyle(.plain)
                 }
             }
-            HStack(spacing: 8) {
+            VStack(spacing: 8) {
                 Button {
                     save(continuing: true)
                 } label: {
@@ -342,7 +339,7 @@ struct QuickAddSheet: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background {
-            Theme.background.ignoresSafeArea(.container, edges: .bottom)
+            Theme.raised.ignoresSafeArea(.container, edges: .bottom)
         }
         .overlay(alignment: .top) {
             Rectangle()
@@ -413,8 +410,8 @@ private struct QuickAddFieldBox: ViewModifier {
             .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(isInvalid ? Theme.overTarget : (isFocused ? Theme.textTertiary : Color.clear),
-                                  lineWidth: Theme.hairline)
+                    .strokeBorder(isInvalid ? Theme.overTarget : (isFocused ? Theme.textPrimary : Color.clear),
+                                  lineWidth: isFocused ? 2 : Theme.hairline)
             }
     }
 }

@@ -823,7 +823,7 @@ private struct AddEntryKeypad: View {
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Theme.hex(0x626264), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(AddEntryKeyButtonStyle())
@@ -892,10 +892,10 @@ private struct AddEntryChipLabel: View {
             .padding(.horizontal, 12)
             .frame(minHeight: 32)
             .background(isSelected ? Theme.accent : Theme.raised2,
-                        in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+                        in: Capsule())
             .overlay {
                 if isOutlined {
-                    RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                    Capsule()
                         .strokeBorder(Theme.textTertiary, lineWidth: Theme.hairline)
                 }
             }

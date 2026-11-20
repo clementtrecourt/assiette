@@ -90,12 +90,6 @@ private struct TodayPinnedHeader: View {
     /// "Restant" / "Mangé" caption + two page dots showing the current mode.
     private var modeLine: some View {
         HStack(spacing: 4) {
-            Text(showsConsumed ? "Mangé" : "Restant")
-                .font(Theme.label)
-                .tracking(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(Theme.textTertiary)
-            Spacer(minLength: 8)
             dot(on: !showsConsumed)
             dot(on: showsConsumed)
         }
@@ -105,7 +99,7 @@ private struct TodayPinnedHeader: View {
     private func dot(on: Bool) -> some View {
         Capsule()
             .fill(on ? Theme.textSecondary : Theme.separatorStrong)
-            .frame(width: on ? 12 : 5, height: 5)
+            .frame(width: 6, height: 6)
     }
 
     private var daySwipe: some Gesture {
@@ -262,7 +256,7 @@ struct TodayDayContent: View {
             TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
             TodayHairline()
         }
-        .background(Theme.background.ignoresSafeArea(edges: .top))
+        .background(Theme.raised.ignoresSafeArea(edges: .top))
     }
 
     private func timeline(buckets: TodayHourBuckets) -> some View {

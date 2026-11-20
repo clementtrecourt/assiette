@@ -61,7 +61,7 @@ struct DashboardCard<Visual: View>: View {
     let visual: Visual
 
     init(title: String, subtitle: String, value: String, unit: String = "",
-         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 44,
+         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 38,
          accessory: String = "chevron.right", @ViewBuilder visual: () -> Visual)
     {
         self.title = title
@@ -77,9 +77,9 @@ struct DashboardCard<Visual: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(Theme.font(14, .medium, relativeTo: .subheadline))
+                .font(Theme.font(17, .medium, relativeTo: .headline))
                 .foregroundStyle(Theme.textPrimary)
-                .lineLimit(1)
+                .lineLimit(2)
             Text(subtitle)
                 .font(Theme.font(12, .regular, relativeTo: .caption))
                 .foregroundStyle(Theme.textTertiary)
@@ -350,15 +350,16 @@ struct DashboardMeter: View {
 struct DashboardBar: View {
     let fraction: Double
     let color: Color
+    var fromTrailing = false
     var height: CGFloat = 5
 
     var body: some View {
         GeometryReader { geo in
             let filled = min(max(fraction, 0), 1)
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.track)
+            ZStack(alignment: fromTrailing ? .trailing : .leading) {
+                Rectangle().fill(Theme.track)
                 if filled > 0 {
-                    Capsule()
+                    Rectangle()
                         .fill(color)
                         .frame(width: max(geo.size.width * CGFloat(filled), height))
                 }

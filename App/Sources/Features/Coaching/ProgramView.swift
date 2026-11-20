@@ -215,10 +215,7 @@ private struct ProgramContent: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.textSecondary)
                     .frame(width: 36, height: 36)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-                    )
+                    .background(Theme.raised2, in: Circle())
                     .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .accessibilityLabel("Options du programme")

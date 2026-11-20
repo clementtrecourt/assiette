@@ -104,7 +104,9 @@ struct TodayMacroHeaderColumn: View {
 
     private var valueLine: some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
-            if !isCalories {
+            if isCalories {
+                Image(systemName: "flame.fill").font(.caption2)
+            } else {
                 Text(Theme.letter(for: key))
                     .font(Theme.font(12, .bold, relativeTo: .caption))
                     .foregroundStyle(Theme.textSecondary)
@@ -114,7 +116,7 @@ struct TodayMacroHeaderColumn: View {
                 .monospacedDigit()
                 .foregroundStyle(isNegative ? Theme.overTarget : Theme.textPrimary)
                 .contentTransition(.numericText())
-            Text(isCalories ? "kcal" : "g")
+            Text(showsConsumed ? (isCalories ? "kcal" : "g") : "rest.")
                 .font(Theme.font(11, .medium, relativeTo: .caption2))
                 .foregroundStyle(Theme.textTertiary)
         }
@@ -180,9 +182,9 @@ enum TodayTimelineMetrics {
     static let lineCenterTrailing: CGFloat = pillTrailing + pillWidth / 2
     /// Food cards stop before the pill column.
     static let cardTrailing: CGFloat = pillTrailing + pillWidth + 8
-    static let hourRowHeight: CGFloat = 36
+    static let hourRowHeight: CGFloat = 50
     static let addSize: CGFloat = 24
-    static let cardIconSize: CGFloat = 32
+    static let cardIconSize: CGFloat = 38
     static let cardRadius: CGFloat = 13
 }
 
@@ -378,7 +380,7 @@ struct TodayEntryCard: View {
                 .background(Circle().fill(Theme.raised2))
         }
         .padding(.horizontal, 9)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: TodayTimelineMetrics.cardRadius, style: .continuous)

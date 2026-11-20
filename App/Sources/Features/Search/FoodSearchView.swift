@@ -222,13 +222,14 @@ struct FoodSearchView: View {
                 searchContent(text: text, custom: custom, recent: recent)
             }
             AttributionFooter()
-                .listRowBackground(Theme.background)
+                .listRowBackground(Theme.raised)
                 .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.immediately)
-        .themedBackground()
+        .scrollContentBackground(.hidden)
+        .background(Theme.raised)
     }
 
     @ViewBuilder
@@ -322,11 +323,11 @@ struct FoodSearchView: View {
         }
         .padding(.horizontal, 11)
         .frame(height: 42)
-        .background(Theme.background, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(Theme.raised, in: Capsule())
         .overlay {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .strokeBorder(isSearchFocused ? Theme.textTertiary : Theme.separatorStrong,
-                              lineWidth: Theme.hairline)
+            Capsule()
+                .strokeBorder(isSearchFocused ? Theme.textPrimary : Theme.separatorStrong,
+                              lineWidth: isSearchFocused ? 2 : 1)
         }
         .contentShape(Rectangle())
         .onTapGesture { isSearchFocused = true }
@@ -340,7 +341,7 @@ struct FoodSearchView: View {
                 .foregroundStyle(Theme.onAccent)
                 .padding(.horizontal, 14)
                 .frame(height: 42)
-                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .background(Theme.accent, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -430,7 +431,7 @@ struct FoodSearchView: View {
                 }
             }
             .padding(.vertical, 6)
-            .listRowBackground(Theme.background)
+            .listRowBackground(Theme.raised)
             .listRowSeparatorTint(Theme.separator)
         }
         .listSectionSeparator(.hidden)
@@ -485,7 +486,7 @@ struct FoodSearchView: View {
                 .padding(.bottom, 6)
             }
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 6, trailing: 0))
-            .listRowBackground(Theme.background)
+            .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
         }
         .listSectionSeparator(.hidden)
@@ -532,7 +533,7 @@ struct FoodSearchView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
-            .listRowBackground(Theme.background)
+            .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
         }
         .listSectionSeparator(.hidden)
@@ -619,7 +620,7 @@ struct FoodSearchView: View {
             .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
         .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
-        .listRowBackground(checked ? Theme.raised : Theme.background)
+        .listRowBackground(checked ? Theme.raised2 : Theme.raised)
         .listRowSeparatorTint(Theme.separator)
     }
 
@@ -797,7 +798,7 @@ private struct SearchHeaderRowStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 4, trailing: 16))
-            .listRowBackground(Theme.background)
+            .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
     }
 }
