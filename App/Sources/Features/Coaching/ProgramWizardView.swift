@@ -1,46 +1,74 @@
 import SwiftData
 import SwiftUI
 
-/// "Modifier le programme": one question per screen (diet, calorie floor, training, weekly
-/// distribution, protein), then a summary of the resulting week. Nothing is saved before
-/// "Terminer". Presented full screen from the Programme tab.
+enum ProgramWizardEntry: String, Identifiable {
+    case new, edit
+    var id: Self { self }
+}
+
 struct ProgramWizardView: View {
     let profile: UserProfile
-    var initialStep = 0
+    let entry: ProgramWizardEntry
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @State private var preferences = ProgramPreferences.current
-    @State private var step = 0
+    @State private var preferences: ProgramPreferences
+    @State private var split: ProgramPreferences.MacroSplit
+    private enum Page { case intro, style, diet, floor, training, distribution, protein, targets, split, summary }
+
+    @State private var page: Page
+    @State private var mode: CoachingMode
+    @State private var manual: CoachingProposal
+    private let hasIntro: Bool
+
+    init(profile: UserProfile, entry: ProgramWizardEntry, skipIntro: Bool = false, showSummary: Bool = false) {
+        self.profile = profile
+        self.entry = entry
+        hasIntro = entry == .new && !skipIntro
+        _page = State(initialValue: showSummary ? .summary : (hasIntro ? .intro : .style))
+        _mode = State(initialValue: entry == .new ? .coached :
+            CoachingMode.current(profile: profile, collaborative: CoachingSettings.isCollaborative))
+        let draft: ProgramPreferences = entry == .new ? ProgramPreferences() : .current
+        _preferences = State(initialValue: draft)
+        _split = State(initialValue: draft.collaborativeSplit ?? .init(protein: 25, fat: 30))
+        _manual = State(initialValue: CoachingProposal(calories: profile.calorieTarget, carbs: profile.carbsTarget,
+                                                       protein: profile.proteinTarget, fat: profile.fatTarget))
+    }
     @State private var snapshot: CoachingSnapshot?
     @State private var finishTick = 0
 
-    private static let stepCount = 6
-    private var isSummary: Bool { step == Self.stepCount - 1 }
+    private var pages: [Page] {
+        switch mode {
+        case .manual: [.style, .targets, .distribution, .summary]
+        case .collaborative: [.style, .floor, .distribution, .split, .summary]
+        case .coached: [.style, .diet, .floor, .training, .distribution, .protein, .summary]
+        }
+    }
+    private var step: Int { pages.firstIndex(of: page) ?? 0 }
+    private var isSummary: Bool { page == .summary }
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            if page != .intro { header }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     content
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 28)
+                .padding(.horizontal, page == .intro ? 0 : 16)
+                .padding(.top, page == .intro ? 0 : 28)
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .id(step)
                 .transition(.opacity)
             }
+            .id(page)
             .scrollIndicators(.hidden)
             nextButton
         }
         .background(Theme.raised.ignoresSafeArea())
-        .animation(.snappy, value: step)
+        .animation(.snappy, value: page)
         .sensoryFeedback(.selection, trigger: preferences)
         .sensoryFeedback(.success, trigger: finishTick)
-        .onAppear { if initialStep > 0, step == 0 { step = min(initialStep, Self.stepCount - 1) } }
         .task {
             if snapshot == nil {
                 snapshot = CoachingService.snapshot(profile: profile, context: modelContext)
@@ -53,7 +81,7 @@ struct ProgramWizardView: View {
     private var header: some View {
         VStack(spacing: 14) {
             ZStack {
-                Text("Modifier le programme")
+                Text(entry == .new ? "Nouveau programme" : "Modifier le programme")
                     .font(Theme.font(20, .regular, relativeTo: .title3))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
@@ -61,7 +89,9 @@ struct ProgramWizardView: View {
                     .padding(.horizontal, 48)
                 HStack {
                     Button {
-                        if step == 0 { dismiss() } else { step -= 1 }
+                        if step > 0 { page = pages[step - 1] }
+                        else if hasIntro { page = .intro }
+                        else { dismiss() }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .semibold))
@@ -70,7 +100,7 @@ struct ProgramWizardView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(step == 0 ? "Fermer" : "Étape précédente")
+                    .accessibilityLabel(step == 0 && !hasIntro ? "Fermer" : "Étape précédente")
                     Spacer()
                 }
             }
@@ -79,13 +109,13 @@ struct ProgramWizardView: View {
                     Rectangle().fill(Theme.raised2)
                     Rectangle()
                         .fill(Theme.textPrimary)
-                        .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(Self.stepCount))
+                        .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(pages.count))
                 }
             }
             .frame(height: 4)
             .padding(.horizontal, 16)
             .accessibilityElement()
-            .accessibilityLabel("Étape \(step + 1) sur \(Self.stepCount)")
+            .accessibilityLabel("Étape \(step + 1) sur \(pages.count)")
         }
         .padding(.top, 6)
         .padding(.horizontal, 4)
@@ -95,17 +125,37 @@ struct ProgramWizardView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch step {
-        case 0:
+        switch page {
+        case .intro:
+            introduction
+        case .style:
+            question("Quel style de programme préférez-vous ?")
+            options(CoachingMode.allCases, selection: $mode) { ($0.systemImage, $0.label, $0.detail) }
+        case .split:
+            question("Comment répartir vos macros ?")
+            targetField("Protéines (%)", value: $split.protein)
+            targetField("Lipides (%)", value: $split.fat)
+            if split.isValid {
+                Text("Glucides · \(Formatters.number(split.carbs, maxFractionDigits: 1)) %")
+            } else {
+                Text("Le total des protéines et des lipides doit être compris entre 0 et 100 %.")
+            }
+        case .targets:
+            question("Quels objectifs souhaitez-vous fixer ?")
+            targetField("Calories (kcal)", value: $manual.calories)
+            targetField("Protéines (g)", value: $manual.protein)
+            targetField("Lipides (g)", value: $manual.fat)
+            targetField("Glucides (g)", value: $manual.carbs)
+        case .diet:
             question("Quel régime préférez-vous ?")
             options(ProgramDiet.allCases, selection: $preferences.diet) { ($0.symbol, $0.title, $0.detail) }
-        case 1:
+        case .floor:
             question("Quel plancher calorique préférez-vous ?")
             options(CalorieFloor.allCases, selection: $preferences.floor) { ($0.symbol, $0.title, $0.detail) }
-        case 2:
+        case .training:
             question("Quel entraînement ferez-vous pendant ce programme ?")
             options(ProgramTraining.allCases, selection: $preferences.training) { ($0.symbol, $0.title, nil) }
-        case 3:
+        case .distribution:
             question("Comment répartir vos calories sur la semaine ?")
             options(CalorieDistribution.allCases, selection: $preferences.distribution) {
                 ($0.symbol, $0.title, $0.detail)
@@ -114,12 +164,59 @@ struct ProgramWizardView: View {
                 shiftSettings
                     .padding(.top, 24)
             }
-        case 4:
+        case .protein:
             question("Quel apport en protéines préférez-vous ?")
             options(ProteinLevel.allCases, selection: $preferences.protein) { ($0.symbol, $0.title, $0.detail) }
-        default:
+        case .summary:
             summary
         }
+    }
+
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Image("ProgramRover")
+                .resizable()
+                .aspectRatio(1.1, contentMode: .fit)
+                .accessibilityHidden(true)
+                .overlay(alignment: .topLeading) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").font(.title2)
+                            .foregroundStyle(Theme.onAccent)
+                            .frame(width: 52, height: 52)
+                            .background(Theme.accent, in: Circle())
+                    }
+                    .accessibilityLabel("Fermer")
+                    .padding(16)
+                }
+            Text("NOUVEAU PROGRAMME")
+                .font(Theme.screenTitle(30))
+                .padding(.horizontal, 16)
+            HStack(alignment: .top, spacing: 16) {
+                Text("1").frame(width: 36, height: 36)
+                    .foregroundStyle(Theme.onAccent).background(Theme.accent, in: Circle())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Définir mes préférences").font(.headline)
+                    Text("Ces choix déterminent vos objectifs de calories et de macros.")
+                        .foregroundStyle(Theme.textBody)
+                }
+            }
+            .padding(.horizontal, 28)
+        }
+        .foregroundStyle(Theme.textPrimary)
+    }
+
+    private func targetField(_ label: String, value: Binding<Double>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField(label, value: value, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 90)
+        }
+        .padding()
+        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.bottom, 10)
     }
 
     private func question(_ text: String) -> some View {
@@ -201,17 +298,19 @@ struct ProgramWizardView: View {
 
     // MARK: Summary
 
+    private var effectivePreferences: ProgramPreferences {
+        var draft = preferences
+        draft.collaborativeSplit = mode == .collaborative ? split : nil
+        return draft
+    }
+
     private var proposal: CoachingProposal {
-        if profile.manualTargets {
-            let m = preferences.macros(calories: profile.calorieTarget, weightKg: profile.weightKg, goal: profile.goal)
-            return CoachingProposal(calories: profile.calorieTarget, carbs: m.carbs.rounded(),
-                                    protein: m.protein.rounded(), fat: m.fat.rounded())
-        }
+        if mode == .manual { return manual }
         guard let snapshot else {
             return CoachingProposal(calories: profile.calorieTarget, carbs: profile.carbsTarget,
                                     protein: profile.proteinTarget, fat: profile.fatTarget)
         }
-        return CoachingService.proposal(snapshot: snapshot, profile: profile, preferences: preferences)
+        return CoachingService.proposal(snapshot: snapshot, profile: profile, preferences: effectivePreferences)
     }
 
     private var summary: some View {
@@ -222,7 +321,7 @@ struct ProgramWizardView: View {
             question("Votre programme est prêt")
             CoachingWeekColumns(calories: p.calories, carbs: p.carbs, protein: p.protein, fat: p.fat,
                                 todayIndex: CoachingFormat.mondayIndex(of: .now),
-                                preferences: preferences, isLarge: true)
+                                preferences: effectivePreferences, isLarge: true)
             Text("Comment votre programme a-t-il été conçu ?")
                 .font(Theme.font(20, .regular, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
@@ -230,10 +329,10 @@ struct ProgramWizardView: View {
                 .padding(.top, 40)
                 .padding(.bottom, 24)
             VStack(alignment: .leading, spacing: 0) {
-                if profile.manualTargets {
+                if mode == .manual {
                     summaryStep(1, title: "Objectif manuel", value: CoachingFormat.kcalNumber(p.calories) + " kcal",
                                 color: Theme.good,
-                                text: "Vous avez saisi vous-même votre objectif calorique ; il reste inchangé.")
+                                text: "Vous avez saisi votre objectif calorique quotidien.")
                 } else {
                     let expenditure = snapshot?.expenditure ?? profile.calorieTarget
                     summaryStep(1, title: "Dépense estimée",
@@ -243,10 +342,11 @@ struct ProgramWizardView: View {
                                 value: CoachingFormat.kcalNumber(p.calories) + " kcal", color: Theme.good,
                                 text: averageText(p.calories))
                 }
-                summaryStep(profile.manualTargets ? 2 : 3, title: "Macros",
+                summaryStep(mode == .manual ? 2 : 3, title: "Macros",
                             value: "\(CoachingFormat.grams(p.carbs)) G · \(CoachingFormat.grams(p.protein)) P · \(CoachingFormat.grams(p.fat)) L",
                             color: Theme.textPrimary,
-                            text: "\(Formatters.number(perKg, maxFractionDigits: 1)) g de protéines par kg (\(preferences.protein.title.lowercased()), \(preferences.training.title.lowercased())). Régime \(preferences.diet.title.lowercased()) : le reste est réparti entre glucides et lipides.",
+                            text: mode == .collaborative ? "Votre répartition est appliquée au budget calorique proposé." :
+                                  mode == .manual ? "Ces quantités correspondent à votre saisie." : "\(Formatters.number(perKg, maxFractionDigits: 1)) g de protéines par kg (\(preferences.protein.title.lowercased()), \(preferences.training.title.lowercased())). Régime \(preferences.diet.title.lowercased()) : le reste est réparti entre glucides et lipides.",
                             isLast: true)
             }
         }
@@ -303,9 +403,11 @@ struct ProgramWizardView: View {
 
     private var nextButton: some View {
         Button {
-            if isSummary { finish() } else { step += 1 }
+            if page == .intro { page = .style }
+            else if isSummary { finish() }
+            else { page = pages[step + 1] }
         } label: {
-            Text(isSummary ? "Terminer" : "Suivant")
+            Text(page == .intro ? "Définir mes préférences" : (isSummary ? "Terminer" : "Suivant"))
                 .font(Theme.font(18, .medium, relativeTo: .body))
                 .foregroundStyle(Theme.onAccent)
                 .frame(maxWidth: .infinity)
@@ -314,22 +416,20 @@ struct ProgramWizardView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
+        .disabled((page == .split && !split.isValid) || (isSummary && snapshot == nil) || (page == .targets &&
+                   (manual.calories < 500 || manual.protein < 0 || manual.carbs < 0 || manual.fat < 0)))
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(Theme.raised.ignoresSafeArea(edges: .bottom))
     }
 
     private func finish() {
-        preferences.save()
-        if profile.manualTargets {
-            let p = proposal
-            profile.carbsTarget = p.carbs
-            profile.proteinTarget = p.protein
-            profile.fatTarget = p.fat
-            try? modelContext.save()
-        } else {
-            CoachingService.refreshTargets(profile: profile, context: modelContext)
-        }
+        guard let snapshot else { return }
+        let targets = proposal
+        effectivePreferences.save()
+        UserDefaults.standard.set(mode == .collaborative, forKey: CoachingSettings.collaborativeKey)
+        profile.manualTargets = mode == .manual
+        CoachingService.apply(targets, snapshot: snapshot, profile: profile, context: modelContext, kind: "program")
         finishTick += 1
         dismiss()
     }
@@ -367,7 +467,7 @@ struct ProgramWizardOptionCard: View {
             .padding(.leading, 16)
             .padding(.trailing, 20)
             .padding(.vertical, 16)
-            .frame(minHeight: 86)
+            .frame(minHeight: 96)
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(isSelected ? Theme.textPrimary : Theme.raised2,

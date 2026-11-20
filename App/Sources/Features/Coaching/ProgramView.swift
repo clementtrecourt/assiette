@@ -81,7 +81,7 @@ private struct ProgramContent: View {
     @State private var sheet: ProgramSheet?
     @State private var trendKg: Double?
     @State private var deleteTick = 0
-    @State private var showWizard = false
+    @State private var wizard: ProgramWizardEntry?
     /// Goal flow: true = new goal, false = edit goal.
     @State private var goalFlowIsNew: Bool?
     /// Global x of the hero header (List header inset), see the "En cours" section header.
@@ -194,9 +194,9 @@ private struct ProgramContent: View {
             }
         }
         .sensoryFeedback(.warning, trigger: deleteTick)
-        .fullScreenCover(isPresented: $showWizard) {
-            ProgramWizardView(profile: profile,
-                              initialStep: DemoSupport.startSheet == "wizard-summary" ? 5 : 0)
+        .fullScreenCover(item: $wizard) { entry in
+            ProgramWizardView(profile: profile, entry: entry,
+                              showSummary: DemoSupport.startSheet == "wizard-summary")
         }
         .fullScreenCover(isPresented: Binding(get: { goalFlowIsNew != nil },
                                               set: { if !$0 { goalFlowIsNew = nil } })) {
@@ -206,7 +206,7 @@ private struct ProgramContent: View {
         .task {
             // CI screenshots: -startTab program -startSheet wizard | wizard-summary | goal-new | goal-rate
             guard let sheet = DemoSupport.startSheet else { return }
-            if sheet.hasPrefix("wizard") { showWizard = true }
+            if sheet.hasPrefix("wizard") { wizard = .edit }
             if sheet == "goal-new" { goalFlowIsNew = true }
             if sheet == "goal-rate" { goalFlowIsNew = false }
         }
@@ -233,7 +233,7 @@ private struct ProgramContent: View {
             Spacer()
             Menu {
                 Button {
-                    showWizard = true
+                    wizard = .edit
                 } label: {
                     Label("Modifier le programme", systemImage: "slider.horizontal.3")
                 }
@@ -243,7 +243,7 @@ private struct ProgramContent: View {
                     Label("Faire le bilan maintenant", systemImage: "checklist")
                 }
                 Button {
-                    sheet = .goal(.target)
+                    wizard = .new
                 } label: {
                     Label("Nouveau programme", systemImage: "arrow.triangle.2.circlepath")
                 }
@@ -422,13 +422,13 @@ private struct ProgramContent: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Button {
-                        sheet = .goal(.target)
+                        wizard = .new
                     } label: {
                         CoachingChipLabel(title: "Nouveau programme", systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.borderless)
                     Button {
-                        showWizard = true
+                        wizard = .edit
                     } label: {
                         CoachingChipLabel(title: "Modifier", systemImage: "pencil")
                     }

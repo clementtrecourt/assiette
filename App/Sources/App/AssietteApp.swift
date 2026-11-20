@@ -58,12 +58,15 @@ struct AssietteApp: App {
         for item in itemAppearances {
             item.normal.iconColor = normal
             item.normal.titleTextAttributes = normalAttributes
-            // Icons carry 5 pt of top padding (asset viewBox); labels stay close under them.
             item.normal.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 1)
-            item.selected.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 1)
+            item.selected.titlePositionAdjustment = item.normal.titlePositionAdjustment
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = selectedAttributes
         }
+        // Keep both states on one baseline with clearance inside the selection highlight.
+        let stackedTitleOffset = UIOffset(horizontal: 0, vertical: -4)
+        appearance.stackedLayoutAppearance.normal.titlePositionAdjustment = stackedTitleOffset
+        appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = stackedTitleOffset
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }

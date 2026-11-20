@@ -157,6 +157,17 @@ enum CalorieDistribution: String, Codable, CaseIterable, Identifiable, Sendable 
 }
 
 struct ProgramPreferences: Codable, Equatable, Sendable {
+    struct MacroSplit: Codable, Equatable, Sendable {
+        var protein: Double
+        var fat: Double
+        var carbs: Double { 100 - protein - fat }
+
+        var isValid: Bool {
+            protein >= 0 && fat >= 0 && carbs >= 0 && protein <= 100 && fat <= 100
+        }
+    }
+
+    var collaborativeSplit: MacroSplit?
     var diet: ProgramDiet = .balanced
     var floor: CalorieFloor = .standard
     var training: ProgramTraining = .both
@@ -172,8 +183,9 @@ struct ProgramPreferences: Codable, Equatable, Sendable {
 
     static var current: ProgramPreferences {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode(ProgramPreferences.self, from: data)
+              var decoded = try? JSONDecoder().decode(ProgramPreferences.self, from: data)
         else { return ProgramPreferences() }
+        if !CoachingSettings.isCollaborative { decoded.collaborativeSplit = nil }
         return decoded
     }
 
@@ -190,6 +202,9 @@ struct ProgramPreferences: Codable, Equatable, Sendable {
     func macros(calories: Double, weightKg: Double, goal: WeightGoal)
         -> (protein: Double, carbs: Double, fat: Double)
     {
+        if let split = collaborativeSplit, split.isValid {
+            return (calories * split.protein / 400, calories * split.carbs / 400, calories * split.fat / 900)
+        }
         let base = goal == .lose ? 2.0 : 1.8
         let perKg = max(1.2, base + protein.offsetPerKg) * training.proteinFactor
         let proteinG = perKg * weightKg
@@ -228,6 +243,10 @@ struct ProgramPreferences: Codable, Equatable, Sendable {
         let kcal = weekCalories(average: calories)[min(max(index, 0), 6)]
         let delta = kcal - calories
         guard delta != 0 else { return (calories, protein, carbs, fat) }
+        if let split = collaborativeSplit, split.isValid {
+            return (kcal, (kcal * split.protein / 400).rounded(), (kcal * split.carbs / 400).rounded(),
+                    (kcal * split.fat / 900).rounded())
+        }
         if diet == .keto {
             return (kcal, protein, carbs, max(0, (fat + delta / 9).rounded()))
         }

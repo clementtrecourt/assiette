@@ -31,7 +31,7 @@ struct GoalFlowView: View {
         Group {
             switch page {
             case .intro: intro
-            case .program: ProgramWizardView(profile: profile)
+            case .program: ProgramWizardView(profile: profile, entry: .new, skipIntro: true)
             default: stepScreen
             }
         }
