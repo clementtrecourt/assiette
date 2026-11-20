@@ -110,7 +110,7 @@ final class FoodItemTests: XCTestCase {
 
     func testLogContextAndAppState() {
         let state = AppState()
-        XCTAssertEqual(state.selectedTab, .today)
+        XCTAssertEqual(state.selectedTab, .progress) // the app opens on Accueil
         XCTAssertEqual(state.selectedDay, state.selectedDay.startOfDay)
         XCTAssertTrue(Calendar.current.isDate(state.selectedDay, inSameDayAs: .now)
             || Calendar.current.isDate(state.selectedDay, inSameDayAs: Date.now.adding(days: -1)))
