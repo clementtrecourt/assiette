@@ -10,12 +10,14 @@ struct TodayTargets {
     var fiber: Double = 30
     var water: Double = 2000
 
-    init(profile: UserProfile?) {
+    /// Targets of `day` (weekly calorie distribution applied).
+    init(profile: UserProfile?, day: Date = .now) {
         guard let profile else { return }
-        calories = profile.calorieTarget
-        protein = profile.proteinTarget
-        carbs = profile.carbsTarget
-        fat = profile.fatTarget
+        let t = profile.targets(on: day)
+        calories = t.calories
+        protein = t.protein
+        carbs = t.carbs
+        fat = t.fat
         fiber = profile.fiberTarget
         water = profile.waterTargetMl
     }
@@ -156,7 +158,7 @@ struct TodayDayContent: View {
         _profiles = Query(sort: \UserProfile.createdAt)
     }
 
-    private var targets: TodayTargets { TodayTargets(profile: profiles.first) }
+    private var targets: TodayTargets { TodayTargets(profile: profiles.first, day: day) }
 
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 

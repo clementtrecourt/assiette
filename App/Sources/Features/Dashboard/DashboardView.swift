@@ -56,7 +56,7 @@ private struct DashboardContent: View {
     var body: some View {
         let todayEntries = recentEntries.filter { $0.day.startOfDay == today }
         let totals = NutrientValues.sum(todayEntries.map(\.nutrients))
-        let targets = DashboardTargets(profile: profile)
+        let targets = DashboardTargets(profile: profile, day: today)
         let goal = DashboardGoalProgress.compute(profile: profile, checkIns: checkIns,
                                                  weights: weights, snapshot: snapshot)
 

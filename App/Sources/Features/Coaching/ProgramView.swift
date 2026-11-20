@@ -81,6 +81,7 @@ private struct ProgramContent: View {
     @State private var sheet: ProgramSheet?
     @State private var trendKg: Double?
     @State private var deleteTick = 0
+    @State private var showWizard = false
     /// Global x of the hero header (List header inset), see the "En cours" section header.
     @State private var heroMinX: CGFloat = 16
 
@@ -191,6 +192,14 @@ private struct ProgramContent: View {
             }
         }
         .sensoryFeedback(.warning, trigger: deleteTick)
+        .fullScreenCover(isPresented: $showWizard) {
+            ProgramWizardView(profile: profile,
+                              initialStep: DemoSupport.startSheet == "wizard-summary" ? 5 : 0)
+        }
+        .task {
+            // CI screenshots: -startTab program -startSheet wizard | wizard-summary
+            if let sheet = DemoSupport.startSheet, sheet.hasPrefix("wizard") { showWizard = true }
+        }
     }
 
     /// Changes when something the trend depends on changes (check-in, weigh-in, exceptions).
@@ -213,6 +222,11 @@ private struct ProgramContent: View {
                 .accessibilityLabel("Programme, \(CoachingFormat.goalTitle(profile.goal)), \(mode.adjective)")
             Spacer()
             Menu {
+                Button {
+                    showWizard = true
+                } label: {
+                    Label("Modifier le programme", systemImage: "slider.horizontal.3")
+                }
                 Button {
                     appState.showingCheckIn = true
                 } label: {
@@ -396,17 +410,25 @@ private struct ProgramContent: View {
             cardHairline
                 .padding(.top, 22)
             VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
                     Button {
                         sheet = .goal(.target)
                     } label: {
                         CoachingChipLabel(title: "Nouveau programme", systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.borderless)
+                    Button {
+                        showWizard = true
+                    } label: {
+                        CoachingChipLabel(title: "Modifier", systemImage: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                }
                 HStack(spacing: 6) {
                     Button {
                         sheet = .targets
                     } label: {
-                        CoachingChipLabel(title: "Modifier", systemImage: "pencil")
+                        CoachingChipLabel(title: "Objectifs", systemImage: "target")
                     }
                     .buttonStyle(.borderless)
                     Button {

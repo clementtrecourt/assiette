@@ -1,8 +1,10 @@
 import SwiftData
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
-/// "Profil" tab: profile & goals, data export/import/reset, about.
+/// "Profil" tab: header (avatar, member since) and two groups of rows (Général, Réglages des
+/// fonctions) opening the settings pages. Layout measured on the reference "More" screen.
 struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
@@ -11,7 +13,20 @@ struct ProfileView: View {
         NavigationStack {
             Group {
                 if let profile = profiles.first {
-                    ProfileSettingsForm(profile: profile)
+                    ProfileHome(profile: profile)
+                        .navigationDestination(for: ProfilePage.self) { page in
+                            Group {
+                                switch page {
+                                case .foods:
+                                    CustomFoodsListView(pickContext: nil)
+                                case .about:
+                                    ProfileAboutView()
+                                default:
+                                    ProfileSettingsForm(profile: profile, page: page)
+                                }
+                            }
+                            .toolbar(.visible, for: .navigationBar)
+                        }
                 } else {
                     ProgressView()
                         .tint(Theme.textTertiary)
@@ -21,13 +36,205 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profil")
+            .toolbar(.hidden, for: .navigationBar)
         }
+    }
+}
+
+/// Settings pages of the Profil tab.
+enum ProfilePage: Hashable {
+    case account, program, foods, data, about
+
+    var title: String {
+        switch self {
+        case .account: "Compte"
+        case .program: "Programme"
+        case .foods: "Aliments et recettes"
+        case .data: "Données"
+        case .about: "À propos"
+        }
+    }
+}
+
+/// Profil root: raised header (PROFIL, avatar with initials, member since), then grouped rows.
+private struct ProfileHome: View {
+    let profile: UserProfile
+    @AppStorage(ProfileSettingsForm.nameKey) private var displayName = ""
+    @Environment(\.openURL) private var openURL
+
+    private var initials: String {
+        let words = displayName.split(separator: " ").prefix(2)
+        if words.count >= 2 { return words.compactMap(\.first).map(String.init).joined().uppercased() }
+        return String(displayName.prefix(2)).uppercased()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 26)
+                    .background(Theme.raised)
+                ProfileGroupTitle("Général")
+                ProfileGroup {
+                    ProfileNavRow(title: "Compte", systemImage: "person.crop.circle", value: .account)
+                    ProfileGroupDivider()
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    } label: {
+                        ProfileRowLabel(title: "Langue", systemImage: "globe", accessory: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Ouvre les réglages iOS de l'app")
+                }
+                ProfileGroupTitle("Réglages des fonctions")
+                ProfileGroup {
+                    ProfileNavRow(title: "Programme", systemImage: "circle.grid.3x3.circle", value: .program)
+                    ProfileGroupDivider()
+                    ProfileNavRow(title: "Aliments et recettes", systemImage: "takeoutbag.and.cup.and.straw.fill",
+                                  value: .foods)
+                    ProfileGroupDivider()
+                    ProfileNavRow(title: "Données", systemImage: "externaldrive.fill", value: .data)
+                    ProfileGroupDivider()
+                    ProfileNavRow(title: "À propos", systemImage: "info.circle.fill", value: .about)
+                }
+                AttributionFooter(includeOpenFoodFacts: true)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
+            }
+            .padding(.bottom, 24)
+        }
+        .scrollIndicators(.hidden)
+        .background(Theme.background.ignoresSafeArea())
+        .overlay(alignment: .top) {
+            // Status bar strip in the header color (ShapeStyle backgrounds fill the safe area).
+            Color.clear.frame(height: 0).background(Theme.raised)
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 26) {
+            Text("PROFIL")
+                .font(Theme.screenTitle())
+                .foregroundStyle(Theme.textPrimary)
+                .frame(height: 44)
+                .padding(.top, 2)
+                .accessibilityAddTraits(.isHeader)
+            NavigationLink(value: ProfilePage.account) {
+                HStack(spacing: 24) {
+                    Group {
+                        if initials.isEmpty {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 30, weight: .semibold))
+                        } else {
+                            Text(initials)
+                                .font(Theme.screenTitle(26))
+                        }
+                    }
+                    .foregroundStyle(Theme.onAccent)
+                    .frame(width: 66, height: 66)
+                    .background(Theme.accent, in: Circle())
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(displayName.isEmpty ? "\(profile.sex.label), \(profile.age) ans" : displayName)
+                            .font(Theme.font(19, .regular, relativeTo: .title3))
+                            .foregroundStyle(Theme.textPrimary)
+                            .lineLimit(1)
+                        Text("Membre depuis le \(profile.createdAt.formatted(.dateTime.day().month(.wide).year()))")
+                            .font(Theme.font(16, .regular, relativeTo: .callout))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct ProfileGroupTitle: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title)
+            .font(Theme.font(22, .bold, relativeTo: .title2))
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.horizontal, 16)
+            .padding(.top, 30)
+            .padding(.bottom, 16)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Rounded raised group of rows (radius 16, 16 pt side margins).
+struct ProfileGroup<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 0) { content }
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.horizontal, 16)
+    }
+}
+
+/// Separator starting under the row labels.
+struct ProfileGroupDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Theme.raised2)
+            .frame(height: 1)
+            .padding(.leading, 66)
+    }
+}
+
+/// Row: 24 pt white icon, 18 pt label, trailing chevron (or external-link icon), 66 pt high.
+struct ProfileRowLabel: View {
+    let title: String
+    let systemImage: String
+    var accessory = "chevron.right"
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Image(systemName: systemImage)
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 66)
+            Text(title)
+                .font(Theme.font(18, .regular, relativeTo: .body))
+                .foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 8)
+            Image(systemName: accessory)
+                .font(.system(size: accessory == "chevron.right" ? 15 : 18, weight: .semibold))
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.trailing, 22)
+        }
+        .frame(minHeight: 66)
+        .contentShape(Rectangle())
+    }
+}
+
+struct ProfileNavRow: View {
+    let title: String
+    let systemImage: String
+    let value: ProfilePage
+
+    var body: some View {
+        NavigationLink(value: value) {
+            ProfileRowLabel(title: title, systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
     }
 }
 
 private struct ProfileSettingsForm: View {
     @Environment(\.modelContext) private var modelContext
     let profile: UserProfile
+    let page: ProfilePage
+
+    static let nameKey = "profile.displayName"
+    @AppStorage(nameKey) private var displayName = ""
 
     @State private var showImporter = false
     @State private var pendingBackup: ProfileBackup?
@@ -68,19 +275,27 @@ private struct ProfileSettingsForm: View {
 
     var body: some View {
         Form {
-            summarySection
-                .profileListRow()
-            personalSection
-                .profileListRow()
-            programSection
-                .profileListRow()
-            foodsSection
-                .profileListRow()
-            dataSection
-                .profileListRow()
-            aboutSection
-                .profileListRow()
+            switch page {
+            case .account:
+                summarySection
+                    .profileListRow()
+                nameSection
+                    .profileListRow()
+                personalSection
+                    .profileListRow()
+            case .program:
+                programSection
+                    .profileListRow()
+            case .data:
+                dataSection
+                    .profileListRow()
+            case .foods, .about:
+                EmptyView()
+            }
         }
+        .navigationTitle(page.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .font(Theme.body)
         .listSectionSpacing(.compact)
         .themedBackground()
@@ -152,6 +367,17 @@ private struct ProfileSettingsForm: View {
     private var bmi: Double {
         let m = profile.heightCm / 100
         return m > 0 ? profile.weightKg / (m * m) : 0
+    }
+
+    private var nameSection: some View {
+        Section {
+            TextField("Prénom ou pseudo", text: $displayName)
+                .textContentType(.givenName)
+                .submitLabel(.done)
+                .foregroundStyle(Theme.textPrimary)
+        } header: {
+            ProfileSectionHeader("Nom affiché")
+        }
     }
 
     private var personalSection: some View {
@@ -248,16 +474,6 @@ private struct ProfileSettingsForm: View {
 
     private func grams(_ v: Double) -> String { "\(Formatters.number(v, maxFractionDigits: 0)) g" }
 
-    private var foodsSection: some View {
-        Section {
-            NavigationLink {
-                CustomFoodsListView(pickContext: nil)
-            } label: {
-                rowLabel("Mes aliments & recettes", systemImage: "takeoutbag.and.cup.and.straw")
-            }
-        }
-    }
-
     private var dataSection: some View {
         Section {
             NavigationLink {
@@ -293,25 +509,6 @@ private struct ProfileSettingsForm: View {
             Image(systemName: systemImage)
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(color ?? Theme.textSecondary)
-        }
-    }
-
-    private var aboutSection: some View {
-        Section {
-            NavigationLink {
-                ProfileAboutView()
-            } label: {
-                LabeledContent {
-                    Text(ProfileAboutView.appVersion)
-                        .font(Theme.callout)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.textTertiary)
-                } label: {
-                    rowLabel("À propos d'Assiette", systemImage: "info.circle")
-                }
-            }
-        } footer: {
-            AttributionFooter(includeOpenFoodFacts: true)
         }
     }
 

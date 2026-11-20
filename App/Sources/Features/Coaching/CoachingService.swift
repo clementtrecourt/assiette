@@ -65,7 +65,9 @@ enum CoachingService {
     static let maintenanceCorrectionPercent = 0.15
 
     /// Smallest calorie target a check-in or a manual adjustment can propose.
-    static var minimumCalories: Double { EngineParameters.calibrated.minimumCalories }
+    static var minimumCalories: Double { ProgramPreferences.current.floor.kcal }
+
+
 
     /// Calendar weekday (1 = Sunday … 7 = Saturday) of `date`.
     static func weekday(of date: Date = .now) -> Int {
@@ -144,17 +146,23 @@ enum CoachingService {
         }
     }
 
-    static func proposal(snapshot: CoachingSnapshot, profile: UserProfile) -> CoachingProposal {
+    static func proposal(snapshot: CoachingSnapshot, profile: UserProfile,
+                         preferences: ProgramPreferences = .current) -> CoachingProposal {
         let weight = snapshot.latestScaleKg ?? profile.weightKg
+        var parameters = EngineParameters.calibrated
+        parameters.minimumCalories = preferences.floor.kcal
         let calories = EngineCoach.calorieTarget(expenditure: snapshot.expenditure, latestScaleWeightKg: weight,
                                                  trendWeightKg: snapshot.trendKg ?? weight,
-                                                 goal: engineGoal(for: profile, trendKg: snapshot.trendKg))
-        return proposal(calories: calories, weightKg: weight, goal: profile.goal)
+                                                 goal: engineGoal(for: profile, trendKg: snapshot.trendKg),
+                                                 parameters: parameters)
+        return proposal(calories: calories, weightKg: weight, goal: profile.goal, preferences: preferences)
     }
 
-    /// Macros for a calorie target (collaborative adjustments re-split the macros the same way).
-    static func proposal(calories: Double, weightKg: Double, goal: WeightGoal) -> CoachingProposal {
-        let macros = GoalCalculator.macroTargets(calories: calories, weightKg: weightKg, goal: goal)
+    /// Macros for a calorie target (collaborative adjustments re-split the macros the same way),
+    /// following the program preferences (diet, protein level, training).
+    static func proposal(calories: Double, weightKg: Double, goal: WeightGoal,
+                         preferences: ProgramPreferences = .current) -> CoachingProposal {
+        let macros = preferences.macros(calories: calories, weightKg: weightKg, goal: goal)
         return CoachingProposal(calories: calories.rounded(), carbs: macros.carbs.rounded(),
                                 protein: macros.protein.rounded(), fat: macros.fat.rounded())
     }

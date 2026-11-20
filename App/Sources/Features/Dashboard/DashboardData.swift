@@ -13,12 +13,14 @@ struct DashboardTargets {
     var fat: Double = 70
     var fiber: Double = 30
 
-    init(profile: UserProfile?) {
+    /// Targets of `day` (weekly calorie distribution applied).
+    init(profile: UserProfile?, day: Date = .now) {
         guard let profile else { return }
-        calories = profile.calorieTarget
-        carbs = profile.carbsTarget
-        protein = profile.proteinTarget
-        fat = profile.fatTarget
+        let t = profile.targets(on: day)
+        calories = t.calories
+        carbs = t.carbs
+        protein = t.protein
+        fat = t.fat
         fiber = profile.fiberTarget
     }
 

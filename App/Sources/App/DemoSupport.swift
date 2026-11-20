@@ -6,6 +6,7 @@ import SwiftData
 ///   -demo                 seed a realistic profile + 30 days of journal/weights (fresh store only)
 ///   -startTab <name>      today | progress (Accueil) | program | profile
 ///   -startSheet <name>    search | scan | quickadd | detail | add   (presented from the journal)
+///                         wizard | wizard-summary                 (presented from Programme)
 enum DemoSupport {
     private static var arguments: [String] { ProcessInfo.processInfo.arguments }
 

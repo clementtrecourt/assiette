@@ -198,21 +198,20 @@ struct CoachingChipLabel: View {
     let systemImage: String
 
     var body: some View {
-        HStack(spacing: 5) {
+        // Reference: raised2 capsule, white 16 pt label, 40 pt high.
+        HStack(spacing: 7) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
             Text(title)
-                .font(Theme.font(12, .medium, relativeTo: .caption))
+                .font(Theme.font(16, .regular, relativeTo: .callout))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .foregroundStyle(Theme.textBody)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .foregroundStyle(Theme.textPrimary)
+        .padding(.horizontal, 14)
+        .frame(height: 40)
+        .background(Theme.raised2, in: Capsule())
+        .contentShape(Capsule())
     }
 }
 
@@ -389,70 +388,89 @@ struct CoachingWeekColumns: View {
     let todayIndex: Int
     /// Days (0 = Monday) inside an exception period, drawn dimmed.
     var excludedDays: Set<Int> = []
+    /// Weekly distribution (shifted days get their own values).
+    var preferences: ProgramPreferences = .current
+    /// Taller blocks and day letters under the columns (wizard summary).
+    var isLarge = false
 
-    private func grams(_ key: NutrientKey) -> Double {
+    private typealias Day = (calories: Double, protein: Double, carbs: Double, fat: Double)
+
+    private var days: [Day] {
+        (0..<7).map { preferences.dayTargets(weekday: $0, calories: calories, protein: protein,
+                                             carbs: carbs, fat: fat) }
+    }
+
+    private static func grams(_ key: NutrientKey, of day: Day) -> Double {
         switch key {
-        case .carbohydrates: return carbs
-        case .protein: return protein
-        case .totalFat: return fat
+        case .carbohydrates: return day.carbs
+        case .protein: return day.protein
+        case .totalFat: return day.fat
         default: return 0
         }
     }
 
-    private var maxGrams: Double { max(carbs, protein, fat, 1) }
-
     var body: some View {
-        HStack(alignment: .bottom, spacing: 4) {
+        let days = self.days
+        let maxGrams = days.map { max($0.carbs, $0.protein, $0.fat, 1) }.max() ?? 1
+        HStack(alignment: .bottom, spacing: isLarge ? 9 : 7) {
             ForEach(0..<7, id: \.self) { index in
-                column(index)
+                column(index, day: days[index], maxGrams: maxGrams)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
     }
 
-    private func column(_ index: Int) -> some View {
+    /// Measured on the reference: pill + blocks in 13 pt black text, 3 pt corners,
+    /// block height = 36 pt + 73 pt × (grams / largest macro of the week).
+    private func column(_ index: Int, day: Day, maxGrams: Double) -> some View {
         let isToday = index == todayIndex
-        return VStack(spacing: 3) {
-            Text(CoachingFormat.kcalNumber(calories))
-                .font(Theme.font(10, .bold, relativeTo: .caption2))
+        let scale: CGFloat = isLarge ? 1.25 : 1
+        return VStack(spacing: 4) {
+            Text(CoachingFormat.kcalNumber(day.calories))
+                .font(Theme.font(13, .regular, relativeTo: .caption))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(Theme.onAccent)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 3)
+                .frame(height: 26)
                 .background(Theme.calories, in: Capsule())
+                .padding(.bottom, 4)
             ForEach(Theme.macroOrder, id: \.self) { key in
-                let value = grams(key)
+                let value = Self.grams(key, of: day)
                 Text("\(Formatters.number(value, maxFractionDigits: 0)) \(Theme.letter(for: key))")
-                    .font(Theme.font(10, .bold, relativeTo: .caption2))
+                    .font(Theme.font(13, .regular, relativeTo: .caption))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(Theme.onAccent)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 30 + 68 * CGFloat(value / maxGrams))
-                    .background(Theme.color(for: key), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .frame(height: (36 + 73 * CGFloat(value / maxGrams)) * scale)
+                    .background(Theme.color(for: key), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
             }
-            Text(CoachingFormat.dayLetters[index])
-                .font(Theme.font(11, isToday ? .bold : .medium, relativeTo: .caption2))
-                .foregroundStyle(isToday ? Theme.textPrimary : Theme.textTertiary)
-                .padding(.top, 2)
+            if isLarge {
+                Text(CoachingFormat.dayLetters[index])
+                    .font(Theme.font(17, .regular, relativeTo: .body))
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.top, 14)
+            } else {
+                Text(CoachingFormat.dayLetters[index])
+                    .font(Theme.font(12, isToday ? .bold : .regular, relativeTo: .caption2))
+                    .foregroundStyle(isToday ? Theme.textPrimary : Theme.textTertiary)
+                    .padding(.top, 4)
+            }
         }
-        .padding(.horizontal, 2)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isToday ? Theme.raised2.opacity(0.7) : Color.clear)
-        )
         .opacity(excludedDays.contains(index) ? 0.35 : 1)
     }
 
     private var accessibilityText: String {
-        let macros = Theme.macroOrder
-            .map { "\($0.label) \(CoachingFormat.grams(grams($0)))" }
-            .joined(separator: ", ")
-        return "Chaque jour : \(Formatters.kcal(calories)), \(macros)"
+        let parts = days.enumerated().map { index, day in
+            let macros = Theme.macroOrder
+                .map { "\($0.label) \(CoachingFormat.grams(Self.grams($0, of: day)))" }
+                .joined(separator: ", ")
+            return "\(CoachingFormat.dayLetters[index]) : \(Formatters.kcal(day.calories)), \(macros)"
+        }
+        return parts.joined(separator: " ; ")
     }
 }

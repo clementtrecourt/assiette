@@ -232,14 +232,17 @@ private struct AddFlowRemaining: View {
     @Query private var entries: [JournalEntry]
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
 
+    private let day: Date
+
     init(day: Date) {
+        self.day = day
         let start = Calendar.current.startOfDay(for: day)
         _entries = Query(filter: #Predicate<JournalEntry> { $0.day == start })
     }
 
     var body: some View {
         let eaten = NutrientValues.sum(entries.map { $0.nutrients })
-        let targets = profiles.first?.targets
+        let targets = profiles.first?.targets(on: day)
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
             GridRow {
                 cell(.calories, eaten: eaten, targets: targets)

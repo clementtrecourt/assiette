@@ -313,7 +313,7 @@ struct QuickAddSheet: View {
                         .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .disabled(!canSave)
+                // Always lit like the reference; an empty form just focuses the energy field.
 
                 Button {
                     save(continuing: false)
@@ -329,7 +329,7 @@ struct QuickAddSheet: View {
                         .background(Theme.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .disabled(!canSave)
+                // Always lit like the reference; an empty form just focuses the energy field.
             }
         }
         .padding(.horizontal, 16)
