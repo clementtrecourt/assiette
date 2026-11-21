@@ -42,7 +42,7 @@ struct AIEstimateView: View {
         ZStack {
             if let estimate {
                 result(estimate)
-                    .transition(.move(edge: .leading))
+                    .transition(.move(edge: .trailing))
             } else {
                 Group {
                     switch mode {

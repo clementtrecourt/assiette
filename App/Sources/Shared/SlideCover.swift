@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Full-page presentations that slide in from the left edge (and leave the same way) instead of
+// Full-page presentations that slide in from the right edge (and leave the same way) instead of
 // rising from the bottom. Drop-in for `.sheet` / `.fullScreenCover`: same bindings, `onDismiss`,
 // and `@Environment(\.dismiss)` inside the content still closes it (with the slide).
 // Half-height panels (presentationDetents) stay as bottom sheets.
@@ -36,7 +36,7 @@ final class SlideCoverState: ObservableObject {
     var isHiding = false
 }
 
-/// Draws the page off screen on the left, slides it in on appear, dims what is behind.
+/// Draws the page off screen on the right, slides it in on appear, dims what is behind.
 private struct SlideCoverHost<Content: View>: View {
     @ObservedObject var state: SlideCoverState
     let content: Content
@@ -50,7 +50,7 @@ private struct SlideCoverHost<Content: View>: View {
                 content
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .background(Theme.background.ignoresSafeArea())
-                    .offset(x: state.isVisible ? 0 : -(proxy.size.width + proxy.safeAreaInsets.leading + 40))
+                    .offset(x: state.isVisible ? 0 : proxy.size.width + proxy.safeAreaInsets.trailing + 40)
             }
         }
         .presentationBackground(.clear)
