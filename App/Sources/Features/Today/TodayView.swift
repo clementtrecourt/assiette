@@ -55,7 +55,7 @@ struct TodayTitleBar<Accessory: View>: View {
             roundButton("calendar", label: "Choisir une date", action: onPickDate)
             roundButton("slider.horizontal.3",
                         label: showsConsumed ? "Afficher le restant" : "Afficher le consommé") {
-                withAnimation(.snappy) { showsConsumed.toggle() }
+                withAnimation(.quick) { showsConsumed.toggle() }
             }
             accessory
         }
@@ -161,7 +161,7 @@ struct TodayDatePickerSheet: View {
     private func go(to date: Date) {
         let target = date.startOfDay
         guard target != appState.selectedDay else { return }
-        withAnimation(.snappy) {
+        withAnimation(.quick) {
             appState.selectedDay = target
         }
     }

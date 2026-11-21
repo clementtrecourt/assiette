@@ -329,7 +329,7 @@ struct CoachingCheckInView: View {
 
     private func stepButton(systemImage: String, delta: Double) -> some View {
         Button {
-            withAnimation(.snappy) { adjustment += delta }
+            withAnimation(.quick) { adjustment += delta }
             stepTick += 1
         } label: {
             Image(systemName: systemImage)

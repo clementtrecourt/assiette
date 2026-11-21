@@ -258,7 +258,7 @@ struct CoachingGoalEditor: View {
         Section {
             ForEach(CoachingMode.allCases) { option in
                 Button {
-                    withAnimation(.snappy) { mode = option }
+                    withAnimation(.quick) { mode = option }
                 } label: {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: option.systemImage)

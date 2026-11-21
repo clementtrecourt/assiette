@@ -149,6 +149,11 @@ struct KcalLabel: View {
     }
 }
 
+extension Animation {
+    /// The app's standard motion: quick and without bounce (plain `.snappy` lasts 0.5 s).
+    static let quick = Animation.snappy(duration: 0.24)
+}
+
 extension View {
     /// Card surface: gradient fill, near-invisible border, `Theme.cardRadius` corners.
     func themedCard(radius: CGFloat = Theme.cardRadius) -> some View {
@@ -192,7 +197,7 @@ struct ProgressBar: View {
             }
         }
         .frame(height: height)
-        .animation(.snappy, value: value)
+        .animation(.quick, value: value)
     }
 }
 
@@ -211,6 +216,6 @@ struct RingView: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .animation(.snappy, value: progress)
+        .animation(.quick, value: progress)
     }
 }

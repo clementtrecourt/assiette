@@ -411,6 +411,6 @@ struct SearchMacroColumns: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .animation(.snappy, value: values)
+        .animation(.quick, value: values)
     }
 }

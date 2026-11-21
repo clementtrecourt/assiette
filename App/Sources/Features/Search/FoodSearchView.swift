@@ -20,6 +20,7 @@ struct FoodSearchView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.slideCover) private var slideCover
 
     @Query(sort: \FavoriteFood.createdAt, order: .reverse) private var favorites: [FavoriteFood]
     @Query(FoodSearchView.recentDescriptor) private var recentEntries: [JournalEntry]
@@ -205,8 +206,8 @@ struct FoodSearchView: View {
         }
         .task(id: searchKey) { await runSearch(searchKey) }
         .task {
-            // Keyboard first: the field is focused as soon as the screen appears.
-            try? await Task.sleep(for: .milliseconds(50))
+            // Keyboard first: the field is focused as soon as the page is in place.
+            await SlideCoverMotion.untilSettled(slideCover)
             isSearchFocused = true
         }
         .onChange(of: initialContext) { _, newValue in context = newValue }
@@ -340,7 +341,7 @@ struct FoodSearchView: View {
                 .fill(Theme.separator)
                 .frame(height: Theme.hairline)
         }
-        .animation(.snappy, value: selection.isEmpty)
+        .animation(.quick, value: selection.isEmpty)
     }
 
     private var searchField: some View {
@@ -670,8 +671,11 @@ struct FoodSearchView: View {
 
     private func runSearch(_ key: SearchQueryKey) async {
         guard !key.text.isEmpty else {
-            publish(results: [], custom: [], for: "")
-            isSearching = false
+            // Nothing to clear on first appearance: skip the extra render while sliding in.
+            if !searchedText.isEmpty || !results.isEmpty || !customResults.isEmpty {
+                publish(results: [], custom: [], for: "")
+            }
+            if isSearching { isSearching = false }
             return
         }
         if !isSearching { isSearching = true }

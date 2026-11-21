@@ -84,7 +84,7 @@ struct AddFlowView: View {
                     .padding(.top, 8)
                     .accessibilityHidden(true)
                 AddEntrySheet(item: openedItem, context: context, onLogged: { close() },
-                              onBack: { withAnimation(.snappy) { self.openedItem = nil } })
+                              onBack: { withAnimation(.quick) { self.openedItem = nil } })
                     .id(openedItem.id)
                     .transition(.move(edge: .trailing))
               } else {
@@ -108,7 +108,7 @@ struct AddFlowView: View {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .environment(\.addFlowOpenItem) { item in
-                        withAnimation(.snappy) { openedItem = item }
+                        withAnimation(.quick) { openedItem = item }
                     }
               }
             }
@@ -282,7 +282,7 @@ private struct AddFlowModeTabs: View {
             }
             .onAppear { proxy.scrollTo(selection, anchor: .center) }
             .onChange(of: selection) { _, mode in
-                withAnimation(.snappy) { proxy.scrollTo(mode, anchor: .center) }
+                withAnimation(.quick) { proxy.scrollTo(mode, anchor: .center) }
             }
         }
         .sensoryFeedback(.selection, trigger: selection)

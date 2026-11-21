@@ -83,7 +83,7 @@ private struct TodayPinnedHeader: View {
         .padding(.bottom, 8)
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.snappy) { showsConsumed.toggle() }
+            withAnimation(.quick) { showsConsumed.toggle() }
         }
         .gesture(daySwipe)
         .sensoryFeedback(.selection, trigger: showsConsumed)
@@ -225,7 +225,7 @@ struct TodayDayContent: View {
             guard toast != nil else { return }
             try? await Task.sleep(for: .seconds(2.2))
             guard !Task.isCancelled else { return }
-            withAnimation(.snappy) { toast = nil }
+            withAnimation(.quick) { toast = nil }
         }
         .task {
             await trackCurrentHour()
@@ -267,7 +267,7 @@ struct TodayDayContent: View {
         return List {
             if first > 0 {
                 TodayEarlyHoursRow(firstHour: first) {
-                    withAnimation(.snappy) { showsEarlyHours = true }
+                    withAnimation(.quick) { showsEarlyHours = true }
                 }
                 .todayListRow()
             }
@@ -317,7 +317,7 @@ struct TodayDayContent: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .onTapGesture { withAnimation(.snappy) { self.toast = nil } }
+                .onTapGesture { withAnimation(.quick) { self.toast = nil } }
         }
     }
 
@@ -501,13 +501,13 @@ struct TodayDayContent: View {
     private func goToToday() {
         let today = Date.now.startOfDay
         guard today != appState.selectedDay else { return }
-        withAnimation(.snappy) {
+        withAnimation(.quick) {
             appState.selectedDay = today
         }
     }
 
     private func shiftDay(_ delta: Int) {
-        withAnimation(.snappy) {
+        withAnimation(.quick) {
             appState.selectedDay = day.adding(days: delta).startOfDay
         }
     }
@@ -682,7 +682,7 @@ struct TodayDayContent: View {
     }
 
     private func showToast(_ message: String) {
-        withAnimation(.snappy) { toast = message }
+        withAnimation(.quick) { toast = message }
     }
 
     // MARK: - CI demo mode

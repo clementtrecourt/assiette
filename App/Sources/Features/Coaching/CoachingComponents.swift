@@ -373,7 +373,7 @@ struct CoachingCountdownRing<Center: View>: View {
                 .frame(width: Self.innerDiameter - 38)
         }
         .frame(width: Self.size, height: Self.size)
-        .animation(.snappy, value: filledDays)
+        .animation(.quick, value: filledDays)
     }
 }
 

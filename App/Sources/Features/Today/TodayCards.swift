@@ -151,7 +151,7 @@ private struct TodayMacroBar: View {
             }
         }
         .frame(height: 4)
-        .animation(.snappy, value: fraction)
+        .animation(.quick, value: fraction)
         .accessibilityHidden(true)
     }
 }

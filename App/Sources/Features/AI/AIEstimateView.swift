@@ -283,7 +283,7 @@ struct AIEstimateView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(alignment: .topTrailing) {
                         Button {
-                            withAnimation(.snappy) { photos.removeAll { $0.id == photo.id } }
+                            withAnimation(.quick) { photos.removeAll { $0.id == photo.id } }
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 11, weight: .bold))
@@ -448,7 +448,7 @@ struct AIEstimateView: View {
 
     private func addPhoto(_ image: UIImage) {
         guard photos.count < Self.maxPhotos, let photo = AIPhoto(image) else { return }
-        withAnimation(.snappy) { photos.append(photo) }
+        withAnimation(.quick) { photos.append(photo) }
     }
 }
 

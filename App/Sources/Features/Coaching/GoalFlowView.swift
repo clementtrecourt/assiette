@@ -36,7 +36,7 @@ struct GoalFlowView: View {
             }
         }
         .background(Theme.raised.ignoresSafeArea())
-        .animation(.snappy, value: page)
+        .animation(.quick, value: page)
         .sensoryFeedback(.success, trigger: savedTick)
         .task { load() }
     }
@@ -391,7 +391,7 @@ struct GoalFlowHeader: View {
             }
             .frame(height: 4)
             .padding(.horizontal, 16)
-            .animation(.snappy, value: progress)
+            .animation(.quick, value: progress)
         }
         .padding(.top, 6)
         .padding(.horizontal, 4)

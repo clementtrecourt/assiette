@@ -40,6 +40,7 @@ private enum QuickAddField: Hashable {
 /// sheet (own NavigationStack); `AddFlowView` embeds it with `isEmbedded: true`.
 struct QuickAddSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.slideCover) private var slideCover
     @Environment(\.modelContext) private var modelContext
 
     private let context: LogContext
@@ -175,8 +176,8 @@ struct QuickAddSheet: View {
         .background(Theme.raised.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .task {
-            // Keyboard first: energy field focused as soon as the screen appears.
-            try? await Task.sleep(for: .milliseconds(50))
+            // Keyboard first: energy field focused as soon as the page is in place.
+            await SlideCoverMotion.untilSettled(slideCover)
             if focus == nil { focus = .calories }
         }
     }
@@ -387,7 +388,7 @@ struct QuickAddSheet: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
         if continuing {
-            withAnimation(.snappy) {
+            withAnimation(.quick) {
                 lastAdded = "\(item.name) ajouté : \(Formatters.kcal(energy)) à \(timeLabel)"
             }
             name = ""

@@ -148,9 +148,9 @@ struct BarcodeScanView: View {
         .background {
             Color.black.ignoresSafeArea()
         }
-        .animation(.snappy, value: phase)
-        .animation(.snappy, value: labelPhase)
-        .animation(.snappy, value: mode)
+        .animation(.quick, value: phase)
+        .animation(.quick, value: labelPhase)
+        .animation(.quick, value: mode)
     }
 
     // MARK: - Layers

@@ -485,7 +485,7 @@ struct AddEntrySheet: View {
     private var dayShare: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Impact sur les objectifs")
-                .font(Theme.font(19, .bold, relativeTo: .title3))
+                .font(Theme.font(18, .bold, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
                 .padding(.bottom, 2)
             HStack(spacing: 0) {
@@ -564,7 +564,7 @@ struct AddEntrySheet: View {
         HStack(spacing: 8) {
             HStack(alignment: .center, spacing: 1) {
                 Text(quantityText.isEmpty ? " " : quantityText)
-                    .font(Theme.font(21, .regular, relativeTo: .title3))
+                    .font(Theme.font(15, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .padding(.horizontal, replacesOnType ? 2 : 0)
@@ -577,14 +577,14 @@ struct AddEntrySheet: View {
                 if !replacesOnType || quantityText.isEmpty {
                     Rectangle()
                         .fill(Theme.textPrimary)
-                        .frame(width: 2, height: 24)
+                        .frame(width: 2, height: 19)
                         .opacity(caretOn ? 1 : 0.1)
                         .animation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true), value: caretOn)
                 }
             }
             Spacer(minLength: 4)
             Text(quantityDetail)
-                .font(Theme.font(20, .regular, relativeTo: .title3))
+                .font(Theme.font(15, .regular, relativeTo: .body))
                 .monospacedDigit()
                 .foregroundStyle(quantity == nil ? Theme.overTarget : Theme.textPrimary)
                 .lineLimit(1)
@@ -819,7 +819,12 @@ struct AddEntrySheet: View {
             UserDefaults.standard.set(grams, forKey: AddEntrySheet.defaultsKey(for: item))
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        if !andContinue { onLogged?() }
+        if !andContinue, let onLogged {
+            onLogged()
+            // Embedded in the add flow, `onLogged` closes the whole page: going back to the
+            // search first would refocus its field (keyboard up) while the page slides out.
+            if onBack != nil { return }
+        }
         close()
     }
 
@@ -876,14 +881,14 @@ private struct AddEntryMacroSummary: View {
         HStack(alignment: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Text(Formatters.number(portion.calories, maxFractionDigits: 0))
-                    .font(Theme.font(40, .bold, relativeTo: .largeTitle))
+                    .font(Theme.font(34, .bold, relativeTo: .largeTitle))
                     .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 Text("Calories")
-                    .font(Theme.font(16, .regular, relativeTo: .callout))
+                    .font(Theme.font(14, .regular, relativeTo: .callout))
                     .foregroundStyle(AddEntryPanel.label)
                     .padding(.top, -6)
             }
@@ -893,7 +898,7 @@ private struct AddEntryMacroSummary: View {
             ForEach(Theme.macroOrder, id: \.self) { key in
                 VStack(spacing: 0) {
                     Text(energyShare(key))
-                        .font(Theme.font(15, .regular, relativeTo: .subheadline))
+                        .font(Theme.font(13, .regular, relativeTo: .subheadline))
                         .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
                         .padding(.horizontal, 12)
@@ -901,13 +906,13 @@ private struct AddEntryMacroSummary: View {
                         .background(AddEntryPanel.pill(key), in: Capsule())
                         .padding(.bottom, 8)
                     Text(Formatters.number(portion.value(key), maxFractionDigits: 1))
-                        .font(Theme.font(23, .bold, relativeTo: .title2))
+                        .font(Theme.font(20, .bold, relativeTo: .title2))
                         .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(key.label)
-                        .font(Theme.font(16, .regular, relativeTo: .callout))
+                        .font(Theme.font(14, .regular, relativeTo: .callout))
                         .foregroundStyle(AddEntryPanel.label)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -917,7 +922,7 @@ private struct AddEntryMacroSummary: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .animation(.snappy, value: portion)
+        .animation(.quick, value: portion)
     }
 }
 
@@ -938,7 +943,7 @@ private struct AddEntryDayRing: View {
                             style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 Text(Formatters.percent(fraction))
-                    .font(Theme.font(17, .regular, relativeTo: .body))
+                    .font(Theme.font(15, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
@@ -946,7 +951,7 @@ private struct AddEntryDayRing: View {
                     .padding(.horizontal, 6)
             }
             .frame(width: 58, height: 58)
-            .animation(.snappy, value: fraction)
+            .animation(.quick, value: fraction)
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textSecondary)
@@ -1014,13 +1019,13 @@ private struct AddEntryKeypad<Actions: View>: View {
                     Text("/")
                 case .space:
                     Image(systemName: "space")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                 case .delete:
                     Image(systemName: "delete.left.fill")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                 }
             }
-            .font(Theme.font(26, .regular, relativeTo: .title2))
+            .font(Theme.font(22, .regular, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: 46)
@@ -1062,7 +1067,7 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Theme.font(18, .medium, relativeTo: .body))
+            .font(Theme.font(15, .medium, relativeTo: .body))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .foregroundStyle(isPrimary ? Theme.onAccent : Theme.textPrimary)
@@ -1083,7 +1088,7 @@ private struct AddEntryChipLabel: View {
 
     var body: some View {
         Text(label)
-            .font(Theme.font(18, .regular, relativeTo: .body))
+            .font(Theme.font(14, .regular, relativeTo: .body))
             .monospacedDigit()
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 20)

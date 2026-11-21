@@ -144,7 +144,7 @@ struct OnboardingView: View {
     private func go(to newStep: Step) {
         forward = newStep.rawValue > step.rawValue
         if newStep == .summary { refreshComputedTargets() }
-        withAnimation(.snappy) { step = newStep }
+        withAnimation(.quick) { step = newStep }
     }
 
     private func advance() {
@@ -390,7 +390,7 @@ struct OnboardingView: View {
                         OnboardingChoiceRow(title: option.label, detail: nil,
                                             systemImage: goalSymbol(option),
                                             isSelected: goal == option) {
-                            withAnimation(.snappy) { goal = option }
+                            withAnimation(.quick) { goal = option }
                             selectionTrigger += 1
                         }
                     }

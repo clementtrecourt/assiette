@@ -76,7 +76,7 @@ struct NutritionTableView: View {
             if !groups.isEmpty {
                 NutritionTableHairline().padding(.top, 2)
                 Button {
-                    withAnimation(.snappy) { showAll.toggle() }
+                    withAnimation(.quick) { showAll.toggle() }
                 } label: {
                     HStack {
                         Text(showAll ? "Masquer le détail" : "Voir tous les nutriments")

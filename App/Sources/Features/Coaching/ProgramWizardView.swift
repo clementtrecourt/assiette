@@ -66,7 +66,7 @@ struct ProgramWizardView: View {
             nextButton
         }
         .background(Theme.raised.ignoresSafeArea())
-        .animation(.snappy, value: page)
+        .animation(.quick, value: page)
         .sensoryFeedback(.selection, trigger: preferences)
         .sensoryFeedback(.success, trigger: finishTick)
         .task {

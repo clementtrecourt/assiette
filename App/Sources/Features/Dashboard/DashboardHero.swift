@@ -143,7 +143,7 @@ struct DashboardCalorieRing<Center: View>: View {
         }
         .padding(4)
         .frame(width: 178, height: 178)
-        .animation(.snappy, value: fraction)
+        .animation(.quick, value: fraction)
     }
 }
 
@@ -229,7 +229,7 @@ struct DashboardModePicker: View {
 
     private func segment(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button {
-            withAnimation(.snappy) { action() }
+            withAnimation(.quick) { action() }
         } label: {
             Text(title)
                 .font(Theme.font(13, selected ? .bold : .medium, relativeTo: .subheadline))
