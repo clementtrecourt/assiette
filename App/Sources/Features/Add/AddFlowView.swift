@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 // CONTRACT (used by RootView, the journal and the dashboard) — keep these signatures:
-//   AddFlowView(request: AddFlowRequest)   the add sheet (modes Scanner / Rechercher / Rapide / Recettes)
+//   AddFlowView(request: AddFlowRequest)   the add sheet (modes Scanner / Rechercher / IA / Rapide / Recettes)
 //   AddShortcutsSheet()                     the "+" tab sheet
 //   AddSearchBar()                          floating "Rechercher un aliment" bar above the tab bar
 // Open the flow with `appState.presentAdd(.search, context: ...)`.
@@ -33,6 +33,7 @@ extension AddMode {
         switch self {
         case .scan: "Scanner"
         case .search: "Rechercher"
+        case .ai: "IA"
         case .quick: "Rapide"
         case .recipes: "Recettes"
         }
@@ -42,6 +43,7 @@ extension AddMode {
         switch self {
         case .scan: "barcode.viewfinder"
         case .search: "magnifyingglass"
+        case .ai: "sparkles"
         case .quick: "bolt"
         case .recipes: "book.closed"
         }
@@ -135,6 +137,8 @@ struct AddFlowView: View {
             FoodSearchView(embeddedIn: context,
                            onLogged: { close() },
                            onQuickAdd: { mode = .quick })
+        case .ai:
+            AIEstimateView(context: context, onLogged: { close() })
         case .quick:
             QuickAddSheet(context: context, isEmbedded: true, onLogged: { close() })
         case .recipes:

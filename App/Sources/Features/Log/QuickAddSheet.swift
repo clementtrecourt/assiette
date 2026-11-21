@@ -60,10 +60,18 @@ struct QuickAddSheet: View {
         self.init(context: context, isEmbedded: false, onLogged: onLogged)
     }
 
-    init(context: LogContext, isEmbedded: Bool, onLogged: (() -> Void)? = nil) {
+    /// `estimate`: values from a meal photo (IA tab), prefilled for review.
+    init(context: LogContext, isEmbedded: Bool, estimate: PhotoEstimate? = nil, onLogged: (() -> Void)? = nil) {
         self.context = context
         self.isEmbedded = isEmbedded
         self.onLogged = onLogged
+        if let estimate {
+            _name = State(initialValue: estimate.name)
+            _caloriesText = State(initialValue: Formatters.number(estimate.kcal, maxFractionDigits: 0))
+            _carbsText = State(initialValue: Formatters.number(estimate.carbsG, maxFractionDigits: 0))
+            _proteinText = State(initialValue: Formatters.number(estimate.proteinG, maxFractionDigits: 0))
+            _fatText = State(initialValue: Formatters.number(estimate.fatG, maxFractionDigits: 0))
+        }
     }
 
     // MARK: - Parsing

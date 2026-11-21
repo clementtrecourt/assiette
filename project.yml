@@ -22,7 +22,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.assiette.ios
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Assiette
-        INFOPLIST_KEY_NSCameraUsageDescription: "La caméra sert à scanner le code-barres des produits et à lire les étiquettes nutritionnelles."
+        INFOPLIST_KEY_NSCameraUsageDescription: "La caméra sert à scanner le code-barres des produits, à lire les étiquettes nutritionnelles et à photographier un repas pour en estimer les calories."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

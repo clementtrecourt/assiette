@@ -26,7 +26,7 @@ struct LogContext: Hashable, Sendable {
 
 /// How the add flow opens (tabs of the add sheet).
 enum AddMode: String, Hashable, CaseIterable, Identifiable, Sendable {
-    case scan, search, quick, recipes
+    case scan, search, ai, quick, recipes
     var id: String { rawValue }
 }
 
