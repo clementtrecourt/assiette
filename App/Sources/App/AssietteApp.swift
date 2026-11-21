@@ -187,10 +187,10 @@ struct RootView: View {
         .sheet(isPresented: $appState.showingShortcuts) {
             AddShortcutsSheet()
         }
-        .fullScreenCover(item: $appState.addFlow) { request in
+        .slideCover(item: $appState.addFlow) { request in
             AddFlowView(request: request)
         }
-        .sheet(isPresented: $appState.showingCheckIn) {
+        .slideCover(isPresented: $appState.showingCheckIn) {
             if let profile = profiles.first {
                 CoachingCheckInView(profile: profile)
             }
@@ -209,7 +209,7 @@ struct RootView: View {
                 await updates.checkIfStale()
             }
         }
-        .fullScreenCover(isPresented: needsOnboarding) {
+        .slideCover(isPresented: needsOnboarding) {
             OnboardingView()
         }
     }

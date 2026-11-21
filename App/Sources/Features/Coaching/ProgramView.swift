@@ -194,11 +194,11 @@ private struct ProgramContent: View {
             }
         }
         .sensoryFeedback(.warning, trigger: deleteTick)
-        .fullScreenCover(item: $wizard) { entry in
+        .slideCover(item: $wizard) { entry in
             ProgramWizardView(profile: profile, entry: entry,
                               showSummary: DemoSupport.startSheet == "wizard-summary")
         }
-        .fullScreenCover(isPresented: Binding(get: { goalFlowIsNew != nil },
+        .slideCover(isPresented: Binding(get: { goalFlowIsNew != nil },
                                               set: { if !$0 { goalFlowIsNew = nil } })) {
             GoalFlowView(profile: profile, isNew: goalFlowIsNew ?? true,
                          initialPage: DemoSupport.startSheet == "goal-rate" ? .target : .intro)

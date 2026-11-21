@@ -53,7 +53,7 @@ struct BarcodeScanView: View {
         Group {
             if embedded {
                 scanner
-                    .sheet(item: $detailItem) { item in
+                    .slideCover(item: $detailItem) { item in
                         NavigationStack {
                             FoodDetailView(item: item, context: context, onLogged: finishLogging)
                         }
@@ -90,7 +90,7 @@ struct BarcodeScanView: View {
                 handle(code: code, force: true)
             }
         }
-        .sheet(item: $itemToLog, onDismiss: {
+        .slideCover(item: $itemToLog, onDismiss: {
             if closeAfterLogging {
                 closeAfterLogging = false
                 finishLogging()
@@ -100,7 +100,7 @@ struct BarcodeScanView: View {
                 closeAfterLogging = true
             })
         }
-        .sheet(item: $editorRequest, onDismiss: refreshAfterEditor) { request in
+        .slideCover(item: $editorRequest, onDismiss: refreshAfterEditor) { request in
             CustomFoodEditor(food: nil, prefill: request.prefill, barcode: request.barcode)
         }
         .task {

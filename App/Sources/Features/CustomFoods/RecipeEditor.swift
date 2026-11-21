@@ -130,7 +130,7 @@ struct RecipeEditor: View {
                     Button("OK") { focused = nil }
                 }
             }
-            .sheet(isPresented: $showPicker) {
+            .slideCover(isPresented: $showPicker) {
                 RecipeIngredientPicker(excludedID: recipe?.id) { ingredient in
                     withAnimation { ingredients.append(ingredient) }
                     addedTick += 1

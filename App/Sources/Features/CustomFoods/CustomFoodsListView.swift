@@ -142,7 +142,7 @@ struct CustomFoodsListView: View {
                 }
             }
         }
-        .sheet(item: $sheet, onDismiss: {
+        .slideCover(item: $sheet, onDismiss: {
             if didLog {
                 didLog = false
                 onLogged?()

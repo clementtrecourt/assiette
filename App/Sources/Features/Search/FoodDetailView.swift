@@ -105,7 +105,7 @@ struct FoodDetailView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             addButton
         }
-        .sheet(isPresented: $showAddSheet, onDismiss: {
+        .slideCover(isPresented: $showAddSheet, onDismiss: {
             if didLog {
                 didLog = false
                 onLogged?()

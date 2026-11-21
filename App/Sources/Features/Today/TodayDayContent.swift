@@ -197,7 +197,7 @@ struct TodayDayContent: View {
         .navigationDestination(isPresented: $showNutrients) {
             TodayNutrientsView(day: day, totals: totals, targets: targets, entryCount: entries.count)
         }
-        .sheet(item: $sheet) { destination in
+        .slideCover(item: $sheet) { destination in
             sheetContent(destination)
         }
         .sheet(isPresented: $showDatePicker) {

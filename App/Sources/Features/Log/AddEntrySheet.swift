@@ -284,7 +284,7 @@ struct AddEntrySheet: View {
                 Button("Supprimer", role: .destructive) { deleteEntry() }
                 Button("Annuler", role: .cancel) {}
             }
-            .sheet(isPresented: $showCustomEditor) {
+            .slideCover(isPresented: $showCustomEditor) {
                 CustomFoodEditor(food: nil, prefill: item)
             }
             .sensoryFeedback(.selection, trigger: favoriteToggles)
@@ -416,7 +416,7 @@ struct AddEntrySheet: View {
                 Button("Supprimer", role: .destructive) { deleteEntry() }
                 Button("Annuler", role: .cancel) {}
             }
-            .sheet(isPresented: $showCustomEditor) {
+            .slideCover(isPresented: $showCustomEditor) {
                 CustomFoodEditor(food: nil, prefill: item)
             }
             .sensoryFeedback(.selection, trigger: favoriteToggles)

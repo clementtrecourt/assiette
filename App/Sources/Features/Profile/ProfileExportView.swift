@@ -224,7 +224,7 @@ struct ProfileAboutView: View {
         .themedBackground()
         .navigationTitle("À propos")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showsFluentLicense) {
+        .slideCover(isPresented: $showsFluentLicense) {
             ProfileAboutLicenseSheet(title: "Fluent Emoji",
                                      resource: "FluentEmoji-LICENSE",
                                      sourceURL: URL(string: "https://github.com/microsoft/fluentui-emoji"))

@@ -214,7 +214,7 @@ struct FoodSearchView: View {
             // A food created from this screen shows up without retyping.
             customResults = matchingCustomFoods(for: searchedText)
         }
-        .sheet(item: $activeSheet, onDismiss: sheetDismissed) { sheet in
+        .slideCover(item: $activeSheet, onDismiss: sheetDismissed) { sheet in
             sheetContent(sheet)
         }
         .sensoryFeedback(.success, trigger: loggedCount)
