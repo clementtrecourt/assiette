@@ -17,13 +17,15 @@ enum NutritionEngine {
     /// - Parameters:
     ///   - days: contiguous history, one entry per calendar day (see `EngineDay.contiguous`).
     ///   - initialExpenditure: starting estimate, e.g. `GoalCalculator.tdee`.
-    static func run(days: [EngineDay], initialExpenditure: Double,
+    ///   - anchor: known expenditure on one day, the estimate restarts from it (see `EngineExpenditure.Anchor`).
+    static func run(days: [EngineDay], initialExpenditure: Double, anchor: EngineExpenditure.Anchor? = nil,
                     parameters: EngineParameters = .calibrated) -> [DayResult]
     {
         let trend = EngineWeightTrend.compute(scaleWeights: days.map(\.scaleWeightKg), parameters: parameters)
         let realtime = trend.map { $0?.realtime }
         let expenditure = EngineExpenditure.estimate(days: days, realtimeTrend: realtime,
-                                                     initial: initialExpenditure, parameters: parameters)
+                                                     initial: initialExpenditure, anchor: anchor,
+                                                     parameters: parameters)
         return days.indices.map { i in
             DayResult(date: days[i].date, realtimeTrendKg: trend[i]?.realtime,
                       smoothedTrendKg: trend[i]?.smoothed, expenditure: expenditure[i])

@@ -28,6 +28,17 @@ final class EngineExpenditureTests: XCTestCase {
         XCTAssertEqual(run(days, initial: 2500).last!, 2500, accuracy: 60)
     }
 
+    func testAnchorResetsEstimateThenKeepsAdapting() {
+        let days = EngineFixtures.synthetic(days: 120, trueExpenditure: 2500, intake: 2000)
+        let anchored = NutritionEngine.run(days: days, initialExpenditure: 2000,
+                                           anchor: .init(index: 60, kcal: 2300)).map(\.expenditure)
+        let free = run(days, initial: 2000)
+        XCTAssertEqual(Array(anchored[..<60]), Array(free[..<60]), "days before the anchor are unchanged")
+        XCTAssertEqual(anchored[60], 2300)
+        XCTAssertGreaterThan(anchored[61], 2300, "adapts toward the true value after the anchor")
+        XCTAssertLessThan(abs(anchored[61] - 2300), 25, "moves slowly from the anchor")
+    }
+
     func testFirstWindowWaitsForHistory() {
         let days = EngineFixtures.synthetic(days: 10, trueExpenditure: 2500, intake: 2000)
         let estimate = run(days, initial: 2100)

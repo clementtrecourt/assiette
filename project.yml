@@ -22,6 +22,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.assiette.ios
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Assiette
+        INFOPLIST_KEY_NSHealthShareUsageDescription: "Assiette lit vos pesées et vos apports nutritionnels enregistrés dans Santé (par exemple par MacroFactor) pour calculer votre tendance de poids et votre dépense."
+        CODE_SIGN_ENTITLEMENTS: App/Assiette.entitlements
         INFOPLIST_KEY_NSCameraUsageDescription: "La caméra sert à scanner le code-barres des produits, à lire les étiquettes nutritionnelles et à photographier un repas pour en estimer les calories."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait

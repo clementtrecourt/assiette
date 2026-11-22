@@ -114,6 +114,7 @@ struct AssietteApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .modifier(HealthSyncModifier())
                 .environment(appState)
                 .environment(\.locale, Formatters.locale)
                 .preferredColorScheme(.dark)

@@ -101,6 +101,10 @@ jobs:
             2>&1 | tee build/device.log | xcbeautify --renderer github-actions
           mkdir -p build/ipa/Payload
           cp -R build/device/Build/Products/Release-iphoneos/Assiette.app build/ipa/Payload/
+          # Unsigned builds carry no entitlements: an ad-hoc signature embeds HealthKit's so the
+          # re-signing tool (Feather, Sideloadly…) keeps it in the provisioning it requests.
+          codesign --force --sign - --entitlements App/Assiette.entitlements build/ipa/Payload/Assiette.app
+          codesign -d --entitlements - build/ipa/Payload/Assiette.app
           (cd build/ipa && zip -qry ../Assiette.ipa Payload)
           ls -lh build/Assiette.ipa
 

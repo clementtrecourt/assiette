@@ -14,6 +14,7 @@ enum AppSchema {
         FavoriteFood.self,
         ExceptionPeriod.self,
         CoachingCheckIn.self,
+        HealthDay.self,
     ]
 }
 
@@ -232,6 +233,10 @@ final class UserProfile {
     var lastCheckInDate: Date?
     /// Expenditure the engine starts from, frozen at the first check-in; nil = Mifflin-St Jeor × activity.
     var initialExpenditure: Double?
+    /// Expenditure entered by the user on `expenditureAnchorDate` (e.g. MacroFactor's value when
+    /// switching apps): the estimate is reset to it that day, then keeps adapting.
+    var expenditureAnchorKcal: Double?
+    var expenditureAnchorDate: Date?
 
     init() {}
 
@@ -284,6 +289,23 @@ final class WeightEntry {
     init(date: Date, kg: Double) {
         self.date = date
         self.kg = kg
+    }
+}
+
+/// Daily nutrition totals read from Apple Health (written by MacroFactor or another app).
+/// The adaptive engine uses them on days without any journal entry; they never appear in the journal.
+@Model
+final class HealthDay {
+    /// Start of the day.
+    var day: Date = Date.now
+    var kcal: Double = 0
+    var protein: Double?
+    var carbs: Double?
+    var fat: Double?
+
+    init(day: Date, kcal: Double) {
+        self.day = day
+        self.kcal = kcal
     }
 }
 

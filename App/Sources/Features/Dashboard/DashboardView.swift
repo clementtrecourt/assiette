@@ -38,6 +38,7 @@ private struct DashboardContent: View {
     @Query(sort: \CoachingCheckIn.date) private var checkIns: [CoachingCheckIn]
 
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
+    @AppStorage(HealthImport.lastSyncKey) private var healthSync = 0.0
     @State private var snapshot = CoachingSnapshot()
     @State private var showingAddWeight = false
 
@@ -332,6 +333,7 @@ private struct DashboardContent: View {
             "\(weights.count)", "\(lastKg)",
             "\(checkIns.count)",
             "\(profile?.calorieTarget ?? 0)", "\(profile?.initialExpenditure ?? 0)",
+            "\(profile?.expenditureAnchorKcal ?? 0)", "\(healthSync)",
         ].joined(separator: "|")
     }
 

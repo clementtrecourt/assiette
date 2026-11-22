@@ -104,6 +104,13 @@ enum CoachingService {
             }
         }
         let exceptions = (try? context.fetch(FetchDescriptor<ExceptionPeriod>())) ?? []
+        // Days imported from Apple Health count only when nothing was logged in Assiette that day.
+        if let healthDays = try? context.fetch(FetchDescriptor<HealthDay>()) {
+            for health in healthDays where health.kcal > 0 {
+                let day = calendar.startOfDay(for: health.day)
+                if intakeByDay[day] == nil { intakeByDay[day] = health.kcal }
+            }
+        }
 
         let initial = profile.initialExpenditure ?? GoalCalculator.targets(for: profile).tdee
         var snapshot = CoachingSnapshot(initialExpenditure: initial, expenditure: initial)
@@ -125,7 +132,16 @@ enum CoachingService {
             day = calendar.startOfDay(for: next)
         }
 
-        snapshot.days = NutritionEngine.run(days: raw, initialExpenditure: initial)
+        var anchor: EngineExpenditure.Anchor?
+        if let kcal = profile.expenditureAnchorKcal, let date = profile.expenditureAnchorDate {
+            let anchorDay = calendar.startOfDay(for: date)
+            if let index = raw.firstIndex(where: { $0.date == anchorDay }) {
+                anchor = .init(index: index, kcal: kcal)
+            } else if anchorDay < firstDay {
+                anchor = .init(index: 0, kcal: kcal)
+            }
+        }
+        snapshot.days = NutritionEngine.run(days: raw, initialExpenditure: initial, anchor: anchor)
         snapshot.intake = raw.map(\.usableIntake)
         snapshot.expenditure = snapshot.days.last?.expenditure ?? initial
         snapshot.trendKg = snapshot.days.last?.smoothedTrendKg

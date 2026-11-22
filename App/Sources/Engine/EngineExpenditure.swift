@@ -8,6 +8,14 @@ import Foundation
 /// stable (a few kcal per day) while still following real changes within a few weeks.
 /// Unlogged and partial days are ignored, never counted as zero.
 enum EngineExpenditure {
+    /// A known expenditure on one day (e.g. the value MacroFactor showed when switching apps):
+    /// the estimate is set to it that day and keeps adapting from there.
+    struct Anchor: Equatable, Sendable {
+        /// Index of the day in `days`.
+        var index: Int
+        var kcal: Double
+    }
+
     /// Energy-balance expenditure for the window ending at `index`, or nil when it can't be measured.
     static func energyBalance(at index: Int, days: [EngineDay], realtimeTrend: [Double?],
                               parameters: EngineParameters = .calibrated) -> Double?
@@ -27,12 +35,17 @@ enum EngineExpenditure {
 
     /// Expenditure for every day. `initial` (e.g. a Mifflin-St Jeor × activity estimate, or a value
     /// the user enters) is the estimate on the day before `days[startIndex]`; days before
-    /// `startIndex` keep it, earlier history still feeds the energy-balance windows.
+    /// `startIndex` keep it, earlier history still feeds the energy-balance windows. On `anchor.index`
+    /// the estimate is replaced by `anchor.kcal`.
     static func estimate(days: [EngineDay], realtimeTrend: [Double?], initial: Double, startIndex: Int = 0,
-                         parameters: EngineParameters = .calibrated) -> [Double]
+                         anchor: Anchor? = nil, parameters: EngineParameters = .calibrated) -> [Double]
     {
         var expenditure = initial
         return days.indices.map { index in
+            if let anchor, anchor.index == index {
+                expenditure = anchor.kcal
+                return expenditure
+            }
             if index >= startIndex, let balance = energyBalance(at: index, days: days, realtimeTrend: realtimeTrend, parameters: parameters) {
                 expenditure += parameters.expenditureAdaptationRate * (balance - expenditure)
             }

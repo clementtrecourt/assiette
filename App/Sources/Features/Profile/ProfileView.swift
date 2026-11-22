@@ -486,6 +486,11 @@ private struct ProfileSettingsForm: View {
             } label: {
                 rowLabel("Importer une sauvegarde", systemImage: "square.and.arrow.down")
             }
+            NavigationLink {
+                HealthImportSettings()
+            } label: {
+                rowLabel("Apple Santé", systemImage: "heart")
+            }
             Button(role: .destructive) {
                 warningTrigger += 1
                 showEraseConfirm = true

@@ -98,6 +98,8 @@ struct ProfileBackup: Codable {
         var checkInWeekday: Int?
         var lastCheckInDate: Date?
         var initialExpenditure: Double?
+        var expenditureAnchorKcal: Double?
+        var expenditureAnchorDate: Date?
         /// `@AppStorage("coaching.collaborative")`.
         var collaborative: Bool?
     }
@@ -337,6 +339,8 @@ enum ProfileBackupService {
                 createdAt: p.createdAt, weeklyRatePercent: p.weeklyRatePercent,
                 checkInWeekday: p.checkInWeekday, lastCheckInDate: p.lastCheckInDate,
                 initialExpenditure: p.initialExpenditure,
+                expenditureAnchorKcal: p.expenditureAnchorKcal,
+                expenditureAnchorDate: p.expenditureAnchorDate,
                 collaborative: UserDefaults.standard.bool(forKey: CoachingSettings.collaborativeKey))
         }
         backup.exceptions = exceptions.map {
@@ -608,6 +612,10 @@ enum ProfileBackupService {
                 ?? Calendar.current.component(.weekday, from: .now)
             profile.lastCheckInDate = dto.lastCheckInDate ?? Calendar.current.startOfDay(for: .now)
             profile.initialExpenditure = dto.initialExpenditure
+            if let kcal = dto.expenditureAnchorKcal, let date = dto.expenditureAnchorDate {
+                profile.expenditureAnchorKcal = kcal
+                profile.expenditureAnchorDate = date
+            }
             if let collaborative = dto.collaborative {
                 UserDefaults.standard.set(collaborative, forKey: CoachingSettings.collaborativeKey)
             }
@@ -632,7 +640,10 @@ enum ProfileBackupService {
         for e in try context.fetch(FetchDescriptor<FavoriteFood>()) { context.delete(e) }
         for e in try context.fetch(FetchDescriptor<ExceptionPeriod>()) { context.delete(e) }
         for e in try context.fetch(FetchDescriptor<CoachingCheckIn>()) { context.delete(e) }
+        for e in try context.fetch(FetchDescriptor<HealthDay>()) { context.delete(e) }
         try context.save()
+        // The next Apple Health sync imports the weigh-ins again (deduplicated against the backup).
+        HealthImport.resetWeightAnchor()
     }
 
     /// Erases everything and resets the profile to defaults, which brings back the onboarding.
@@ -659,10 +670,13 @@ enum ProfileBackupService {
         profile.checkInWeekday = defaults.checkInWeekday
         profile.lastCheckInDate = nil
         profile.initialExpenditure = nil
+        profile.expenditureAnchorKcal = nil
+        profile.expenditureAnchorDate = nil
         profile.createdAt = .now
         profile.hasCompletedOnboarding = false
         try context.save()
         UserDefaults.standard.removeObject(forKey: CoachingSettings.collaborativeKey)
+        HealthImport.disconnect()
 
         let store = UserDefaults.standard
         for key in store.dictionaryRepresentation().keys where key.hasPrefix("lastGrams.") {
