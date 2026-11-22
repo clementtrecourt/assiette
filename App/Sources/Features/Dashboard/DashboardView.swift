@@ -50,6 +50,10 @@ private struct DashboardContent: View {
     @Query(sort: \CoachingCheckIn.date) private var checkIns: [CoachingCheckIn]
 
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
+    @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = false
+    /// Page of the header carousel (0 ring, 1 week, 2 energy balance).
+    @State private var heroPage: Int? = 0
+    @State private var weekSelection = Date.now.startOfDay
     @AppStorage(HealthImport.lastSyncKey) private var healthSync = 0.0
     /// Starts from the last computed snapshot, so the cards are filled from the first frame.
     @State private var snapshot = DashboardSnapshotCache.last
@@ -86,19 +90,40 @@ private struct DashboardContent: View {
                     header
                     // Spacing measured on the reference: title → ring 18 pt, arc end → macro
                     // labels ≈ 26 pt, values → toggle 33 pt, toggle → end of the header 15 pt.
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Nutrition du jour")
-                            .font(Theme.title)
-                        DashboardHero(consumed: totals.calories, target: targets.calories,
-                                      showRemaining: showRemaining, revealed: revealed)
-                            .padding(.top, 18)
-                        DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
-                            .padding(.horizontal, 4)
-                            .padding(.top, -3)
-                        DashboardModePicker(showRemaining: $showRemaining)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 33)
+                    // Carousel of three pages (reference: Daily Nutrition, Weekly Nutrition,
+                    // Energy Balance), swiped horizontally; the toggle under it follows the page.
+                    VStack(spacing: 0) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 0) {
+                                dailyPage(totals: totals, targets: targets)
+                                    .padding(.horizontal, 16)
+                                    .containerRelativeFrame(.horizontal)
+                                    .id(0)
+                                weekPage
+                                    .padding(.horizontal, 16)
+                                    .containerRelativeFrame(.horizontal)
+                                    .id(1)
+                                balancePage(todayKcal: totals.calories)
+                                    .padding(.horizontal, 16)
+                                    .containerRelativeFrame(.horizontal)
+                                    .id(2)
+                            }
+                            .scrollTargetLayout()
+                        }
+                        .scrollTargetBehavior(.paging)
+                        .scrollPosition(id: $heroPage)
+                        Group {
+                            if (heroPage ?? 0) == 2 {
+                                DashboardPageToggle(first: "Objectif", second: "Dépense",
+                                                    secondSelected: $balanceAgainstExpenditure)
+                            } else {
+                                DashboardModePicker(showRemaining: $showRemaining)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 33)
                     }
+                    .padding(.horizontal, -16)
                     .padding(.top, 8)
                     .padding(.bottom, 15)
                 }
@@ -106,8 +131,11 @@ private struct DashboardContent: View {
                 .background(Theme.raised.ignoresSafeArea(edges: .top))
                 .padding(.horizontal, -16)
 
+                DashboardPageDots(count: 3, current: heroPage ?? 0)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 14)
                 trendsSection(goal: goal, todayKcal: totals.calories)
-                    .padding(.top, 42)
+                    .padding(.top, 20)
                 nutritionSection(totals: totals, targets: targets)
                     .padding(.top, 28)
                 measuresSection
@@ -153,6 +181,56 @@ private struct DashboardContent: View {
         .sensoryFeedback(.selection, trigger: showRemaining)
     }
 
+    // MARK: Carousel pages
+
+    private func dailyPage(totals: NutrientValues, targets: DashboardTargets) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Nutrition du jour")
+                .font(Theme.title)
+            DashboardHero(consumed: totals.calories, target: targets.calories,
+                          showRemaining: showRemaining, revealed: revealed)
+                .padding(.top, 18)
+            DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
+                .padding(.horizontal, 4)
+                .padding(.top, -3)
+        }
+    }
+
+    /// Monday → Sunday of the current week, with each day's totals and targets.
+    private var weekDays: [DashboardWeekDay] {
+        let monday = today.adding(days: -CoachingFormat.mondayIndex(of: today))
+        var byDay: [Date: [JournalEntry]] = [:]
+        for entry in recentEntries where entry.day >= monday {
+            byDay[entry.day.startOfDay, default: []].append(entry)
+        }
+        return (0..<7).map { offset in
+            let day = monday.adding(days: offset).startOfDay
+            return DashboardWeekDay(date: day,
+                                    totals: NutrientValues.sum((byDay[day] ?? []).map(\.nutrients)),
+                                    targets: DashboardTargets(profile: profile, day: day),
+                                    isFuture: day > today)
+        }
+    }
+
+    private var weekPage: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Nutrition de la semaine")
+                .font(Theme.title)
+            DashboardWeekPage(days: weekDays, showRemaining: showRemaining, selected: $weekSelection)
+        }
+    }
+
+    private func balancePage(todayKcal: Double) -> some View {
+        let start = today.adding(days: -20).startOfDay
+        let days = DashboardInsights.balanceDays(snapshot: snapshot, from: start, today: today,
+                                                 todayIntake: todayKcal, target: calorieTargetLookup)
+        return VStack(alignment: .leading, spacing: 18) {
+            Text("Bilan énergétique")
+                .font(Theme.title)
+            DashboardBalancePage(days: days, againstExpenditure: balanceAgainstExpenditure)
+        }
+    }
+
     // MARK: Header
 
     private var header: some View {
@@ -190,7 +268,7 @@ private struct DashboardContent: View {
         let averageBalance = snapshot.averageBalance(lastDays: 7)
 
         return VStack(alignment: .leading, spacing: 12) {
-            DashboardSectionHeader(title: "Tendances")
+            DashboardSectionHeader(title: "Analyses et tendances")
             LazyVGrid(columns: DashboardGrid.columns, spacing: DashboardGrid.spacing) {
                 NavigationLink(value: DashboardRoute.expenditure) {
                     DashboardCard(title: "Dépense", subtitle: "7 derniers jours",
