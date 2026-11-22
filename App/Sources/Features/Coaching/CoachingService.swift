@@ -151,25 +151,50 @@ enum CoachingService {
 
     // MARK: Targets
 
-    static func engineGoal(for profile: UserProfile, trendKg: Double?) -> EngineCoach.Goal {
-        let rate = profile.effectiveRatePercent
-        switch profile.goal {
-        case .lose: return .lose(ratePercent: rate)
-        case .gain: return .gain(ratePercent: rate)
+    /// Engine goal for the profile. In maintenance, `steerToGoalWeight` lets the coach correct toward
+    /// the maintained weight when the trend is outside the tolerance band; only the weekly check-in
+    /// does that. A program change (new goal, edited program) starts from the plain maintenance
+    /// budget, the expenditure, whatever weight was picked on the ruler.
+    static func engineGoal(for profile: UserProfile, trendKg: Double?, steerToGoalWeight: Bool = false) -> EngineCoach.Goal {
+        engineGoal(profile.goal, ratePercent: profile.effectiveRatePercent,
+                   maintainedKg: steerToGoalWeight ? profile.targetWeightKg : nil,
+                   trendKg: trendKg ?? profile.weightKg)
+    }
+
+    /// Engine goal for a goal type and rate. `maintainedKg` nil = maintenance at the current trend
+    /// (target = expenditure, no correction).
+    static func engineGoal(_ goal: WeightGoal, ratePercent: Double, maintainedKg: Double?,
+                           trendKg: Double) -> EngineCoach.Goal {
+        switch goal {
+        case .lose: return .lose(ratePercent: ratePercent)
+        case .gain: return .gain(ratePercent: ratePercent)
         case .maintain:
-            return .maintain(goalWeightKg: profile.targetWeightKg ?? trendKg ?? profile.weightKg,
-                             correctionRatePercent: maintenanceCorrectionPercent)
+            return .maintain(goalWeightKg: maintainedKg ?? trendKg, correctionRatePercent: maintenanceCorrectionPercent)
         }
     }
 
+    /// Estimated day the trend reaches `targetKg`: `|trend − target|` at the weekly rate
+    /// (% of the latest scale weight). Nil when the rate is zero.
+    static func estimatedArrival(trendKg: Double, targetKg: Double, ratePercent: Double, scaleKg: Double,
+                                 from start: Date = .now) -> Date? {
+        let weeklyKg = weeklyKg(ratePercent: ratePercent, weightKg: scaleKg)
+        guard weeklyKg > 0 else { return nil }
+        let weeks = abs(trendKg - targetKg) / weeklyKg
+        return Calendar.current.startOfDay(for: start).adding(days: Int((weeks * 7).rounded()))
+    }
+
+    /// The weekly check-in passes `steerToGoalWeight: true` (maintenance correction toward the
+    /// maintained weight); program changes keep the default.
     static func proposal(snapshot: CoachingSnapshot, profile: UserProfile,
-                         preferences: ProgramPreferences = .current) -> CoachingProposal {
+                         preferences: ProgramPreferences = .current,
+                         steerToGoalWeight: Bool = false) -> CoachingProposal {
         let weight = snapshot.latestScaleKg ?? profile.weightKg
         var parameters = EngineParameters.calibrated
         parameters.minimumCalories = preferences.floor.kcal
         let calories = EngineCoach.calorieTarget(expenditure: snapshot.expenditure, latestScaleWeightKg: weight,
                                                  trendWeightKg: snapshot.trendKg ?? weight,
-                                                 goal: engineGoal(for: profile, trendKg: snapshot.trendKg),
+                                                 goal: engineGoal(for: profile, trendKg: snapshot.trendKg ?? weight,
+                                                                  steerToGoalWeight: steerToGoalWeight),
                                                  parameters: parameters)
         return proposal(calories: calories, weightKg: weight, goal: profile.goal, preferences: preferences)
     }

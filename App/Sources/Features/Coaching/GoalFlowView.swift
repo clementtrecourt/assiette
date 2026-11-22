@@ -219,7 +219,7 @@ struct GoalFlowView: View {
             HStack(spacing: 10) {
                 GoalFlowStatCard(value: "\(CoachingFormat.kcalNumber(budget)) kcal", label: "budget quotidien initial",
                                  background: GoalFlowColors.green)
-                GoalFlowStatCard(value: endDateText, label: "date de fin estimée", background: GoalFlowColors.header)
+                GoalFlowStatCard(value: endDateText, label: endDateLabel, background: GoalFlowColors.header)
             }
             question(chosenGoal == .maintain ? "Quel poids voulez-vous maintenir ?" : "Quel est votre poids cible ?")
                 .padding(.top, 40)
@@ -244,32 +244,55 @@ struct GoalFlowView: View {
 
     // MARK: Numbers
 
+    /// Initial daily budget, the same number `save()` stores: expenditure − / + the weekly rate
+    /// (lose / gain), the expenditure itself in maintenance. It never depends on the ruler: the
+    /// maintained weight only matters later, when a weekly check-in finds the trend outside the
+    /// ±1 kg band and steers back toward it (`CoachingService.proposal(steerToGoalWeight:)`).
     private var budget: Double {
         guard let snapshot else { return profile.calorieTarget }
         var parameters = EngineParameters.calibrated
         parameters.minimumCalories = ProgramPreferences.current.floor.kcal
-        let engineGoal: EngineCoach.Goal
-        switch chosenGoal {
-        case .lose: engineGoal = .lose(ratePercent: ratePercent)
-        case .gain: engineGoal = .gain(ratePercent: ratePercent)
-        case .maintain:
-            engineGoal = .maintain(goalWeightKg: targetKg, correctionRatePercent: CoachingService.maintenanceCorrectionPercent)
-        }
+        let engineGoal = CoachingService.engineGoal(chosenGoal, ratePercent: ratePercent, maintainedKg: nil,
+                                                    trendKg: currentKg)
         return EngineCoach.calorieTarget(expenditure: snapshot.expenditure, latestScaleWeightKg: scaleKg,
                                          trendWeightKg: currentKg, goal: engineGoal, parameters: parameters)
     }
 
-    private var endDate: Date? {
-        guard chosenGoal != .maintain, ratePercent > 0 else { return nil }
-        let gap = chosenGoal == .lose ? currentKg - targetKg : targetKg - currentKg
-        guard gap > 0 else { return Calendar.current.startOfDay(for: .now) }
-        let weeks = gap / (ratePercent / 100 * currentKg)
-        return Calendar.current.startOfDay(for: .now).adding(days: Int((weeks * 7).rounded()))
+    /// Maintained weight within the check-in tolerance band of the current trend.
+    private var maintainsCurrentWeight: Bool {
+        abs(targetKg - currentKg) <= EngineParameters.calibrated.maintenanceToleranceKg
     }
 
+    /// Lose / gain: day the trend reaches the target at the chosen rate (today when the target is
+    /// already reached or on the wrong side). Maintain: day the maintenance itself starts, today
+    /// when the picked weight is within the ±1 kg band, otherwise the day the trend gets there once
+    /// the weekly check-ins correct toward it (from the next check-in, at the correction rate).
+    private var endDate: Date? {
+        let today = Calendar.current.startOfDay(for: .now)
+        switch chosenGoal {
+        case .maintain:
+            if maintainsCurrentWeight { return today }
+            let start = CoachingService.nextCheckInDate(profile: profile)
+            return CoachingService.estimatedArrival(trendKg: currentKg, targetKg: targetKg,
+                                                    ratePercent: CoachingService.maintenanceCorrectionPercent,
+                                                    scaleKg: scaleKg, from: start)
+        case .lose, .gain:
+            let gap = chosenGoal == .lose ? currentKg - targetKg : targetKg - currentKg
+            guard gap > 0 else { return today }
+            return CoachingService.estimatedArrival(trendKg: currentKg, targetKg: targetKg,
+                                                    ratePercent: ratePercent, scaleKg: scaleKg)
+        }
+    }
+
+    private var endDateLabel: String {
+        chosenGoal == .maintain ? "début du maintien" : "date de fin estimée"
+    }
+
+    /// "14 mars 2027"; "Aujourd’hui" for today.
     private var endDateText: String {
         guard let endDate else { return "—" }
-        return endDate.formatted(.dateTime.day().month(.abbreviated).year())
+        if Calendar.current.isDateInToday(endDate) { return "Aujourd’hui" }
+        return endDate.formatted(.dateTime.day().month(.wide).year().locale(Formatters.locale))
     }
 
     private func signedRate(_ rate: Double, goal: WeightGoal) -> String {
@@ -308,6 +331,12 @@ struct GoalFlowView: View {
                 GoalFlowSummaryCard(
                     title: "Date de fin estimée", value: endDateText, header: GoalFlowColors.header,
                     text: "Estimation optimiste du moment où vous atteindriez votre objectif si votre dépense restait parfaitement stable et que vous suiviez vos objectifs à 100 %.")
+            } else {
+                GoalFlowSummaryCard(
+                    title: "Début du maintien", value: endDateText, header: GoalFlowColors.header,
+                    text: maintainsCurrentWeight
+                        ? "Votre poids tendance est déjà dans la zone de ±1 kg autour de ce poids : le maintien commence maintenant."
+                        : "Ce poids est à plus de 1 kg de votre poids tendance : à partir du prochain bilan, votre budget sera ajusté pour le rejoindre à \(Formatters.number(CoachingService.maintenanceCorrectionPercent, maxFractionDigits: 2)) % de votre poids par semaine. Date estimée si votre dépense restait stable et que vous suiviez vos objectifs à 100 %.")
             }
         }
     }
