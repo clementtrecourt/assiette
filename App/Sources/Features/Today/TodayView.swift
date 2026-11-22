@@ -60,7 +60,8 @@ struct TodayTitleBar<Accessory: View>: View {
             accessory
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 4)
+        // MF: macro strip text cap 12 pt under the round buttons.
+        .padding(.bottom, 8.5)
     }
 
     private var titleButton: some View {
@@ -68,6 +69,7 @@ struct TodayTitleBar<Accessory: View>: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(isToday ? "AUJOURD’HUI" : "JOURNAL")
                     .font(Theme.screenTitle())
+                    .tracking(Theme.screenTitleTracking)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)

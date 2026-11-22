@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Building blocks of the dashboard detail screens, measured on the reference recording
 // (2026-11-22): raised top area (headline over the chart, range chips + averaging button),
@@ -16,6 +17,10 @@ struct InsightScaffold<Top: View, Content: View>: View {
     let content: Content
 
     @State private var showingExplanation = false
+    @Environment(\.dismiss) private var dismiss
+
+    /// MF (aligned pair): the bar's chevron and title sit 5 pt lower than UIKit's.
+    private static var barItemOffset: CGFloat { 5 }
 
     init(title: String, explanation: String, @ViewBuilder top: () -> Top, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -40,14 +45,37 @@ struct InsightScaffold<Top: View, Content: View>: View {
         }
         .scrollIndicators(.hidden)
         .background(Theme.background.ignoresSafeArea())
-        .toolbarBackground(Theme.raised, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        // MF: no hairline under the bar. Transparent system bar (no shadow in any state) over a
+        // raised strip painted across the status bar + bar area, above the scrolling content.
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            Color.clear.frame(height: 0).background(Theme.raised)
+        }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarRole(.editor) // back button = chevron only, as on the reference
+        // Custom chevron (MF size and height); the edge swipe back stays enabled.
+        .navigationBarBackButtonHidden(true)
+        .background(InsightSwipeBackEnabler())
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    // MF: 8 × 14 pt chevron, 3 pt stroke, ~20 pt from the screen edge.
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15.5, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.leading, 3)
+                        .frame(width: 44, height: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .offset(y: Self.barItemOffset)
+                .accessibilityLabel("Retour")
+            }
             ToolbarItem(placement: .principal) {
                 InsightNavigationTitle(title: title)
+                    .offset(y: Self.barItemOffset)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -57,11 +85,55 @@ struct InsightScaffold<Top: View, Content: View>: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                 }
+                .offset(y: Self.barItemOffset)
                 .accessibilityLabel("Comprendre cet écran")
             }
         }
         .sheet(isPresented: $showingExplanation) {
             InsightExplanationSheet(title: title, text: explanation)
+        }
+    }
+}
+
+/// Keeps the edge swipe back working on a screen whose system back button is hidden: while the
+/// screen is shown, the navigation controller's pop gesture asks this controller instead of
+/// UIKit (which refuses to begin without a back button); the previous delegate is restored after.
+private struct InsightSwipeBackEnabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    final class Controller: UIViewController, UIGestureRecognizerDelegate {
+        private weak var popGesture: UIGestureRecognizer?
+        private weak var previousDelegate: UIGestureRecognizerDelegate?
+
+        override func loadView() {
+            view = UIView()
+            view.isUserInteractionEnabled = false
+            view.backgroundColor = .clear
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            guard let gesture = navigationController?.interactivePopGestureRecognizer else { return }
+            if gesture.delegate !== self {
+                previousDelegate = gesture.delegate
+                gesture.delegate = self
+            }
+            popGesture = gesture
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            if let popGesture, popGesture.delegate === self {
+                popGesture.delegate = previousDelegate
+            }
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            (navigationController?.viewControllers.count ?? 0) > 1
         }
     }
 }
@@ -421,10 +493,13 @@ struct InsightLegend: View {
             rows([Array(items.prefix(2)), Array(items.dropFirst(2))])
         }
         .frame(maxWidth: .infinity)
-        // Reference: 54 pt card for one row.
+        // Reference: 54 pt card for one row, filled, no outline.
         .padding(.vertical, 18)
         .padding(.horizontal, 10)
-        .themedCard()
+        .background(
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                .fill(LinearGradient(colors: [Theme.cardTop, Theme.cardBottom], startPoint: .top, endPoint: .bottom))
+        )
         .accessibilityElement(children: .combine)
         // Reference: the "Analyses et données" heading cap sits 43 pt under the legend card.
         .padding(.bottom, 8)
@@ -505,7 +580,7 @@ struct InsightSectionTitle: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(20, .bold, relativeTo: .title3))
+            .font(Theme.font(20, .semibold, relativeTo: .title3))
             .tracking(-0.3)
             .foregroundStyle(Theme.textPrimary)
             .padding(.top, 28)

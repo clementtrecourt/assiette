@@ -165,7 +165,7 @@ struct CoachingSectionTitle: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(20, .bold, relativeTo: .title3))
+            .font(Theme.font(20, .semibold, relativeTo: .title3))
             .foregroundStyle(Theme.textPrimary)
             .textCase(nil)
             .padding(.leading, -4)
@@ -347,8 +347,11 @@ struct CoachingCountdownRing<Center: View>: View {
     }
 
     private static var size: CGFloat { 202 }
-    private static var outerDiameter: CGFloat { 185 }
-    private static var innerDiameter: CGFloat { 162 }
+    /// MF (aligned pair): outer ring 185 pt and inner ring 160 pt across, strokes included.
+    private static var outerDiameter: CGFloat { 180 }
+    private static var innerDiameter: CGFloat { 155 }
+    /// Width of the day count in the middle (unchanged when the rings were resized).
+    private static var centerWidth: CGFloat { 124 }
     private static var trackColor: Color { Theme.hex(0x333333) }
 
     var body: some View {
@@ -371,7 +374,7 @@ struct CoachingCountdownRing<Center: View>: View {
 
             // Reference: the day count sits slightly below the ring's centre.
             center
-                .frame(width: Self.innerDiameter - 38)
+                .frame(width: Self.centerWidth)
                 .offset(y: 4)
         }
         .frame(width: Self.size, height: Self.size)

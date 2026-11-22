@@ -133,6 +133,7 @@ private struct ProfileHome: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("PROFIL")
                 .font(Theme.screenTitle())
+                .tracking(Theme.screenTitleTracking)
                 .foregroundStyle(Theme.textPrimary)
                 .frame(height: 34)
                 // Reference: the title sits ~4 pt higher than the 18 pt avatar gap implies.
@@ -148,12 +149,15 @@ private struct ProfileHome: View {
                             // MF: "CL" 38 × 17 pt, i.e. the title face at ~23 pt.
                             Text(initials)
                                 .font(Theme.screenTitle(23))
+                                .tracking(Theme.screenTitleTracking)
                         }
                     }
                     .foregroundStyle(Theme.onAccent)
                     .frame(width: 66, height: 66)
                     .background(Theme.accent, in: Circle())
-                    VStack(alignment: .leading, spacing: 4) {
+                    // MF: "member since" cap 23 pt under the name cap; the bottom padding keeps
+                    // the name where it was.
+                    VStack(alignment: .leading, spacing: 0) {
                         // MF: name ~18.5-19 pt next to the 16 pt "member since" line.
                         Text(displayName.isEmpty ? "\(profile.sex.label), \(profile.age) ans" : displayName)
                             .font(Theme.font(19, .regular, relativeTo: .title3))
@@ -165,6 +169,7 @@ private struct ProfileHome: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
+                    .padding(.bottom, 4)
                 }
                 .contentShape(Rectangle())
             }
@@ -179,11 +184,12 @@ struct ProfileGroupTitle: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(20, .bold, relativeTo: .title2))
+            .font(Theme.font(20, .semibold, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 16)
             .padding(.top, 30)
-            .padding(.bottom, 16)
+            // MF: card top 33-34 pt under the heading cap.
+            .padding(.bottom, 13)
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -209,7 +215,8 @@ struct ProfileGroupDivider: View {
     }
 }
 
-/// Row: 24 pt white icon, 17 pt label, trailing chevron (or external-link icon), 66 pt high.
+/// Row: 24 pt white icon, 17 pt label, trailing chevron (or external-link icon), 63 pt high
+/// (MF: 64 pt pitch with the 1 pt divider).
 struct ProfileRowLabel: View {
     let title: String
     let systemImage: String
@@ -231,7 +238,7 @@ struct ProfileRowLabel: View {
                 .foregroundStyle(Color.white.opacity(0.2))
                 .padding(.trailing, 28)
         }
-        .frame(minHeight: 66)
+        .frame(minHeight: 63)
         .contentShape(Rectangle())
     }
 }

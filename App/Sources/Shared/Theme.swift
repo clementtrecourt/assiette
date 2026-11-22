@@ -113,7 +113,7 @@ enum Theme {
 
     // MARK: Typography (DM Sans, bundled in Resources/Fonts, registered at launch)
 
-    enum Weight { case regular, medium, bold }
+    enum Weight { case regular, medium, semibold, bold }
 
     /// DM Sans at a fixed size, scaling with Dynamic Type relative to `style`.
     static func font(_ size: CGFloat, _ weight: Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
@@ -121,19 +121,27 @@ enum Theme {
         switch weight {
         case .regular: name = "DMSans-Regular"
         case .medium: name = "DMSans-Medium"
+        case .semibold: name = "DMSans-SemiBold"
         case .bold: name = "DMSans-Bold"
         }
         return Font.custom(name, size: size, relativeTo: style)
     }
 
-    /// Screen titles (ACCUEIL, AUJOURD'HUI, PROGRAMME): Archivo Expanded ExtraBold, uppercase.
+    /// Screen titles (ACCUEIL, AUJOURD'HUI, PROGRAMME): Unbounded SemiBold, uppercase — the closest
+    /// free match to the reference's extended title face. Sizes were tuned for the former Archivo
+    /// Expanded; `screenTitleScale` keeps the same cap height (Unbounded is ~6 % smaller per point),
+    /// and callers add `screenTitleTracking` for the reference's width.
     static func screenTitle(_ size: CGFloat = 24) -> Font {
-        Font.custom("ArchivoExpanded-ExtraBold", size: size, relativeTo: .largeTitle)
+        Font.custom("Unbounded-SemiBold", size: size * screenTitleScale, relativeTo: .largeTitle)
     }
+
+    static let screenTitleScale: CGFloat = 0.94
+    /// Letter spacing of the screen titles (reference "DASHBOARD" ≈ 190 pt wide at 24 pt).
+    static let screenTitleTracking: CGFloat = 1
 
     /// Big remaining numbers in the journal header.
     static let numberLarge = font(22, .bold, relativeTo: .title2)
-    static let title = font(20, .bold, relativeTo: .title3)
+    static let title = font(20, .semibold, relativeTo: .title3)
     static let headline = font(15, .medium, relativeTo: .headline)
     static let body = font(15, .regular, relativeTo: .body)
     static let callout = font(14, .regular, relativeTo: .callout)
@@ -142,7 +150,8 @@ enum Theme {
 
     /// Registers the bundled DM Sans fonts. Call once at launch.
     static func registerFonts() {
-        for name in ["DMSans-Regular", "DMSans-Medium", "DMSans-Bold", "ArchivoExpanded-ExtraBold"] {
+        for name in ["DMSans-Regular", "DMSans-Medium", "DMSans-SemiBold", "DMSans-Bold", "Unbounded-SemiBold",
+                     "ArchivoExpanded-ExtraBold"] {
             guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }

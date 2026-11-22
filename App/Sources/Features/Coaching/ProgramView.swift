@@ -229,6 +229,7 @@ private struct ProgramContent: View {
         HStack(alignment: .center) {
             Text("PROGRAMME")
                 .font(Theme.screenTitle())
+                .tracking(Theme.screenTitleTracking)
                 .foregroundStyle(Theme.textPrimary)
                 .accessibilityLabel("Programme, \(CoachingFormat.goalTitle(profile.goal)), \(mode.adjective)")
             Spacer()
@@ -322,12 +323,14 @@ private struct ProgramContent: View {
             if mode == .manual {
                 Text(CoachingFormat.kcalNumber(profile.calorieTarget))
                     .font(Theme.screenTitle(26))
+                    .tracking(Theme.screenTitleTracking)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                 ringDetail("kcal / jour")
             } else if isDue {
                 Text("BILAN")
                     .font(Theme.screenTitle(26))
+                    .tracking(Theme.screenTitleTracking)
                     .foregroundStyle(Theme.textPrimary)
                 Button {
                     appState.showingCheckIn = true
@@ -345,6 +348,7 @@ private struct ProgramContent: View {
 
                 Text(daysLeft > 1 ? "\(daysLeft) JOURS" : "1 JOUR")
                     .font(Theme.screenTitle(26))
+                    .tracking(Theme.screenTitleTracking)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)

@@ -93,8 +93,8 @@ struct TodayMacroHeaderColumn: View {
     }
 
     var body: some View {
-        // Reference: the bar hugs the value line.
-        VStack(alignment: .leading, spacing: 0) {
+        // Reference: bar top 14 pt under the value cap.
+        VStack(alignment: .leading, spacing: 1.5) {
             valueLine
             TodayMacroBar(fraction: fraction, fromTrailing: !showsConsumed, color: barColor)
         }
@@ -107,18 +107,19 @@ struct TodayMacroHeaderColumn: View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             if isCalories {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
             } else {
+                // MF: ~12.5 pt labels (digit height 8.7 pt).
                 Text(Theme.letter(for: key))
-                    .font(Theme.font(14, .bold, relativeTo: .footnote))
+                    .font(Theme.font(12.5, .bold, relativeTo: .footnote))
                     .foregroundStyle(Theme.textPrimary)
             }
             (Text(Formatters.number(displayed, maxFractionDigits: 0))
                 .foregroundColor(isNegative ? Theme.overTarget : Theme.textPrimary)
              + Text(showsConsumed ? (isCalories ? " kcal" : " g") : " rest.")
                 .foregroundColor(Theme.textPrimary))
-                .font(Theme.font(14, .regular, relativeTo: .footnote))
+                .font(Theme.font(12.5, .regular, relativeTo: .footnote))
                 .monospacedDigit()
                 .contentTransition(.numericText())
         }

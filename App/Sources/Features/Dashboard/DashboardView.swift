@@ -123,14 +123,14 @@ private struct DashboardContent: View {
                         }
                         .frame(maxWidth: .infinity)
                         // Reference: the week outline (tallest page, its bottom edge inside the
-                        // page) ends ~16 pt above the 44 pt toggle.
-                        .padding(.top, 11)
+                        // page) ends ~18 pt above the 40 pt toggle (same centre as the old 44 pt).
+                        .padding(.top, 13)
                     }
                     .padding(.horizontal, -16)
                     // Aligned pair: page title caps 32 pt under the ACCUEIL caps; the toggle and
                     // the end of the raised panel stay where they were.
                     .padding(.top, 12)
-                    .padding(.bottom, 13)
+                    .padding(.bottom, 15)
                 }
                 .padding(.horizontal, 16)
                 .background(Theme.raised.ignoresSafeArea(edges: .top))
@@ -138,9 +138,11 @@ private struct DashboardContent: View {
 
                 DashboardPageDots(count: 3, current: heroPage ?? 0)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 14)
+                    // MF: dots 17-18 pt under the raised panel.
+                    .padding(.top, 18)
                 trendsSection(goal: goal, todayKcal: totals.calories)
-                    .padding(.top, 20)
+                    // Dots 4 pt lower: heading kept in place (cap 26 pt under the dots).
+                    .padding(.top, 16)
                 nutritionSection(totals: totals, targets: targets)
                     .padding(.top, 28)
                 measuresSection
@@ -249,6 +251,7 @@ private struct DashboardContent: View {
         HStack {
             Text("ACCUEIL")
                 .font(Theme.screenTitle())
+                .tracking(Theme.screenTitleTracking)
                 .foregroundStyle(Theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()

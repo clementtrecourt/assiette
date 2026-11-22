@@ -170,9 +170,9 @@ struct RootView: View {
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
-        // Reference tab bar is ~13 pt taller (items keep their place under the top hairline):
-        // raises the bar's top edge and the floating search bar above it.
-        .background(RootTabBarExtraHeight(extra: 13))
+        // Reference tab bar is ~7 pt taller (top hairline 90 pt above the screen bottom; items
+        // keep their place under it): raises the bar's top edge and the floating search bar.
+        .background(RootTabBarExtraHeight(extra: 7))
         .safeAreaInset(edge: .top, spacing: 0) {
             if let update = updates.available {
                 UpdateBanner(update: update, onUpdate: openFeather, onDismiss: {

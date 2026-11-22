@@ -75,7 +75,8 @@ private struct TodayPinnedHeader: View {
     @AppStorage("today.headerShowsConsumed") private var showsConsumed = false
 
     var body: some View {
-        VStack(spacing: 8) {
+        // MF: page dots 10 pt under the bars, header ends 9 pt under the dots.
+        VStack(spacing: 10) {
             TodayMacroHeader(totals: totals, targets: targets, showsConsumed: showsConsumed)
             modeLine
         }
@@ -265,6 +266,8 @@ struct TodayDayContent: View {
                           onToday: goToToday) {
                 moreMenu
             }
+            // MF (aligned pair): round buttons centred 24 pt under the status bar.
+            .padding(.top, 4)
             TodayPinnedHeader(totals: totals, targets: targets, onShiftDay: shiftDay)
             TodayHairline()
         }

@@ -313,7 +313,7 @@ struct DashboardPageToggle: View {
             segment(first, selected: !secondSelected) { secondSelected = false }
             segment(second, selected: secondSelected) { secondSelected = true }
         }
-        // Selected capsule nearly fills the 44 pt track (reference: 1 pt inset).
+        // Same 40 pt track as DashboardModePicker.
         .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
@@ -325,7 +325,7 @@ struct DashboardPageToggle: View {
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 42)
+                .frame(width: 100, height: 38)
                 .background(Capsule().fill(selected ? Theme.accent : Color.clear))
                 .contentShape(Rectangle())
         }

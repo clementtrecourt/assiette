@@ -150,7 +150,8 @@ struct DashboardCalorieRing<Center: View>: View {
                 .opacity(fraction > 0 ? 1 : 0)
             center()
         }
-        .padding(4)
+        // MF: 175 pt outer arc (170 pt circle + 5 pt stroke); the 184 pt frame keeps the layout.
+        .padding(7)
         .frame(width: 184, height: 184)
         .animation(.spring(response: 1.55, dampingFraction: 1), value: revealed)
     }
@@ -234,7 +235,7 @@ struct DashboardModePicker: View {
             segment("Mangé", selected: !showRemaining) { showRemaining = false }
             segment("Restant", selected: showRemaining) { showRemaining = true }
         }
-        // Selected capsule nearly fills the 44 pt track (reference: 1 pt inset).
+        // Selected capsule nearly fills the 40 pt track (reference: 1 pt inset).
         .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
@@ -243,11 +244,11 @@ struct DashboardModePicker: View {
         Button {
             withAnimation(.quick) { action() }
         } label: {
-            // Reference: 44 pt tall, ~100 pt segments, 15 pt regular text (white when idle).
+            // Reference: 40 pt tall, ~97 pt segments, 15 pt regular text (white when idle).
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 42)
+                .frame(width: 100, height: 38)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)

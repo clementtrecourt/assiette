@@ -170,7 +170,8 @@ struct QuickAddSheet: View {
                             macroField(key)
                         }
                     }
-                    .padding(.top, 16)
+                    // MF: macro labels cap 35 pt under the macro-sum caption.
+                    .padding(.top, 15)
                     // Label + field scroll as one block so "Alcool" never sits alone above the buttons.
                     VStack(alignment: .leading, spacing: 0) {
                         fieldLabel("Alcool", color: Theme.textBody)
@@ -186,8 +187,8 @@ struct QuickAddSheet: View {
                     .id(QuickAddField.name)
                 }
                 .padding(.horizontal, 16)
-                // MF: 12 pt from the tab divider to the "Énergie" label.
-                .padding(.top, 12)
+                // MF (aligned pair): "Énergie" cap 21 pt under the tab track.
+                .padding(.top, 16)
                 // Room so the last block scrolls fully above the action buttons, with air.
                 .padding(.bottom, 48)
             }
@@ -217,7 +218,8 @@ struct QuickAddSheet: View {
         Text(title)
             .font(Theme.font(17, .regular, relativeTo: .body))
             .foregroundStyle(Theme.textPrimary)
-            .padding(.bottom, 10)
+            // MF: label cap 24 pt above its 48 pt field.
+            .padding(.bottom, 7)
     }
 
     private var energyRow: some View {
@@ -237,9 +239,9 @@ struct QuickAddSheet: View {
                     .tint(Theme.textPrimary)
             }
             .padding(.horizontal, 14)
-            .frame(height: 50)
+            .frame(height: 48)
             // Like MF: while focused, the energy entry is just a caret on the sheet background
-            // (no fill, no outline); boxed again once focus moves on. Same 50 pt tap target.
+            // (no fill, no outline); boxed again once focus moves on. Same 48 pt tap target.
             .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText),
                                        isBare: focus == .calories))
             .contentShape(Rectangle())
@@ -260,7 +262,7 @@ struct QuickAddSheet: View {
                 }
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 16)
-                .frame(width: 112, height: 50)
+                .frame(width: 112, height: 48)
                 .background(QuickAddFieldBox.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .accessibilityLabel("Unité d'énergie : \(energyInKJ ? "kilojoules" : "kilocalories")")
@@ -307,7 +309,7 @@ struct QuickAddSheet: View {
                     .foregroundStyle(Theme.textPrimary)
             }
             .padding(.horizontal, 12)
-            .frame(height: 50)
+            .frame(height: 48)
             .modifier(QuickAddFieldBox(isFocused: focus == field, isInvalid: isInvalid(binding.wrappedValue)))
             .contentShape(Rectangle())
             .onTapGesture { focus = field }
@@ -330,7 +332,7 @@ struct QuickAddSheet: View {
                 .foregroundStyle(Theme.textPrimary)
         }
         .padding(.horizontal, 12)
-        .frame(height: 50)
+        .frame(height: 48)
         .modifier(QuickAddFieldBox(isFocused: focus == .alcohol, isInvalid: isInvalid(alcoholText)))
         .contentShape(Rectangle())
         .onTapGesture { focus = .alcohol }
@@ -346,7 +348,7 @@ struct QuickAddSheet: View {
             .foregroundStyle(Theme.textPrimary)
             .tint(Theme.textPrimary)
             .padding(.horizontal, 12)
-            .frame(height: 50)
+            .frame(height: 48)
             .modifier(QuickAddFieldBox(isFocused: focus == .name, isInvalid: false))
     }
 

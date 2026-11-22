@@ -87,10 +87,11 @@ struct AddFlowView: View {
                 VStack(spacing: 0) {
                     Capsule()
                         .fill(Theme.raised2)
-                        .frame(width: 40, height: 5)
-                        // MF: 42 pt from the panel top to the tab labels.
-                        .padding(.top, 9)
-                        .padding(.bottom, 11)
+                        // MF (aligned pair): 4 pt grabber 8 pt under the panel top, tab track
+                        // 66 pt under it.
+                        .frame(width: 40, height: 4)
+                        .padding(.top, 8)
+                        .padding(.bottom, 10)
                         .accessibilityHidden(true)
                     AddFlowModeTabs(selection: $mode)
                 }
@@ -215,7 +216,7 @@ private struct AddFlowHeader: View {
         }
         .padding(.leading, 9)
         .padding(.trailing, 8)
-        .padding(.top, 2)
+        // MF: close button flush with the top of the content area, panel 56 pt below.
         .padding(.bottom, 6)
     }
 }

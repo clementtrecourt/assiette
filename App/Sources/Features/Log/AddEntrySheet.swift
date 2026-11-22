@@ -361,7 +361,8 @@ struct AddEntrySheet: View {
         // MF: the "< title" row sits right under the panel top (no grabber): 36 pt row, the
         // 44 pt chevron target overflows it. Aligned pair: title centre 29 pt under the panel top.
         .frame(height: 36)
-        .padding(.top, 9)
+        // The add-flow header sits 2 pt higher than before: keeps this row where it was.
+        .padding(.top, 11)
     }
 
     private var scrollContent: some View {
@@ -526,7 +527,7 @@ struct AddEntrySheet: View {
         // MF: ring tops 38 pt under the heading cap.
         VStack(alignment: .leading, spacing: 26) {
             Text("Impact sur les objectifs")
-                .font(Theme.font(18, .bold, relativeTo: .title3))
+                .font(Theme.font(18, .semibold, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
             HStack(spacing: 0) {
                 AddEntryDayRing(fraction: share(of: .calories), color: Theme.calories, title: "Calories")
@@ -587,7 +588,7 @@ struct AddEntrySheet: View {
     /// Reference panel: #313133 background, white-bordered field, unit chips, 4-column keypad
     /// whose last row holds the two actions.
     private var entryPanel: some View {
-        // MF spacing: field 10 pt above the unit chips, chips 12 pt above the keypad.
+        // MF spacing: field 10 pt above the unit chips, chips 11 pt above the keypad.
         VStack(spacing: 0) {
             quantityField
             unitRow
@@ -595,7 +596,7 @@ struct AddEntrySheet: View {
             AddEntryKeypad(onKey: press, onClear: clearQuantity) {
                 actionKeys
             }
-            .padding(.top, 12)
+            .padding(.top, 11)
         }
         .padding(.horizontal, 6)
         .padding(.top, 11)
@@ -634,7 +635,8 @@ struct AddEntrySheet: View {
                 .minimumScaleFactor(0.7)
         }
         .padding(.horizontal, 16)
-        .frame(height: 50)
+        // MF: 48 pt field.
+        .frame(height: 48)
         .background(AddEntryPanel.field, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -927,8 +929,8 @@ private struct AddEntryMacroSummary: View {
         HStack(alignment: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Text(Formatters.number(portion.calories, maxFractionDigits: 0))
-                    // MF: semibold-looking figure, lighter than DM Sans Bold.
-                    .font(Theme.font(35, .medium, relativeTo: .largeTitle))
+                    // MF: "1" stem 4.7 pt on a 24.3 pt figure (0.19 of the height) = DM Sans Bold.
+                    .font(Theme.font(35, .bold, relativeTo: .largeTitle))
                     .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
@@ -1030,16 +1032,21 @@ private struct AddEntryKeypad<Actions: View>: View {
         ]
     }
 
+    /// MF: 48 pt keys, 5 pt apart (207 pt for the four rows).
+    // Computed: generic types cannot have static stored properties.
+    private static var keyHeight: CGFloat { 48 }
+    private static var gap: CGFloat { 5 }
+
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Self.gap) {
             ForEach(0..<3, id: \.self) { row in
-                HStack(spacing: 6) {
+                HStack(spacing: Self.gap) {
                     ForEach(Self.rows[row], id: \.self) { key in
                         keyButton(key)
                     }
                 }
             }
-            HStack(spacing: 6) {
+            HStack(spacing: Self.gap) {
                 keyButton(.comma)
                 keyButton(.digit(0))
                 actions
@@ -1078,7 +1085,7 @@ private struct AddEntryKeypad<Actions: View>: View {
             .font(Theme.font(22, .regular, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(height: Self.keyHeight)
             .background(Self.isSide(key) ? AddEntryPanel.sideKey : AddEntryPanel.digitKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -1122,7 +1129,7 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
             .minimumScaleFactor(0.7)
             .foregroundStyle(isPrimary ? Theme.onAccent : Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(height: 48)
             .background(isPrimary ? Theme.accent : AddEntryPanel.sideKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : (isEnabled ? 1 : 0.55))

@@ -281,8 +281,8 @@ struct BarcodeScanView: View {
             }
         }
         .padding(.horizontal, 16)
-        // MF: the bar sits 5 pt under the tab strip.
-        .padding(.top, 5)
+        // MF: the bar sits 7 pt under the tab strip.
+        .padding(.top, 7)
     }
 
     // MARK: - Bottom card

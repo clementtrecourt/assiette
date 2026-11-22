@@ -182,7 +182,7 @@ struct ProfileAboutView: View {
                 Text("Les illustrations des aliments proviennent d'OpenNutrition et de Fluent Emoji (© Microsoft Corporation), sous licence MIT.")
                     .font(Theme.callout)
                     .foregroundStyle(Theme.textBody)
-                Text("Polices DM Sans et Archivo, sous licence SIL Open Font License 1.1.")
+                Text("Polices DM Sans, Unbounded et Archivo, sous licence SIL Open Font License 1.1.")
                     .font(Theme.callout)
                     .foregroundStyle(Theme.textBody)
                 Link(destination: URL(string: "https://www.opennutrition.app")!) {

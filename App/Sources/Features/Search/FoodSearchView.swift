@@ -510,8 +510,8 @@ struct FoodSearchView: View {
     /// Horizontal row of big icon tiles; one tap logs the usual quantity.
     private func favoritesSection(recent: [String: Double]) -> some View {
         Section {
-            // Tighter under "Favoris" (MF): tiles and captions sit 3 pt higher.
-            sectionHeaderRow("Favoris", bottom: 3)
+            // Tighter under "Favoris" (MF): tiles and captions sit right under the heading.
+            sectionHeaderRow("Favoris", bottom: 1)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 4) {
                     ForEach(favorites) { favorite in
@@ -841,8 +841,9 @@ private struct SearchSectionHeader: View {
     let title: String
 
     var body: some View {
+        // MF: ~16 pt medium (cap 11.3 pt), not 17.
         Text(title)
-            .font(Theme.font(17, .medium, relativeTo: .headline))
+            .font(Theme.font(16, .medium, relativeTo: .headline))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
@@ -877,7 +878,8 @@ private struct SearchFavoriteTile: View {
                         .foregroundStyle(Theme.textPrimary)
                         .frame(width: 28, height: 28)
                         .background(Theme.raised2, in: Circle())
-                        .offset(x: 2, y: 2)
+                        // MF: the badge's left edge sits on the tile's centre line.
+                        .offset(x: -2, y: 2)
                 }
             Text(item.name)
                 .font(Theme.font(12.5, .regular, relativeTo: .caption2))
