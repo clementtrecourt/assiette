@@ -11,7 +11,21 @@ private enum InsightAxis {
     static let dateLabelFont = Theme.font(14, .regular, relativeTo: .caption)
     /// Thin vertical separator through the date-label strip (reference), not a short tick.
     static let dateSeparator = StrokeStyle(lineWidth: Theme.hairline)
+    /// Extra room between the plot baseline and the date labels (reference: label caps 13 pt
+    /// under the baseline). Charts add it to their height so the plot keeps its size.
+    static let dateLabelGap: CGFloat = 4
     static let grid = StrokeStyle(lineWidth: 0.6, dash: [3, 3])
+
+    /// Date label pushed `dateLabelGap` below the baseline.
+    @ViewBuilder
+    static func dateLabel(_ value: AxisValue, format: Date.FormatStyle) -> some View {
+        if let date = value.as(Date.self) {
+            Text(date, format: format)
+                .font(dateLabelFont)
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.top, dateLabelGap)
+        }
+    }
 }
 
 private extension View {
@@ -19,28 +33,28 @@ private extension View {
     func insightDateAxis(range: InsightRange, averaging: InsightAveraging) -> some View {
         chartXAxis {
             if range == .week && averaging == .daily {
-                AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                AxisMarks(values: .stride(by: .day, count: 1)) { value in
                     AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
                         .foregroundStyle(Theme.separator)
-                    AxisValueLabel(format: .dateTime.weekday(.abbreviated).locale(Formatters.locale), centered: false)
-                        .font(InsightAxis.dateLabelFont)
-                        .foregroundStyle(Theme.textTertiary)
+                    AxisValueLabel(centered: false) {
+                        InsightAxis.dateLabel(value, format: .dateTime.weekday(.abbreviated).locale(Formatters.locale))
+                    }
                 }
             } else if range.labelStrideDays > 0 && averaging != .monthly {
-                AxisMarks(values: .stride(by: .day, count: range.labelStrideDays)) { _ in
+                AxisMarks(values: .stride(by: .day, count: range.labelStrideDays)) { value in
                     AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
                         .foregroundStyle(Theme.separator)
-                    AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
-                        .font(InsightAxis.dateLabelFont)
-                        .foregroundStyle(Theme.textTertiary)
+                    AxisValueLabel {
+                        InsightAxis.dateLabel(value, format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
+                    }
                 }
             } else {
-                AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisMarks(values: .automatic(desiredCount: 5)) { value in
                     AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
                         .foregroundStyle(Theme.separator)
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).year(.twoDigits).locale(Formatters.locale))
-                        .font(InsightAxis.dateLabelFont)
-                        .foregroundStyle(Theme.textTertiary)
+                    AxisValueLabel {
+                        InsightAxis.dateLabel(value, format: .dateTime.month(.abbreviated).year(.twoDigits).locale(Formatters.locale))
+                    }
                 }
             }
         }
@@ -160,7 +174,7 @@ struct InsightLineChart: View {
         .chartPlotStyle { $0.clipped() }
         .insightDateAxis(range: range, averaging: averaging)
         .insightValueAxis(desiredCount: kind == .weight ? 5 : 3)
-        .frame(height: height)
+        .frame(height: height + InsightAxis.dateLabelGap)
         .padding(.leading, 0)
         .padding(.trailing, 12)
         .animation(.quick, value: points)
@@ -237,7 +251,8 @@ struct InsightBalanceChart: View {
                          y: .value("Référence", point.value),
                          series: .value("Série", "Référence"))
                     .foregroundStyle(lineColor)
-                    .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, dash: [0.1, 4.6]))
+                    // Same short rounded dashes as the Accueil carousel.
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [1.2, 4.8]))
             }
         }
         .chartXScale(domain: startDate...endDate.adding(days: 1))
@@ -245,7 +260,7 @@ struct InsightBalanceChart: View {
         .chartPlotStyle { $0.clipped() }
         .insightDateAxis(range: range, averaging: averaging)
         .insightValueAxis(desiredCount: 2)
-        .frame(height: 170)
+        .frame(height: 170 + InsightAxis.dateLabelGap)
         .padding(.trailing, 12)
         .animation(.quick, value: days)
         .animation(.quick, value: againstTargets)

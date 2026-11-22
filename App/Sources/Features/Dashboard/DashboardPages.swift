@@ -21,10 +21,11 @@ struct DashboardWeekPage: View {
     @Binding var selected: Date
 
     private static let keys: [NutrientKey] = [.calories] + Theme.macroOrder
-    /// Reference: 54 pt row pitch, 22 × 35 pt cells, hairlines between the rows.
-    private static let rowHeight: CGFloat = 54
+    /// Reference: 53 pt row pitch, 22 × 35 pt cells, hairlines between the rows.
+    private static let rowHeight: CGFloat = 53
     private static let cellSize = CGSize(width: 22, height: 35)
-    /// Weekday letter row, then the margin kept inside the selection outline below it.
+    /// Weekday letter row, then the margin kept inside the selection outline below it (the
+    /// outline's bottom edge included: the carousel clips anything drawn past the column).
     private static let letterHeight: CGFloat = 26
     private static let outlineBottom: CGFloat = 6
 
@@ -35,7 +36,9 @@ struct DashboardWeekPage: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        // Reference: 40 pt day pitch (280 pt grid on a 370 pt page), values 28 pt right of the
+        // last column centre.
+        HStack(alignment: .top, spacing: 8) {
             HStack(spacing: 0) {
                 ForEach(days) { day in
                     column(day)
@@ -44,7 +47,7 @@ struct DashboardWeekPage: View {
             .frame(maxWidth: .infinity)
             .background(alignment: .top) { rowSeparators }
             values
-                .frame(width: 86, alignment: .leading)
+                .frame(width: 82, alignment: .leading)
         }
     }
 
@@ -75,7 +78,6 @@ struct DashboardWeekPage: View {
                         .frame(width: 39)
                         // Cells sit ~3 pt higher inside the outline than they used to.
                         .padding(.top, -3)
-                        .padding(.bottom, -2)
                 }
             }
             .contentShape(Rectangle())
@@ -196,7 +198,7 @@ struct DashboardBalancePage: View {
     }
 
     var body: some View {
-        VStack(spacing: 55) {
+        VStack(spacing: 53) {
             chart
                 .frame(height: Self.chartHeight)
             HStack(alignment: .top, spacing: 0) {
@@ -226,7 +228,8 @@ struct DashboardBalancePage: View {
     }
 
     private func figure<Icon: View>(_ value: Double?, legend: String, @ViewBuilder icon: () -> Icon) -> some View {
-        VStack(spacing: 6) {
+        // Reference: legend 25 pt under the value caps.
+        VStack(spacing: 2) {
             Text(value.map { Formatters.number($0, maxFractionDigits: 0) } ?? "–")
                 .font(Theme.font(20, .regular, relativeTo: .title3))
                 .monospacedDigit()
@@ -274,7 +277,8 @@ struct DashboardBalancePage: View {
                         path.addLine(to: CGPoint(x: geo.size.width, y: y(lineValue(last))))
                     }
                 }
-                .stroke(lineColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.1, 5]))
+                // Reference (3x capture): short rounded dashes ~3.7 × 2.4 pt on a 6 pt period.
+                .stroke(lineColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [1.2, 4.8]))
             }
         }
         .accessibilityElement()

@@ -435,8 +435,9 @@ struct CoachingWeekColumns: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(Theme.onAccent)
-                // Reference: 37 × 23 pt capsule, narrower than the blocks, centered on the column.
-                .frame(maxWidth: isLarge ? .infinity : 37)
+                // Reference: 35 × 23 pt capsule (~14 pt gaps), narrower than the blocks, centered
+                // on the column.
+                .frame(maxWidth: isLarge ? .infinity : 35)
                 .frame(height: isLarge ? 26 : 23)
                 .background(Theme.calories, in: Capsule())
                 .frame(maxWidth: .infinity)

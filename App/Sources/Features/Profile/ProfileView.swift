@@ -75,9 +75,12 @@ private struct ProfileHome: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                // Aligned pair: PROFIL caps 46 pt under the status bar, band ends 17 pt under
+                // the 64 pt reference avatar (14 pt under ours, 66 pt).
                 header
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 17)
+                    .padding(.top, 12)
+                    .padding(.bottom, 14)
                     // Full-bleed raised band (content keeps the 16 pt inset).
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.raised)
@@ -142,16 +145,18 @@ private struct ProfileHome: View {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 30, weight: .semibold))
                         } else {
+                            // MF: "CL" 38 × 17 pt, i.e. the title face at ~23 pt.
                             Text(initials)
-                                .font(Theme.screenTitle(26))
+                                .font(Theme.screenTitle(23))
                         }
                     }
                     .foregroundStyle(Theme.onAccent)
                     .frame(width: 66, height: 66)
                     .background(Theme.accent, in: Circle())
                     VStack(alignment: .leading, spacing: 4) {
+                        // MF: name ~18.5-19 pt next to the 16 pt "member since" line.
                         Text(displayName.isEmpty ? "\(profile.sex.label), \(profile.age) ans" : displayName)
-                            .font(Theme.font(18, .regular, relativeTo: .title3))
+                            .font(Theme.font(19, .regular, relativeTo: .title3))
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                         Text("Membre depuis le \(profile.createdAt.formatted(.dateTime.day().month(.wide).year()))")
@@ -222,8 +227,8 @@ struct ProfileRowLabel: View {
             Spacer(minLength: 8)
             Image(systemName: accessory)
                 .font(.system(size: accessory == "chevron.right" ? 15 : 18, weight: .semibold))
-                // Reference: dim (~40 % white) accessory, 28 pt from the card edge.
-                .foregroundStyle(Color.white.opacity(0.4))
+                // Reference: dim accessory (#484848 on the #1F1F1F card), 28 pt from the card edge.
+                .foregroundStyle(Color.white.opacity(0.2))
                 .padding(.trailing, 28)
         }
         .frame(minHeight: 66)

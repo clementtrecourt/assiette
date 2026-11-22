@@ -359,26 +359,28 @@ struct AddEntrySheet: View {
             .padding(.leading, 6)
         }
         // MF: the "< title" row sits right under the panel top (no grabber): 36 pt row, the
-        // 44 pt chevron target overflows it.
+        // 44 pt chevron target overflows it. Aligned pair: title centre 29 pt under the panel top.
         .frame(height: 36)
+        .padding(.top, 9)
     }
 
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Title raised, macros kept where they were (MF: 79 pt title -> big figures).
+                // Badges 63 pt under the panel top (aligned pair), header included.
                 AddEntryMacroSummary(per100: item.per100, portion: portion)
-                    .padding(.top, 27)
+                    .padding(.top, 18)
                 if !isQuickAdd {
-                    // MF: tiles right under the macro labels.
+                    // MF: tiles 13 pt under the macro labels.
                     actionsRow
+                        .padding(.top, 7)
                 }
                 // MF: edge-to-edge divider above the impact section.
                 AddEntryHairline()
                     .padding(.horizontal, -16)
-                    .padding(.top, 12)
+                    .padding(.top, 14)
                 dayShare
-                    .padding(.top, 21)
+                    .padding(.top, 16)
                 whenRow
                     .padding(.top, 14)
                 if showsDatasetAttribution {
@@ -494,7 +496,8 @@ struct AddEntrySheet: View {
     }
 
     private func actionTileLabel(_ title: String, systemImage: String, tint: Color) -> some View {
-        VStack(spacing: 6) {
+        // MF: label cap 7 pt under the tile.
+        VStack(spacing: 2) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(tint)
@@ -520,7 +523,8 @@ struct AddEntrySheet: View {
     }
 
     private var dayShare: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        // MF: ring tops 38 pt under the heading cap.
+        VStack(alignment: .leading, spacing: 26) {
             Text("Impact sur les objectifs")
                 .font(Theme.font(18, .bold, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
@@ -923,7 +927,8 @@ private struct AddEntryMacroSummary: View {
         HStack(alignment: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Text(Formatters.number(portion.calories, maxFractionDigits: 0))
-                    .font(Theme.font(35, .bold, relativeTo: .largeTitle))
+                    // MF: semibold-looking figure, lighter than DM Sans Bold.
+                    .font(Theme.font(35, .medium, relativeTo: .largeTitle))
                     .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
@@ -932,7 +937,8 @@ private struct AddEntryMacroSummary: View {
                 Text("Calories")
                     .font(Theme.font(14, .regular, relativeTo: .callout))
                     .foregroundStyle(AddEntryPanel.label)
-                    .padding(.top, -6)
+                    // MF: figure baseline 5 pt above the label (sits lower than the macro values).
+                    .padding(.top, -10)
             }
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
@@ -943,11 +949,11 @@ private struct AddEntryMacroSummary: View {
                         .font(Theme.font(13, .regular, relativeTo: .subheadline))
                         .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
-                        // Compact MF pill.
+                        // Compact MF pill, value cap 19 pt under it.
                         .padding(.horizontal, 9)
-                        .frame(height: 22)
+                        .frame(height: 21)
                         .background(AddEntryPanel.pill(key), in: Capsule())
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 13)
                     Text(Formatters.number(portion.value(key), maxFractionDigits: 1))
                         .font(Theme.font(20, .bold, relativeTo: .title2))
                         .monospacedDigit()
@@ -959,7 +965,7 @@ private struct AddEntryMacroSummary: View {
                         .foregroundStyle(AddEntryPanel.label)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                        .padding(.top, -4)
+                        .padding(.top, -5)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .combine)
@@ -976,7 +982,7 @@ private struct AddEntryDayRing: View {
     let title: String
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             ZStack {
                 Circle()
                     .stroke(Theme.track, lineWidth: 3)
@@ -993,7 +999,8 @@ private struct AddEntryDayRing: View {
                     .minimumScaleFactor(0.6)
                     .padding(.horizontal, 6)
             }
-            .frame(width: 54, height: 54)
+            // MF: 54 pt outer diameter (stroke included).
+            .frame(width: 51, height: 51)
             .animation(.quick, value: fraction)
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))

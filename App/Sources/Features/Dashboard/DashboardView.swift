@@ -122,13 +122,14 @@ private struct DashboardContent: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        // Reference: the week grid (tallest page) ends ~17 pt above the 44 pt toggle.
-                        .padding(.top, 17)
+                        // Reference: the week outline (tallest page, its bottom edge inside the
+                        // page) ends ~16 pt above the 44 pt toggle.
+                        .padding(.top, 11)
                     }
                     .padding(.horizontal, -16)
-                    // Page titles sit ~6 pt under the header (reference); the toggle centre and
+                    // Aligned pair: page title caps 32 pt under the ACCUEIL caps; the toggle and
                     // the end of the raised panel stay where they were.
-                    .padding(.top, 2)
+                    .padding(.top, 12)
                     .padding(.bottom, 13)
                 }
                 .padding(.horizontal, 16)
@@ -199,10 +200,10 @@ private struct DashboardContent: View {
                 .font(Theme.title)
             DashboardHero(consumed: totals.calories, target: targets.calories,
                           showRemaining: showRemaining, revealed: revealed)
-                .padding(.top, 18)
+                .padding(.top, 16)
             DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
                 .padding(.horizontal, 4)
-                .padding(.top, -3)
+                .padding(.top, -7)
         }
     }
 
@@ -235,7 +236,7 @@ private struct DashboardContent: View {
         let start = today.adding(days: -29).startOfDay
         let days = DashboardInsights.balanceDays(snapshot: snapshot, from: start, today: today,
                                                  todayIntake: todayKcal, target: calorieTargetLookup)
-        return VStack(alignment: .leading, spacing: 24) {
+        return VStack(alignment: .leading, spacing: 20) {
             Text("Bilan énergétique")
                 .font(Theme.title)
             DashboardBalancePage(days: days, againstExpenditure: balanceAgainstExpenditure)

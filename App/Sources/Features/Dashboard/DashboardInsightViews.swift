@@ -333,7 +333,8 @@ struct InsightRangeBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 22)
-        .padding(.bottom, 16)
+        // Reference: raised band ends 21 pt under the selector.
+        .padding(.bottom, 18)
         .sensoryFeedback(.selection, trigger: range)
         .sheet(isPresented: $showingAveraging) {
             InsightAveragingSheet(averaging: $averaging)
@@ -420,12 +421,13 @@ struct InsightLegend: View {
             rows([Array(items.prefix(2)), Array(items.dropFirst(2))])
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        // Reference: 54 pt card for one row.
+        .padding(.vertical, 18)
         .padding(.horizontal, 10)
         .themedCard()
         .accessibilityElement(children: .combine)
-        // Reference: the "Analyses et données" heading sits ~11 pt further below the legend.
-        .padding(.bottom, 11)
+        // Reference: the "Analyses et données" heading cap sits 43 pt under the legend card.
+        .padding(.bottom, 8)
     }
 
     private func rows(_ rows: [[InsightLegendItem]]) -> some View {

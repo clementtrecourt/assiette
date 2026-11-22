@@ -365,8 +365,9 @@ struct QuickAddSheet: View {
                 Button {
                     save(continuing: true)
                 } label: {
+                    // MF: 18 pt labels ("Quick Add" 87 pt wide).
                     Text("Ajout rapide")
-                        .font(Theme.font(17, .regular, relativeTo: .body))
+                        .font(Theme.font(18, .regular, relativeTo: .body))
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -381,7 +382,7 @@ struct QuickAddSheet: View {
                     save(continuing: false)
                 } label: {
                     Text("Ajouter au journal")
-                        .font(Theme.font(17, .medium, relativeTo: .body))
+                        .font(Theme.font(18, .medium, relativeTo: .body))
                         .monospacedDigit()
                         .foregroundStyle(Theme.onAccent)
                         .lineLimit(1)

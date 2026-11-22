@@ -659,7 +659,8 @@ struct FoodSearchView: View {
         // 44 pt "+" target + 9 + 9 = 62 pt rows (MF 61-64); content 3 pt left of the headers.
         .listRowInsets(EdgeInsets(top: 9, leading: 13, bottom: 9, trailing: 10))
         .listRowBackground(checked ? Theme.raised2 : Theme.raised)
-        .listRowSeparatorTint(Theme.separatorStrong)
+        // MF row divider: #424242 (sampled at 3x), brighter than the input hairline.
+        .listRowSeparatorTint(Theme.hex(0x444444))
     }
 
     // MARK: Actions
@@ -866,7 +867,8 @@ private struct SearchFavoriteTile: View {
     let item: FoodItem
 
     var body: some View {
-        VStack(spacing: 1) {
+        // MF: caption cap 13 pt under the "+" badge.
+        VStack(spacing: 3) {
             FoodIconView(item: item, size: 40)
                 .frame(width: 56, height: 44, alignment: .topLeading)
                 .overlay(alignment: .bottomTrailing) {

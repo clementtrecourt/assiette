@@ -106,7 +106,7 @@ private struct ProgramContent: View {
                     VStack(spacing: 0) {
                         header
                         countdown
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 15)
                     }
                     .background {
                         Theme.raised
@@ -258,13 +258,17 @@ private struct ProgramContent: View {
                     .rotationEffect(.degrees(90))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
-                    .frame(width: 44, height: 44)
+                    // MF: 40 pt disc, centred in the unchanged 44 pt target.
+                    .frame(width: 40, height: 40)
                     .background(Theme.raised2, in: Circle())
+                    .frame(width: 44, height: 44)
                     .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .accessibilityLabel("Options du programme")
         }
-        .padding(.top, -4)
+        // Aligned pair: PROGRAMME caps 47 pt under the status bar (8 pt lower than before); the
+        // countdown spacing below absorbs it so "En cours" stays put.
+        .padding(.top, 4)
     }
 
     private var isDue: Bool { CoachingService.isCheckInDue(profile: profile) }
@@ -278,7 +282,7 @@ private struct ProgramContent: View {
     /// Measured on the reference: ring 32 pt under the title bar, Goal / Check-In row ~44 pt
     /// under the visible ring (37 pt + the ring frame's 6.5 pt margin).
     private var countdown: some View {
-        VStack(spacing: 37) {
+        VStack(spacing: 34) {
             CoachingCountdownRing(filledDays: filledDays, goalProgress: goalProgress) {
                 countdownCenter
             }

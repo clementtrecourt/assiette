@@ -147,13 +147,15 @@ struct DashboardExpenditureDetail: View {
                                                 unit: "kcal", numeric: difference ?? 0),
                 dates: InsightCalendar.rangeLabel(start, today),
                 fitToData: $fitToData)
+                // Aligned pair: headline 8 pt lower, chart baseline kept (2 pt lower).
+                .padding(.top, 8)
             if points.isEmpty {
                 DashboardChartPlaceholder(text: "Enregistrez vos repas et votre poids quelques jours pour voir l'évolution de votre dépense.", height: 300)
             } else {
                 InsightLineChart(points: points, kind: .expenditure, range: range, averaging: averaging,
                                  startDate: start, endDate: range.endDate(today: today), fitToData: fitToData,
                                  height: 300)
-                    .padding(.top, 8)
+                    .padding(.top, 2)
             }
             InsightRangeBar(range: settings.range, averaging: settings.averaging)
         } content: {
