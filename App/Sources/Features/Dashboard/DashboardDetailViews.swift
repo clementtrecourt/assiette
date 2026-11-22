@@ -30,6 +30,7 @@ private struct DashboardDetailScaffold<Content: View>: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarRole(.editor)
     }
 }
 

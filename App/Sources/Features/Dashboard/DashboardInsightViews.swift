@@ -44,6 +44,7 @@ struct InsightScaffold<Top: View, Content: View>: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarRole(.editor) // back button = chevron only, as on the reference
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -395,7 +396,19 @@ struct InsightLegend: View {
     let items: [InsightLegendItem]
 
     var body: some View {
-        let rows = items.count > 3 ? [Array(items.prefix(3)), Array(items.dropFirst(3))] : [items]
+        // One line when it fits, otherwise two (2 + rest), never truncated.
+        ViewThatFits(in: .horizontal) {
+            rows([items])
+            rows([Array(items.prefix(2)), Array(items.dropFirst(2))])
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 10)
+        .themedCard()
+        .accessibilityElement(children: .combine)
+    }
+
+    private func rows(_ rows: [[InsightLegendItem]]) -> some View {
         VStack(spacing: 12) {
             ForEach(rows.indices, id: \.self) { row in
                 HStack(spacing: 18) {
@@ -406,16 +419,12 @@ struct InsightLegend: View {
                                 .font(Theme.font(14, .regular, relativeTo: .subheadline))
                                 .foregroundStyle(Theme.textPrimary)
                                 .lineLimit(1)
+                                .fixedSize()
                         }
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .padding(.horizontal, 10)
-        .themedCard()
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

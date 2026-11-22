@@ -6,7 +6,7 @@ import SwiftUI
 // around the line, open circle markers (squares while the expenditure is holding).
 
 private enum InsightAxis {
-    static let labelFont = Theme.font(13, .regular, relativeTo: .caption)
+    static let labelFont = Theme.font(12, .regular, relativeTo: .caption)
     static let grid = StrokeStyle(lineWidth: 0.6, dash: [3, 3])
 }
 
@@ -138,7 +138,7 @@ struct InsightLineChart: View {
                 }
             }
         }
-        .chartXScale(domain: startDate...endDate)
+        .chartXScale(domain: startDate...endDate.addingTimeInterval(range == .week ? 16 * 3600 : 0))
         .chartYScale(domain: domain)
         .chartPlotStyle { $0.clipped() }
         .insightDateAxis(range: range, averaging: averaging)
@@ -282,19 +282,26 @@ struct InsightGoalChart: View {
         }
         .chartYScale(domain: lo...hi)
         .chartPlotStyle { $0.clipped() }
-        .chartXAxis {
-            AxisMarks(values: steps.map(\.label)) { value in
-                if let label = value.as(String.self), shown.contains(label) {
-                    AxisValueLabel(centered: true) {
-                        Text(label == "Statut" ? "Statut" : "Jour \(label)")
+        .chartXAxis(.hidden)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                if let plot = proxy.plotFrame {
+                    let frame = geo[plot]
+                    ForEach(steps.filter { shown.contains($0.label) }) { step in
+                        if let x = proxy.position(forX: step.label) {
+                            Text(step.label == "Statut" ? "Statut" : "Jour \(step.label)")
+                                .font(InsightAxis.labelFont)
+                                .foregroundStyle(Theme.textTertiary)
+                                .fixedSize()
+                                .position(x: frame.minX + x, y: frame.maxY + 14)
+                        }
                     }
-                    .font(InsightAxis.labelFont)
-                    .foregroundStyle(Theme.textTertiary)
                 }
             }
         }
         .insightValueAxis(desiredCount: 4)
-        .frame(height: 300)
+        .padding(.bottom, 24)
+        .frame(height: 324)
         .padding(.trailing, 12)
         .animation(.quick, value: steps)
         .animation(.quick, value: fitToData)
