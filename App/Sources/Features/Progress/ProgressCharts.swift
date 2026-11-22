@@ -260,7 +260,8 @@ struct InsightGoalChart: View {
         guard steps.count > 1 else { return steps.map(\.label) }
         let every = max(1, (steps.count - 2) / 3)
         return steps.enumerated().compactMap { index, step in
-            index == 0 || index == steps.count - 1 || (index % every == 0 && index < steps.count - 2) ? step.label : nil
+            // Keep the last intermediate label clear of "Statut".
+            index == 0 || index == steps.count - 1 || (index % every == 0 && index < steps.count - 1 - max(2, every / 2)) ? step.label : nil
         }
     }
 
@@ -293,7 +294,7 @@ struct InsightGoalChart: View {
                                 .font(InsightAxis.labelFont)
                                 .foregroundStyle(Theme.textTertiary)
                                 .fixedSize()
-                                .position(x: frame.minX + x, y: frame.maxY + 14)
+                                .position(x: min(max(frame.minX + x, frame.minX + 22), frame.maxX - 20), y: frame.maxY + 14)
                         }
                     }
                 }
