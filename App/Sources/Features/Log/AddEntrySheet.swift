@@ -367,8 +367,8 @@ struct AddEntrySheet: View {
                 AddEntryMacroSummary(per100: item.per100, portion: portion)
                     .padding(.top, 4)
                 if !isQuickAdd {
+                    // MF: tiles right under the macro labels.
                     actionsRow
-                        .padding(.top, 10)
                 }
                 AddEntryHairline()
                     .padding(.top, 12)
@@ -397,7 +397,6 @@ struct AddEntrySheet: View {
                         .padding(.top, 10)
                     if !isQuickAdd {
                         actionsRow
-                            .padding(.top, 10)
                     }
                     AddEntryHairline()
                         .padding(.top, 12)
@@ -497,10 +496,10 @@ struct AddEntrySheet: View {
                 .frame(width: 44, height: 44)
                 .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Text(title)
-                .font(Theme.font(14, .regular, relativeTo: .footnote))
+                .font(Theme.font(15, .regular, relativeTo: .footnote))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
@@ -629,7 +628,8 @@ struct AddEntrySheet: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .strokeBorder(Theme.textPrimary, lineWidth: 2)
         }
-        .padding(.horizontal, 6)
+        // MF: field inset 4 pt more than the keypad on each side.
+        .padding(.horizontal, 10)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Quantité")
         .accessibilityValue("\(quantityText) \(quantityDetail)")
@@ -661,7 +661,7 @@ struct AddEntrySheet: View {
                         if candidate == .base {
                             Rectangle()
                                 .fill(Theme.textTertiary.opacity(0.5))
-                                .frame(width: 1.5, height: 40)
+                                .frame(width: 1.5, height: 44)
                                 .padding(.horizontal, 2)
                         }
                     }
@@ -935,8 +935,9 @@ private struct AddEntryMacroSummary: View {
                         .font(Theme.font(13, .regular, relativeTo: .subheadline))
                         .monospacedDigit()
                         .foregroundStyle(Theme.textPrimary)
-                        .padding(.horizontal, 12)
-                        .frame(height: 26)
+                        // Compact MF pill.
+                        .padding(.horizontal, 9)
+                        .frame(height: 22)
                         .background(AddEntryPanel.pill(key), in: Capsule())
                         .padding(.bottom, 8)
                     Text(Formatters.number(portion.value(key), maxFractionDigits: 1))
@@ -1127,7 +1128,7 @@ private struct AddEntryChipLabel: View {
             .foregroundStyle(isSelected ? Theme.onAccent : Theme.textPrimary)
             .padding(.horizontal, 18)
             .frame(minWidth: 60)
-            .frame(height: 40)
+            .frame(height: 44)
             .background(isSelected ? Theme.accent : AddEntryPanel.chip, in: Capsule())
             .overlay {
                 if isOutlined && !isSelected {

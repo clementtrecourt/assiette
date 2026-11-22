@@ -347,7 +347,7 @@ struct CoachingCountdownRing<Center: View>: View {
     }
 
     private static var size: CGFloat { 202 }
-    private static var outerDiameter: CGFloat { 189 }
+    private static var outerDiameter: CGFloat { 185 }
     private static var innerDiameter: CGFloat { 162 }
     private static var trackColor: Color { Theme.hex(0x333333) }
 
@@ -369,8 +369,10 @@ struct CoachingCountdownRing<Center: View>: View {
                 .frame(width: Self.innerDiameter, height: Self.innerDiameter)
                 .opacity(elapsed > 0 ? 1 : 0)
 
+            // Reference: the day count sits slightly below the ring's centre.
             center
                 .frame(width: Self.innerDiameter - 38)
+                .offset(y: 4)
         }
         .frame(width: Self.size, height: Self.size)
         .animation(.quick, value: filledDays)

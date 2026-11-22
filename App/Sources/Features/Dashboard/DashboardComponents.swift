@@ -91,23 +91,24 @@ struct DashboardCard<Visual: View>: View {
             visual
                 .frame(maxWidth: .infinity)
                 .frame(height: visualHeight)
-                .padding(.top, 10)
-                .padding(.bottom, 9)
+                .padding(.top, 8)
+                .padding(.bottom, 1)
             Rectangle()
                 .fill(Theme.separator)
                 .frame(height: Theme.hairline)
             HStack(alignment: .firstTextBaseline, spacing: 2) {
+                // Reference: medium-weight value, 15 pt unit in a light grey.
                 Text(value)
-                    .font(Theme.font(20, .bold, relativeTo: .title3))
-                    .tracking(-0.5)
+                    .font(Theme.font(20, .medium, relativeTo: .title3))
+                    .tracking(-0.3)
                     .monospacedDigit()
                     .foregroundStyle(valueColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(Theme.font(12, .medium, relativeTo: .caption))
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(Theme.font(15, .regular, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.textBody)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 4)
@@ -115,7 +116,7 @@ struct DashboardCard<Visual: View>: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Theme.textQuaternary)
             }
-            .padding(.top, 9)
+            .padding(.top, 7)
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)

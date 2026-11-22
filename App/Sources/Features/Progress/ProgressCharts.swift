@@ -40,6 +40,19 @@ private extension View {
                 }
             }
         }
+        .chartBackground { proxy in
+            // Reference: subtle 1 pt baseline along the bottom of the plot, above the date ticks.
+            GeometryReader { geo in
+                if let plot = proxy.plotFrame {
+                    let frame = geo[plot]
+                    Rectangle()
+                        .fill(Theme.separatorStrong)
+                        .frame(width: frame.width, height: 1)
+                        .position(x: frame.midX, y: frame.maxY - 0.5)
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     /// Trailing value axis with dashed grid lines.

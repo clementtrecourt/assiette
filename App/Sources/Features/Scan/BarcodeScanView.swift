@@ -281,7 +281,8 @@ struct BarcodeScanView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        // MF: the bar sits 5 pt under the tab strip.
+        .padding(.top, 5)
     }
 
     // MARK: - Bottom card
@@ -926,7 +927,7 @@ private struct ScanCornerBrackets: Shape {
     }
 }
 
-/// "Code-barres / Étiquette" switch (49 pt): white selected segment, white text on raised2.
+/// "Code-barres / Étiquette" switch (49 pt): white selected segment, white text on a near-black track.
 private struct ScanModeSwitch: View {
     let mode: ScanMode
     let onSelect: (ScanMode) -> Void
@@ -938,7 +939,8 @@ private struct ScanModeSwitch: View {
         }
         .padding(4)
         .frame(height: 49)
-        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        // Near-black track like MF (not the medium grey raised2).
+        .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Mode de scan")
     }

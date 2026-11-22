@@ -183,7 +183,8 @@ enum TodayTimelineMetrics {
     static let lineCenterTrailing: CGFloat = pillTrailing + pillWidth / 2
     /// Food cards stop before the pill column.
     static let cardTrailing: CGFloat = pillTrailing + pillWidth + 6
-    static let hourRowHeight: CGFloat = 52
+    /// Reference: 53 pt pitch between empty hour slots.
+    static let hourRowHeight: CGFloat = 53
     static let addSize: CGFloat = 25
     static let cardIconSize: CGFloat = 40
     static let cardRadius: CGFloat = 13
@@ -278,7 +279,7 @@ struct TodayHourRow: View {
     }
 }
 
-/// "07:00" capsule on the line; the current hour has a calories-blue outline and a dot.
+/// "07:00" capsule on the line; the current hour has a white dot (neutral fill, no outline).
 struct TodayHourPill: View {
     let hour: Int
     let isNow: Bool
@@ -287,7 +288,7 @@ struct TodayHourPill: View {
         HStack(spacing: 3) {
             if isNow {
                 Circle()
-                    .fill(Theme.calories)
+                    .fill(Theme.textPrimary)
                     .frame(width: 5, height: 5)
             }
             Text(TodayTimeFormat.hour(hour))
@@ -299,11 +300,6 @@ struct TodayHourPill: View {
         }
         .frame(width: TodayTimelineMetrics.pillWidth, height: TodayTimelineMetrics.pillHeight)
         .background(Capsule().fill(Theme.raised2))
-        .overlay {
-            if isNow {
-                Capsule().strokeBorder(Theme.calories, lineWidth: 1)
-            }
-        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isNow ? "\(TodayTimeFormat.hour(hour)), heure actuelle" : TodayTimeFormat.hour(hour))
     }

@@ -170,6 +170,9 @@ struct RootView: View {
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
+        // Reference tab bar is ~13 pt taller (items keep their place under the top hairline):
+        // raises the bar's top edge and the floating search bar above it.
+        .background(RootTabBarExtraHeight(extra: 13))
         .safeAreaInset(edge: .top, spacing: 0) {
             if let update = updates.available {
                 UpdateBanner(update: update, onUpdate: openFeather, onDismiss: {
@@ -259,6 +262,67 @@ private enum RootTabIcon {
         }.withRenderingMode(.alwaysTemplate)
         cache[name] = padded
         return padded
+    }
+}
+
+/// Makes the UIKit tab bar under SwiftUI's TabView `extra` pt taller: an additional bottom safe
+/// area on the UITabBarController grows the bar (its items stay in the top 49 pt) and the tabs'
+/// content, hence the floating search bar inset, ends that much higher.
+private struct RootTabBarExtraHeight: UIViewControllerRepresentable {
+    let extra: CGFloat
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller(extra: extra)
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.extra = extra
+        controller.apply()
+    }
+
+    final class Controller: UIViewController {
+        var extra: CGFloat
+        private weak var tabController: UITabBarController?
+
+        init(extra: CGFloat) {
+            self.extra = extra
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func loadView() {
+            view = UIView()
+            view.isUserInteractionEnabled = false
+            view.backgroundColor = .clear
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            apply()
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            apply()
+        }
+
+        func apply() {
+            if tabController == nil {
+                tabController = tabBarController ?? view.window?.rootViewController.flatMap(Self.findTabController(in:))
+            }
+            guard let tabController, tabController.additionalSafeAreaInsets.bottom != extra else { return }
+            tabController.additionalSafeAreaInsets.bottom = extra
+        }
+
+        private static func findTabController(in controller: UIViewController) -> UITabBarController? {
+            if let tabs = controller as? UITabBarController { return tabs }
+            for child in controller.children {
+                if let found = findTabController(in: child) { return found }
+            }
+            return nil
+        }
     }
 }
 

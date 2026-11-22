@@ -67,11 +67,14 @@ struct DashboardWeekPage: View {
             .padding(.bottom, Self.outlineBottom)
             .frame(maxWidth: .infinity)
             .overlay {
-                // Reference: ~39 pt wide outline around the whole column, letter included.
+                // Reference: ~39 pt wide outline around the whole column, letter included,
+                // starting 6 pt above the first cell row and ending 1 pt above the column end.
                 if isSelected {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .strokeBorder(Theme.textPrimary, lineWidth: 1.5)
                         .frame(width: 39)
+                        .padding(.top, -6)
+                        .padding(.bottom, 1)
                 }
             }
             .contentShape(Rectangle())
@@ -151,11 +154,11 @@ struct DashboardWeekPage: View {
                     Text(" \(Theme.letter(for: key))")
                 }
             }
-            .font(Theme.font(17, .regular, relativeTo: .body))
+            .font(Theme.font(18.5, .regular, relativeTo: .body))
             .monospacedDigit()
             .foregroundStyle(shown < 0 ? Theme.overTarget : Theme.textPrimary)
             Text("sur \(Formatters.number(target, maxFractionDigits: 0))")
-                .font(Theme.font(13, .regular, relativeTo: .caption))
+                .font(Theme.font(14, .regular, relativeTo: .caption))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
         }
@@ -170,8 +173,9 @@ struct DashboardBalancePage: View {
     let days: [InsightBalanceDay]
     let againstExpenditure: Bool
 
-    /// Reference: chart baseline ~60 pt above the averages, page as tall as the week page.
-    private static let chartHeight: CGFloat = 130
+    /// Reference: chart baseline ~55 pt above the averages, page as tall as the week page
+    /// (the bottom padding keeps the toggle where the week page puts it).
+    private static let chartHeight: CGFloat = 119
 
     private var lineColor: Color { againstExpenditure ? Theme.expenditure : Theme.targetLine }
     private func lineValue(_ day: InsightBalanceDay) -> Double {
@@ -191,13 +195,19 @@ struct DashboardBalancePage: View {
     }
 
     var body: some View {
-        VStack(spacing: 60) {
+        VStack(spacing: 55) {
             chart
                 .frame(height: Self.chartHeight)
             HStack(alignment: .top, spacing: 0) {
                 figure(averageIntake, legend: "Nutrition") {
-                    Image(systemName: "chart.bar.fill")
-                        .foregroundStyle(Theme.calories)
+                    // Reference glyph: three narrow square-ended bars.
+                    HStack(alignment: .bottom, spacing: 2) {
+                        ForEach([9, 15, 12] as [CGFloat], id: \.self) { height in
+                            Rectangle().frame(width: 3, height: height)
+                        }
+                    }
+                    .foregroundStyle(Theme.calories)
+                    .frame(height: 17, alignment: .bottom)
                 }
                 Text("–")
                     .font(Theme.font(20, .regular, relativeTo: .title3))
@@ -209,6 +219,7 @@ struct DashboardBalancePage: View {
                 }
             }
         }
+        .padding(.bottom, 16)
     }
 
     private func figure<Icon: View>(_ value: Double?, legend: String, @ViewBuilder icon: () -> Icon) -> some View {
@@ -279,7 +290,8 @@ struct DashboardPageToggle: View {
             segment(first, selected: !secondSelected) { secondSelected = false }
             segment(second, selected: secondSelected) { secondSelected = true }
         }
-        .padding(2)
+        // Selected capsule nearly fills the 40 pt track (reference: 1 pt inset).
+        .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
 
@@ -290,7 +302,7 @@ struct DashboardPageToggle: View {
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 36)
+                .frame(width: 100, height: 38)
                 .background(Capsule().fill(selected ? Theme.accent : Color.clear))
                 .contentShape(Rectangle())
         }

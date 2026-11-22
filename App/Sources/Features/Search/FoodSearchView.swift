@@ -510,7 +510,8 @@ struct FoodSearchView: View {
     /// Horizontal row of big icon tiles; one tap logs the usual quantity.
     private func favoritesSection(recent: [String: Double]) -> some View {
         Section {
-            sectionHeaderRow("Favoris")
+            // Tighter under "Favoris" (MF): tiles and captions sit 3 pt higher.
+            sectionHeaderRow("Favoris", bottom: 3)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 4) {
                     ForEach(favorites) { favorite in
@@ -628,9 +629,9 @@ struct FoodSearchView: View {
         return "OPENNUTRITION · \(count) RÉSULTAT\(count > 1 ? "S" : "")"
     }
 
-    private func sectionHeaderRow(_ title: String) -> some View {
+    private func sectionHeaderRow(_ title: String, bottom: CGFloat = 6) -> some View {
         SearchSectionHeader(title: title)
-            .modifier(SearchHeaderRowStyle())
+            .modifier(SearchHeaderRowStyle(bottom: bottom))
     }
 
     /// Icon tile, name, "🔥 kcal · G · P · L · quantity", trailing round "+" / check.
@@ -653,7 +654,8 @@ struct FoodSearchView: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
-        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 10))
+        // 44 pt "+" target + 9 + 9 = 62 pt rows (MF 61-64); content 3 pt left of the headers.
+        .listRowInsets(EdgeInsets(top: 9, leading: 13, bottom: 9, trailing: 10))
         .listRowBackground(checked ? Theme.raised2 : Theme.raised)
         .listRowSeparatorTint(Theme.separator)
     }
@@ -846,9 +848,11 @@ private struct SearchSectionHeader: View {
 
 /// List row style of the in-list section headers (no hairlines).
 private struct SearchHeaderRowStyle: ViewModifier {
+    var bottom: CGFloat = 6
+
     func body(content: Content) -> some View {
         content
-            .listRowInsets(EdgeInsets(top: 18, leading: 16, bottom: 6, trailing: 16))
+            .listRowInsets(EdgeInsets(top: 18, leading: 16, bottom: bottom, trailing: 16))
             .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
     }
@@ -859,7 +863,7 @@ private struct SearchFavoriteTile: View {
     let item: FoodItem
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 1) {
             FoodIconView(item: item, size: 40)
                 .frame(width: 56, height: 44, alignment: .topLeading)
                 .overlay(alignment: .bottomTrailing) {

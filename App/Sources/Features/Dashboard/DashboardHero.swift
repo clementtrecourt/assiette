@@ -234,7 +234,8 @@ struct DashboardModePicker: View {
             segment("Mangé", selected: !showRemaining) { showRemaining = false }
             segment("Restant", selected: showRemaining) { showRemaining = true }
         }
-        .padding(2)
+        // Selected capsule nearly fills the 40 pt track (reference: 1 pt inset).
+        .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
 
@@ -246,7 +247,7 @@ struct DashboardModePicker: View {
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 36)
+                .frame(width: 100, height: 38)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)

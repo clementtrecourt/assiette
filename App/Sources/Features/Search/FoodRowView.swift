@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Food row of the add flow: 38 pt icon, name (typed words in bold, brand muted), then
+/// Food row of the add flow: 38 pt icon, one-line name (typed words in bold, brand muted), then
 /// "148🔥  18G  2P  7L  •  32 g" for the quantity that would be logged (journal card format).
 /// Usable in any List or stack. Macros are listed G / P / L (`Theme.macroOrder`).
 struct FoodRowView: View {
@@ -49,9 +49,10 @@ struct FoodRowView: View {
             FoodIconView(item: item, size: 38)
 
             VStack(alignment: .leading, spacing: 2) {
+                // One line like MF: name then brand, tail-truncated together.
                 Text(nameText)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 detailLine
                     .lineLimit(1)
             }

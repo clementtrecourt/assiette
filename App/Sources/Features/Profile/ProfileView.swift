@@ -78,6 +78,8 @@ private struct ProfileHome: View {
                 header
                     .padding(.horizontal, 16)
                     .padding(.bottom, 17)
+                    // Full-bleed raised band (content keeps the 16 pt inset).
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.raised)
                 ProfileGroupTitle("Général")
                 ProfileGroup {
@@ -179,13 +181,13 @@ struct ProfileGroupTitle: View {
     }
 }
 
-/// Rounded raised group of rows (radius 16, 16 pt side margins).
+/// Rounded raised group of rows (radius 12, 16 pt side margins).
 struct ProfileGroup<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(.horizontal, 16)
     }
 }
@@ -200,7 +202,7 @@ struct ProfileGroupDivider: View {
     }
 }
 
-/// Row: 24 pt white icon, 18 pt label, trailing chevron (or external-link icon), 66 pt high.
+/// Row: 24 pt white icon, 17 pt label, trailing chevron (or external-link icon), 66 pt high.
 struct ProfileRowLabel: View {
     let title: String
     let systemImage: String
@@ -213,7 +215,7 @@ struct ProfileRowLabel: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 66)
             Text(title)
-                .font(Theme.font(18, .regular, relativeTo: .body))
+                .font(Theme.font(17, .regular, relativeTo: .body))
                 .foregroundStyle(Theme.textPrimary)
             Spacer(minLength: 8)
             Image(systemName: accessory)

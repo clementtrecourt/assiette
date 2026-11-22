@@ -171,19 +171,24 @@ struct QuickAddSheet: View {
                         }
                     }
                     .padding(.top, 16)
-                    fieldLabel("Alcool", color: Theme.textBody)
-                        .padding(.top, 16)
-                    alcoholField
-                        .id(QuickAddField.alcohol)
-                    fieldLabel("Nom", color: Theme.textBody)
-                        .padding(.top, 16)
-                    nameField
-                        .id(QuickAddField.name)
+                    // Label + field scroll as one block so "Alcool" never sits alone above the buttons.
+                    VStack(alignment: .leading, spacing: 0) {
+                        fieldLabel("Alcool", color: Theme.textBody)
+                        alcoholField
+                    }
+                    .padding(.top, 16)
+                    .id(QuickAddField.alcohol)
+                    VStack(alignment: .leading, spacing: 0) {
+                        fieldLabel("Nom", color: Theme.textBody)
+                        nameField
+                    }
+                    .padding(.top, 16)
+                    .id(QuickAddField.name)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 6)
-                // Room so the last field can scroll fully above the action buttons.
-                .padding(.bottom, 32)
+                // Room so the last block scrolls fully above the action buttons, with air.
+                .padding(.bottom, 48)
             }
             .scrollDismissesKeyboard(.never)
             .background(Theme.raised.ignoresSafeArea())
@@ -232,7 +237,10 @@ struct QuickAddSheet: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 50)
-            .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText)))
+            // Like MF: while focused, the energy entry is just a caret on the sheet background
+            // (no fill, no outline); boxed again once focus moves on. Same 50 pt tap target.
+            .modifier(QuickAddFieldBox(isFocused: focus == .calories, isInvalid: isInvalid(caloriesText),
+                                       isBare: focus == .calories))
             .contentShape(Rectangle())
             .onTapGesture { focus = .calories }
 
@@ -448,17 +456,25 @@ struct QuickAddSheet: View {
 }
 
 /// Input surface (raised2) with a 1 px border: brighter while focused, red when invalid.
+/// `isBare` drops the surface and focus outline (MF focused energy entry).
 private struct QuickAddFieldBox: ViewModifier {
     let isFocused: Bool
     let isInvalid: Bool
+    /// No fill and no focus outline (focused energy entry); an invalid value still shows red.
+    var isBare = false
 
     func body(content: Content) -> some View {
         content
-            .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(isBare ? Color.clear : Theme.raised2,
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(isInvalid ? Theme.overTarget : (isFocused ? Theme.textPrimary : Color.clear),
-                                  lineWidth: isFocused ? 2 : Theme.hairline)
+                    .strokeBorder(borderColor, lineWidth: isFocused && !isBare ? 2 : Theme.hairline)
             }
+    }
+
+    private var borderColor: Color {
+        if isInvalid { return Theme.overTarget }
+        return isFocused && !isBare ? Theme.textPrimary : Color.clear
     }
 }

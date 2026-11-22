@@ -422,6 +422,8 @@ struct InsightLegend: View {
         .padding(.horizontal, 10)
         .themedCard()
         .accessibilityElement(children: .combine)
+        // Reference: the "Analyses et données" heading sits ~11 pt further below the legend.
+        .padding(.bottom, 11)
     }
 
     private func rows(_ rows: [[InsightLegendItem]]) -> some View {
