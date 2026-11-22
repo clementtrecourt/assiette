@@ -19,6 +19,12 @@ enum Theme {
     static let raised = hex(0x1F1F1F)
     /// Controls on top of a card (round buttons, chips, keypad keys, icon tiles).
     static let raised2 = hex(0x383838)
+    /// Floating search bar fill (reference #313131).
+    static let searchField = hex(0x313131)
+    /// Hairline on top of the tab bar (reference #444444).
+    static let tabBarLine = hex(0x444444)
+    /// Value tiles of the insight cards, range chip group, "status" bar of the goal chart.
+    static let tile = hex(0x2E2E2E)
     static let card = raised
     static let cardBackground = raised
     /// Card fill: subtle top-to-bottom gradient + `cardBorder` hairline (see `.themedCard()`).
@@ -47,7 +53,10 @@ enum Theme {
     static let good = hex(0x5DBA87)
     /// Small flame before kcal values; also the expenditure color.
     static let flame = hex(0xF97316)
-    static let expenditure = flame
+    /// Expenditure line and markers (measured on the reference recording).
+    static let expenditure = hex(0xFF7954)
+    /// "Flux range" band around the expenditure line.
+    static let expenditureBand = hex(0x56423D)
 
     // Nutrients
     static let calories = hex(0x689FFA)
@@ -56,7 +65,17 @@ enum Theme {
     static let fat = hex(0xFFD15E)
     static let fiber = hex(0x7FCF9A)
     static let water = hex(0x6CC4E8)
-    static let weight = hex(0xC4B5FD)
+    /// Trend weight (line, scale dots, "away" bars of the goal chart).
+    static let weight = hex(0xAA80F7)
+    /// Darker weight shade: "towards" bars of the goal chart.
+    static let weightDark = hex(0x4A298B)
+    /// "Noise range" band between scale and trend weight.
+    static let weightBand = hex(0x2B2338)
+    /// Goal chart on scale weight: away (light) / towards (dark) greens.
+    static let goalAway = hex(0x53B17C)
+    static let goalTowards = hex(0x00482B)
+    /// Calorie target line (energy balance, "Objectifs caloriques").
+    static let targetLine = hex(0xFFD15E)
 
     /// Ring gradients (light → dark), used by the calorie ring and the check-in countdown.
     static let caloriesGradient = [hex(0x9CC2FF), hex(0x4F86EC)]

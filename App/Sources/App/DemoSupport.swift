@@ -7,6 +7,7 @@ import SwiftData
 ///   -startTab <name>      today | progress (Accueil) | program | profile
 ///   -startSheet <name>    search | scan | quickadd | detail | add   (presented from the journal)
 ///                         wizard | wizard-summary                 (presented from Programme)
+///   -startRoute <name>    expenditure | weight | goal | balance  (pushed on Accueil)
 ///   -updateBanner         show the "new version" banner with a fake build
 enum DemoSupport {
     static var arguments: [String] { ProcessInfo.processInfo.arguments }
@@ -29,6 +30,17 @@ enum DemoSupport {
     }
 
     static var startSheet: String? { value(after: "-startSheet") }
+
+    /// Dashboard detail screen pushed at launch (`-startRoute expenditure|weight|goal|balance`).
+    static var startRoute: DashboardRoute? {
+        switch value(after: "-startRoute") {
+        case "expenditure": .expenditure
+        case "weight": .weightTrend
+        case "goal": .goal
+        case "balance": .energyBalance
+        default: nil
+        }
+    }
 
     /// A food used for the "detail" / "add" demo sheets.
     static var sampleItem: FoodItem {

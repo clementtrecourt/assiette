@@ -662,44 +662,40 @@ struct AddSearchBar: View {
             Button {
                 appState.presentAdd(.search)
             } label: {
-                HStack(spacing: 9) {
+                HStack(spacing: 14) {
                     Image("Glyph-loupe")
-                    .resizable().frame(width: 18, height: 18)
-                        .foregroundStyle(Theme.textSecondary)
+                        .resizable().frame(width: 20, height: 20)
+                        .foregroundStyle(Theme.textPrimary)
                     Text("Rechercher un aliment")
-                        .font(Theme.font(15, .regular, relativeTo: .body))
+                        .font(Theme.font(16, .regular, relativeTo: .body))
                         .foregroundStyle(Theme.textTertiary)
                     Spacer(minLength: 0)
                 }
-                .padding(.leading, 14)
+                .padding(.leading, 18)
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Rechercher un aliment")
 
-            Rectangle()
-                .fill(Theme.separatorStrong)
-                .frame(width: Theme.hairline, height: 20)
-
             Button {
                 appState.presentAdd(.scan)
             } label: {
                 Image("Glyph-scan")
-                    .resizable().frame(width: 18, height: 18)
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 48)
+                    .resizable().frame(width: 20, height: 20)
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 56)
                     .frame(maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Scanner un code-barres")
         }
-        .frame(height: 46)
-        .background(Theme.raised2, in: Capsule())
+        .frame(height: 48)
+        .background(Theme.searchField, in: Capsule())
         .padding(.horizontal, 16)
         .padding(.top, 6)
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
         .background {
             // Fades the scrolling content into the background behind the bar.
             LinearGradient(colors: [Theme.background.opacity(0), Theme.background],

@@ -56,6 +56,20 @@ final class EngineExpenditureTests: XCTestCase {
         XCTAssertNotEqual(estimate[80 + window], estimate[59])
     }
 
+    func testHoldsWithTooLittleData() {
+        var days = EngineFixtures.synthetic(days: 60, trueExpenditure: 2500, intake: 2000)
+        // Days 30…39: only two logged days and no weigh-in → the estimate holds.
+        for i in 30..<40 {
+            days[i].scaleWeightKg = nil
+            if i != 31 && i != 35 { days[i].intakeKcal = nil }
+        }
+        let results = NutritionEngine.run(days: days, initialExpenditure: 2100)
+        XCTAssertTrue(results[39].isHolding)
+        XCTAssertEqual(results[39].expenditure, results[38].expenditure)
+        XCTAssertFalse(results[55].isHolding)
+        XCTAssertTrue(results[0].isHolding, "no history yet")
+    }
+
     func testStartIndexKeepsInitialBefore() {
         let days = EngineFixtures.synthetic(days: 40, trueExpenditure: 2500, intake: 2000)
         let trend = EngineWeightTrend.compute(scaleWeights: days.map(\.scaleWeightKg)).map { $0?.realtime }

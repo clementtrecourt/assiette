@@ -139,6 +139,10 @@ struct TodayDayContent: View {
     @State private var didRunDemoSheet = false
     @State private var showDatePicker = false
     @State private var showsEarlyHours = false
+    @State private var showMore = false
+    /// Action chosen in the "Plus" sheet, run once the sheet has closed (one sheet at a time).
+    @State private var pendingMoreAction: TodayMoreAction?
+    @AppStorage("today.hideEmptyHours") private var hideEmptyHours = false
     /// Current clock hour, refreshed at every hour change (current-hour pill).
     @State private var nowHour = Calendar.current.component(.hour, from: .now)
 
@@ -202,6 +206,12 @@ struct TodayDayContent: View {
         }
         .sheet(isPresented: $showDatePicker) {
             TodayDatePickerSheet()
+        }
+        .sheet(isPresented: $showMore, onDismiss: runPendingMoreAction) {
+            TodayMoreSheet(isToday: isToday, hasEntries: !entries.isEmpty, meals: mealsPresent) { action in
+                pendingMoreAction = action
+                showMore = false
+            }
         }
         .confirmationDialog(
             "Supprimer tous les aliments de ce jour ?",
@@ -271,14 +281,17 @@ struct TodayDayContent: View {
                 }
                 .todayListRow()
             }
-            ForEach(first..<24, id: \.self) { hour in
+            let hours = (first..<24).filter { hour in
+                !hideEmptyHours || hour == current || !buckets.entries(at: hour).isEmpty
+            }
+            ForEach(hours, id: \.self) { hour in
                 let hourEntries = buckets.entries(at: hour)
                 TodayHourRow(hour: hour,
                              isNow: hour == current,
                              totals: hourEntries.isEmpty ? nil : buckets.totalsByHour[hour]) {
                     add(at: hour)
                 }
-                .background(TodayTimelineLine(top: hour != first, bottom: hour != 23 || !hourEntries.isEmpty))
+                .background(TodayTimelineLine(top: hour != hours.first, bottom: hour != hours.last || !hourEntries.isEmpty))
                 .todayListRow()
                 .id(Self.hourID(hour))
                 ForEach(hourEntries, id: \.persistentModelID) { entry in
@@ -432,68 +445,25 @@ struct TodayDayContent: View {
     }
 
     private var moreMenu: some View {
-        Menu {
-            copyMenu
-            recipeMenu
-            Button {
-                showNutrients = true
-            } label: {
-                Label("Nutriments du jour", systemImage: "chart.bar.doc.horizontal")
-            }
-            Divider()
-            Button(role: .destructive) {
-                showClearDialog = true
-            } label: {
-                Label("Tout supprimer", systemImage: "trash")
-            }
-            .disabled(entries.isEmpty)
+        Button {
+            showMore = true
         } label: {
             TodayRoundIcon(systemName: "ellipsis")
                 .rotationEffect(.degrees(90))
-                .accessibilityLabel("Options du jour")
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Options du jour")
     }
 
-    private var copyMenu: some View {
-        Menu {
-            Button {
-                copyFromPreviousDay(meal: nil)
-            } label: {
-                Label("Toute la journée", systemImage: "calendar")
-            }
-            ForEach(Meal.allCases) { meal in
-                Button {
-                    copyFromPreviousDay(meal: meal)
-                } label: {
-                    Label(meal.label, systemImage: meal.systemImage)
-                }
-            }
-        } label: {
-            Label(isToday ? "Copier depuis hier" : "Copier depuis la veille",
-                  systemImage: "arrow.uturn.backward.circle")
+    private func runPendingMoreAction() {
+        guard let action = pendingMoreAction else { return }
+        pendingMoreAction = nil
+        switch action {
+        case .nutrients: showNutrients = true
+        case .copy(let meal): copyFromPreviousDay(meal: meal)
+        case .recipe(let meal): askRecipe(meal: meal)
+        case .clear: showClearDialog = true
         }
-    }
-
-    private var recipeMenu: some View {
-        Menu {
-            if mealsPresent.count > 1 {
-                Button {
-                    askRecipe(meal: nil)
-                } label: {
-                    Label("Toute la journée", systemImage: "calendar")
-                }
-            }
-            ForEach(mealsPresent) { meal in
-                Button {
-                    askRecipe(meal: meal)
-                } label: {
-                    Label(meal.label, systemImage: meal.systemImage)
-                }
-            }
-        } label: {
-            Label("Enregistrer comme recette", systemImage: "book")
-        }
-        .disabled(entries.isEmpty)
     }
 
     // MARK: - Day navigation & clock

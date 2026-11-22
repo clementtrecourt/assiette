@@ -359,6 +359,8 @@ struct TodayHourChips: View {
 /// whole card opens the edit sheet).
 struct TodayEntryCard: View {
     let entry: JournalEntry
+    /// "Masquer les détails" (journal "Plus" sheet): name only.
+    @AppStorage("today.hideFoodDetails") private var hideDetails = false
 
     var body: some View {
         let nutrients = entry.nutrients
@@ -369,11 +371,13 @@ struct TodayEntryCard: View {
                     .font(Theme.font(16, .regular, relativeTo: .callout))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
-                detailText(nutrients)
-                    .font(Theme.font(15, .regular, relativeTo: .subheadline))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                if !hideDetails {
+                    detailText(nutrients)
+                        .font(Theme.font(15, .regular, relativeTo: .subheadline))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
             }
             Spacer(minLength: 6)
             Image(systemName: "pencil")

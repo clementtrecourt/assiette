@@ -28,7 +28,10 @@ enum EngineExpenditure {
         // The trend reference day (start) must also be clear of exception days.
         guard !(start...index).contains(where: { days[$0].isExcluded }) else { return nil }
         let intakes = ((start + 1)...index).compactMap { days[$0].usableIntake }
-        guard !intakes.isEmpty else { return nil }
+        let weighIns = ((start + 1)...index).filter { days[$0].scaleWeightKg != nil }.count
+        // Holding: too little data in the window, the estimate keeps its last value.
+        guard !intakes.isEmpty, intakes.count >= parameters.expenditureMinimumIntakeDays,
+              weighIns >= parameters.expenditureMinimumWeighIns else { return nil }
         let meanIntake = intakes.reduce(0, +) / Double(intakes.count)
         return meanIntake - (trendNow - trendBefore) * parameters.expenditureEnergyDensity / Double(window)
     }

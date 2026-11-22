@@ -125,6 +125,19 @@ struct DashboardCard<Visual: View>: View {
     }
 }
 
+/// Dashboard tiles lighten while pressed, as on the reference.
+struct DashboardCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.12 : 0))
+                    .allowsHitTesting(false)
+            }
+            .animation(.easeOut(duration: configuration.isPressed ? 0.05 : 0.25), value: configuration.isPressed)
+    }
+}
+
 /// Placeholder inside a card visual when there is nothing to draw yet.
 struct DashboardNoData: View {
     var text = "Pas encore de données"
@@ -143,11 +156,13 @@ struct DashboardNoData: View {
 
 /// Tiny line chart scaled to its frame.
 struct DashboardSparkline: View {
-    enum Style { case area, line, dots }
+    enum Style { case area, line, dots, markers }
 
     let values: [Double]
     let color: Color
     var style: Style = .line
+    /// `.markers`: days drawn as squares (expenditure holding) instead of circles.
+    var holding: [Bool] = []
     /// Smallest value span mapped to the full height (avoids blowing up tiny changes).
     var minimumSpan: Double = 0
 
@@ -168,11 +183,19 @@ struct DashboardSparkline: View {
                             .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
                     }
                     ForEach(dotIndices(count: points.count), id: \.self) { index in
-                        Circle()
-                            .fill(Theme.raised)
-                            .overlay(Circle().stroke(color, lineWidth: 1.4))
-                            .frame(width: 5, height: 5)
-                            .position(points[index])
+                        if index < holding.count && holding[index] {
+                            Rectangle()
+                                .fill(Theme.raised)
+                                .overlay(Rectangle().stroke(color, lineWidth: 1.4))
+                                .frame(width: 6, height: 6)
+                                .position(points[index])
+                        } else {
+                            Circle()
+                                .fill(Theme.raised)
+                                .overlay(Circle().stroke(color, lineWidth: 1.4))
+                                .frame(width: style == .markers ? 7 : 5, height: style == .markers ? 7 : 5)
+                                .position(points[index])
+                        }
                     }
                 }
             }
@@ -184,7 +207,7 @@ struct DashboardSparkline: View {
         guard count > 0 else { return [] }
         if count == 1 { return [0] }
         switch style {
-        case .dots: return Array(0..<count)
+        case .dots, .markers: return Array(0..<count)
         case .area: return [0, count - 1]
         case .line: return [count - 1]
         }

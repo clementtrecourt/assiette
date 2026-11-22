@@ -39,14 +39,17 @@ struct AssietteApp: App {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(Theme.raised)
-        appearance.shadowColor = UIColor(Theme.separator)
+        appearance.shadowColor = UIColor(Theme.tabBarLine)
+        // No highlight behind the selected tab (the reference only changes the colors).
+        appearance.selectionIndicatorTintColor = .clear
+        appearance.selectionIndicatorImage = UIImage()
 
         let normal = UIColor(Theme.textTertiary)
         let selected = UIColor(Theme.textPrimary)
         var normalAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: normal]
         var selectedAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: selected]
-        // Reference tab bar: 13 pt labels, regular for idle tabs and medium for the selected one.
-        if let regular = UIFont(name: "DMSans-Regular", size: 13), let medium = UIFont(name: "DMSans-Medium", size: 13) {
+        // Reference tab bar: 12 pt labels, regular for idle tabs and medium for the selected one.
+        if let regular = UIFont(name: "DMSans-Regular", size: 12), let medium = UIFont(name: "DMSans-Medium", size: 12) {
             normalAttributes[.font] = regular
             selectedAttributes[.font] = medium
         }
@@ -63,12 +66,13 @@ struct AssietteApp: App {
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = selectedAttributes
         }
-        // Keep both states on one baseline with clearance inside the selection highlight.
-        let stackedTitleOffset = UIOffset(horizontal: 0, vertical: -4)
+        // Reference: label centre 42 pt below the top hairline (icons are lowered by RootTabIcon).
+        let stackedTitleOffset = UIOffset(horizontal: 0, vertical: 1.5)
         appearance.stackedLayoutAppearance.normal.titlePositionAdjustment = stackedTitleOffset
         appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = stackedTitleOffset
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().selectionIndicatorImage = UIImage()
     }
 
     /// Navigation bars: DM Sans for inline and large titles and for toolbar text buttons
@@ -121,6 +125,7 @@ struct AssietteApp: App {
                 .tint(Theme.accent)
         }
         .modelContainer(for: AppSchema.models, inMemory: Self.isRunningTests)
+        .backgroundTask(.appRefresh(NutritionSync.refreshTaskID)) { await NutritionSync.backgroundRefresh() }
     }
 }
 
@@ -141,13 +146,15 @@ struct RootView: View {
         @Bindable var appState = appState
         TabView(selection: $appState.selectedTab) {
             DashboardView()
-                .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Accueil", image: appState.selectedTab == .progress ? "Glyph-accueil-active" : "Glyph-accueil") }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if !appState.dashboardDetailShown { AddSearchBar() }
+                }
+                .tabItem { Label { Text("Accueil") } icon: { Image(uiImage: RootTabIcon.image(appState.selectedTab == .progress ? "Glyph-accueil-active" : "Glyph-accueil")) } }
                 .tag(AppTab.progress)
 
             TodayView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Journal", image: appState.selectedTab == .today ? "Glyph-journal-active" : "Glyph-journal") }
+                .tabItem { Label { Text("Journal") } icon: { Image(uiImage: RootTabIcon.image(appState.selectedTab == .today ? "Glyph-journal-active" : "Glyph-journal")) } }
                 .tag(AppTab.today)
 
             Color.clear
@@ -156,11 +163,11 @@ struct RootView: View {
 
             ProgramView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
-                .tabItem { Label("Programme", image: appState.selectedTab == .program ? "Glyph-programme-active" : "Glyph-programme") }
+                .tabItem { Label { Text("Programme") } icon: { Image(uiImage: RootTabIcon.image(appState.selectedTab == .program ? "Glyph-programme-active" : "Glyph-programme")) } }
                 .tag(AppTab.program)
 
             ProfileView()
-                .tabItem { Label("Profil", image: appState.selectedTab == .profile ? "Glyph-profil-active" : "Glyph-profil") }
+                .tabItem { Label { Text("Profil") } icon: { Image(uiImage: RootTabIcon.image(appState.selectedTab == .profile ? "Glyph-profil-active" : "Glyph-profil")) } }
                 .tag(AppTab.profile)
         }
         .tint(Theme.textPrimary)
@@ -239,12 +246,29 @@ struct RootView: View {
     }
 }
 
+/// Tab glyphs lowered 4 pt (8 pt transparent band on top), to sit where the reference's icons do.
+private enum RootTabIcon {
+    private static var cache: [String: UIImage] = [:]
+
+    static func image(_ name: String) -> UIImage {
+        if let cached = cache[name] { return cached }
+        guard let base = UIImage(named: name) else { return UIImage() }
+        let top: CGFloat = 8
+        let size = CGSize(width: base.size.width, height: base.size.height + top)
+        let padded = UIGraphicsImageRenderer(size: size).image { _ in
+            base.draw(in: CGRect(origin: CGPoint(x: 0, y: top), size: base.size))
+        }.withRenderingMode(.alwaysTemplate)
+        cache[name] = padded
+        return padded
+    }
+}
+
 /// The white rounded "+" of the central tab (drawn once, rendered in original colors).
 private enum RootTabPlusImage {
     static let image: UIImage = {
-        // Reference: 44 pt white disc, thin 2.2 pt plus, 18 pt wide.
-        // 7 pt transparent band on top so the disc clears the tab bar border.
-        let disc: CGFloat = 46, top: CGFloat = 7
+        // Reference: 41 pt white disc, centre 26.5 pt below the top hairline, thin 2 pt plus,
+        // 15 pt wide. 3 pt transparent band on top lowers the disc slightly.
+        let disc: CGFloat = 43, top: CGFloat = 3
         let size = CGSize(width: disc, height: disc + top)
         return UIGraphicsImageRenderer(size: size).image { _ in
             let rect = CGRect(x: 0, y: top, width: disc, height: disc).insetBy(dx: 1, dy: 1)
@@ -252,9 +276,9 @@ private enum RootTabPlusImage {
             UIBezierPath(ovalIn: rect).fill()
             let c = disc / 2, cy = top + disc / 2
             let plus = UIBezierPath()
-            plus.move(to: CGPoint(x: c, y: cy - 9)); plus.addLine(to: CGPoint(x: c, y: cy + 9))
-            plus.move(to: CGPoint(x: c - 9, y: cy)); plus.addLine(to: CGPoint(x: c + 9, y: cy))
-            plus.lineWidth = 2.2
+            plus.move(to: CGPoint(x: c, y: cy - 7.5)); plus.addLine(to: CGPoint(x: c, y: cy + 7.5))
+            plus.move(to: CGPoint(x: c - 7.5, y: cy)); plus.addLine(to: CGPoint(x: c + 7.5, y: cy))
+            plus.lineWidth = 2
             plus.lineCapStyle = .round
             UIColor(Theme.onAccent).setStroke()
             plus.stroke()

@@ -55,9 +55,9 @@ struct DashboardHero: View {
             value = consumed
             color = isOver ? Theme.overTarget : Theme.textPrimary
         }
-        return VStack(spacing: 3) {
+        return VStack(spacing: 0) {
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(40, .bold, relativeTo: .largeTitle))
+                .font(Theme.font(36, .bold, relativeTo: .largeTitle))
                 .tracking(-1)
                 .monospacedDigit()
                 .foregroundStyle(color)
@@ -156,7 +156,8 @@ struct DashboardMacroBars: View {
     let showRemaining: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        // Reference: 92 pt bars, 37 pt apart.
+        HStack(alignment: .top, spacing: 36) {
             ForEach(Theme.macroOrder, id: \.self) { key in
                 column(key)
             }
@@ -192,7 +193,7 @@ struct DashboardMacroBars: View {
             : (showRemaining ? "\(Formatters.number(target - eaten, maxFractionDigits: 0)) g restants"
                              : "\(Formatters.number(eaten, maxFractionDigits: 0)) g mangés")
 
-        return VStack(spacing: 6) {
+        return VStack(spacing: 3) {
             Text(key.label)
                 .font(Theme.font(16, .regular, relativeTo: .callout))
                 .foregroundStyle(Theme.textSecondary)
@@ -231,11 +232,12 @@ struct DashboardModePicker: View {
         Button {
             withAnimation(.quick) { action() }
         } label: {
+            // Reference: 40 pt tall, ~100 pt segments, 15 pt regular text (white when idle).
             Text(title)
-                .font(Theme.font(13, selected ? .bold : .medium, relativeTo: .subheadline))
-                .foregroundStyle(selected ? Theme.onAccent : Theme.textSecondary)
-                .padding(.horizontal, 18)
-                .frame(minHeight: 38)
+                .font(Theme.font(15, .regular, relativeTo: .subheadline))
+                .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
+                .frame(width: 98)
+                .frame(minHeight: 36)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)
