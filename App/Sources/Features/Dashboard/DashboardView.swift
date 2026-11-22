@@ -52,7 +52,7 @@ private struct DashboardContent: View {
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
     @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = false
     /// Page of the header carousel (0 ring, 1 week, 2 energy balance).
-    @State private var heroPage: Int? = DemoSupport.heroPage ?? 0
+    @State private var heroPage: Int? = 0
     @State private var weekSelection = Date.now.startOfDay
     @AppStorage(HealthImport.lastSyncKey) private var healthSync = 0.0
     /// Starts from the last computed snapshot, so the cards are filled from the first frame.
@@ -177,6 +177,12 @@ private struct DashboardContent: View {
         }
         .task(id: snapshotKey) {
             refreshSnapshot()
+        }
+        .task {
+            // CI screenshots: -heroPage 1|2 scrolls the header carousel once laid out.
+            guard let page = DemoSupport.heroPage else { return }
+            try? await Task.sleep(for: .seconds(1))
+            withAnimation(.none) { heroPage = page }
         }
         .sensoryFeedback(.selection, trigger: showRemaining)
     }
