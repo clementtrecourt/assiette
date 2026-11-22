@@ -56,6 +56,23 @@ final class EngineExpenditureTests: XCTestCase {
         XCTAssertNotEqual(estimate[80 + window], estimate[59])
     }
 
+    func testOneExtremeDayIsTrimmed() {
+        let days = EngineFixtures.synthetic(days: 60, trueExpenditure: 2500, intake: 2500)
+        var party = days
+        party[45].intakeKcal = 5000
+        func shift(_ parameters: EngineParameters) -> Double {
+            let spiked = NutritionEngine.run(days: party, initialExpenditure: 2500, parameters: parameters)
+            let base = NutritionEngine.run(days: days, initialExpenditure: 2500, parameters: parameters)
+            return spiked[51].expenditure - base[51].expenditure
+        }
+        var untrimmed = EngineParameters.calibrated
+        untrimmed.expenditureTrimmedDays = 0
+        let trimmedShift = shift(.calibrated), untrimmedShift = shift(untrimmed)
+        print("one 5000 kcal day moves the estimate by \(trimmedShift) kcal trimmed, \(untrimmedShift) untrimmed")
+        // The party day is dropped from every window: only the second-highest day moves in.
+        XCTAssertLessThan(abs(trimmedShift), untrimmedShift / 3)
+    }
+
     func testHoldsWithTooLittleData() {
         var days = EngineFixtures.synthetic(days: 60, trueExpenditure: 2500, intake: 2000)
         // Days 30…39: only two logged days and no weigh-in → the estimate holds.

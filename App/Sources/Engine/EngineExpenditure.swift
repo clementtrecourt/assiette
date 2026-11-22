@@ -3,7 +3,8 @@ import Foundation
 /// Adaptive estimate of total daily energy expenditure from logged intake and trend weight.
 ///
 /// Each day, an energy-balance estimate is taken over the last `expenditureWindowDays` days:
-/// mean intake of the usable days − (real-time trend change × energy density) / window. The
+/// trimmed mean intake of the usable days (lowest and highest dropped) − (real-time trend change ×
+/// energy density) / window. The
 /// published expenditure then moves only a small fraction of the way toward it, which keeps it
 /// stable (a few kcal per day) while still following real changes within a few weeks.
 /// Unlogged and partial days are ignored, never counted as zero.
@@ -32,7 +33,10 @@ enum EngineExpenditure {
         // Holding: too little data in the window, the estimate keeps its last value.
         guard !intakes.isEmpty, intakes.count >= parameters.expenditureMinimumIntakeDays,
               weighIns >= parameters.expenditureMinimumWeighIns else { return nil }
-        let meanIntake = intakes.reduce(0, +) / Double(intakes.count)
+        let trim = parameters.expenditureTrimmedDays
+        let kept = trim > 0 && intakes.count >= parameters.expenditureTrimMinimumDays && intakes.count > 2 * trim
+            ? Array(intakes.sorted()[trim..<(intakes.count - trim)]) : intakes
+        let meanIntake = kept.reduce(0, +) / Double(kept.count)
         return meanIntake - (trendNow - trendBefore) * parameters.expenditureEnergyDensity / Double(window)
     }
 
