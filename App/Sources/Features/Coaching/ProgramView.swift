@@ -113,10 +113,11 @@ private struct ProgramContent: View {
                             .padding(.horizontal, -60)
                             .padding(.top, -600)
                     }
+                    // Reference: title 32 pt under the hero, card 9 pt under the title.
                     CoachingSectionTitle("En cours")
                         .padding(.leading, 4)
-                        .padding(.top, 28)
-                        .padding(.bottom, 13)
+                        .padding(.top, 32)
+                        .padding(.bottom, 9)
                 }
                 // Keeps the content on the 16 pt screen margin whatever inset the header gets.
                 .padding(.horizontal, max(0, 16 - heroMinX))

@@ -122,12 +122,14 @@ private struct DashboardContent: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        // Reference: the week grid (tallest page) ends 16 pt above the toggle.
-                        .padding(.top, 16)
+                        // Reference: the week grid (tallest page) ends ~17 pt above the 44 pt toggle.
+                        .padding(.top, 17)
                     }
                     .padding(.horizontal, -16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 15)
+                    // Page titles sit ~6 pt under the header (reference); the toggle centre and
+                    // the end of the raised panel stay where they were.
+                    .padding(.top, 2)
+                    .padding(.bottom, 13)
                 }
                 .padding(.horizontal, 16)
                 .background(Theme.raised.ignoresSafeArea(edges: .top))
@@ -221,7 +223,7 @@ private struct DashboardContent: View {
     }
 
     private var weekPage: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 17) {
             Text("Nutrition de la semaine")
                 .font(Theme.title)
             DashboardWeekPage(days: weekDays, showRemaining: showRemaining, selected: $weekSelection)
@@ -233,7 +235,7 @@ private struct DashboardContent: View {
         let start = today.adding(days: -29).startOfDay
         let days = DashboardInsights.balanceDays(snapshot: snapshot, from: start, today: today,
                                                  todayIntake: todayKcal, target: calorieTargetLookup)
-        return VStack(alignment: .leading, spacing: 18) {
+        return VStack(alignment: .leading, spacing: 24) {
             Text("Bilan énergétique")
                 .font(Theme.title)
             DashboardBalancePage(days: days, againstExpenditure: balanceAgainstExpenditure)
@@ -285,7 +287,7 @@ private struct DashboardContent: View {
                                   unit: "kcal") {
                         DashboardSparkline(values: expenditures, color: Theme.expenditure,
                                            style: .markers, holding: lastWeek.map(\.isHolding),
-                                           minimumSpan: 60, revealed: revealed)
+                                           minimumSpan: 60, band: true, revealed: revealed)
                     }
                 }
                 NavigationLink(value: DashboardRoute.weightTrend) {

@@ -423,14 +423,14 @@ struct CoachingWeekColumns: View {
         .accessibilityLabel(accessibilityText)
     }
 
-    /// Measured on the reference: pill + blocks in 13 pt black text, 3 pt corners,
+    /// Measured on the reference: 12 pt pill numerals, blocks in 13 pt black text, 3 pt corners,
     /// block height = 36 pt + 73 pt × (grams / largest macro of the week).
     private func column(_ index: Int, day: Day, maxGrams: Double) -> some View {
         let isToday = index == todayIndex
         let scale: CGFloat = isLarge ? 1.1 : 1
         return VStack(spacing: 4) {
             Text(CoachingFormat.kcalNumber(day.calories))
-                .font(Theme.font(13, .regular, relativeTo: .caption))
+                .font(Theme.font(isLarge ? 13 : 12, .regular, relativeTo: .caption))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -440,7 +440,8 @@ struct CoachingWeekColumns: View {
                 .frame(height: isLarge ? 26 : 23)
                 .background(Theme.calories, in: Capsule())
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 4)
+                // Reference: first macro block ~5 pt under the chip.
+                .padding(.bottom, isLarge ? 4 : 1)
             ForEach(Theme.macroOrder, id: \.self) { key in
                 let value = Self.grams(key, of: day)
                 Text("\(Formatters.number(value, maxFractionDigits: 0)) \(Theme.letter(for: key))")

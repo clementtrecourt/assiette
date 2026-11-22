@@ -96,8 +96,8 @@ struct DashboardCard<Visual: View>: View {
             Rectangle()
                 .fill(Theme.separator)
                 .frame(height: Theme.hairline)
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                // Reference: medium-weight value, 15 pt unit in a light grey.
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                // Reference: medium-weight value, 15 pt unit in a light grey, ~5 pt apart.
                 Text(value)
                     .font(Theme.font(20, .medium, relativeTo: .title3))
                     .tracking(-0.3)
@@ -110,6 +110,7 @@ struct DashboardCard<Visual: View>: View {
                         .font(Theme.font(15, .regular, relativeTo: .subheadline))
                         .foregroundStyle(Theme.textBody)
                         .lineLimit(1)
+                        .padding(.leading, 5)
                 }
                 Spacer(minLength: 4)
                 Image(systemName: accessory)
@@ -170,6 +171,8 @@ struct DashboardSparkline: View {
     var holding: [Bool] = []
     /// Smallest value span mapped to the full height (avoids blowing up tiny changes).
     var minimumSpan: Double = 0
+    /// Faint band (line color, ±4 pt) behind the line, as on the reference expenditure card.
+    var band: Bool = false
     /// Opening animation (reference recording, 60 fps): when it turns true the line draws
     /// from left to right at constant speed in 0.68 s, then the markers appear together 0.9 s
     /// after the start. nil = drawn at once.
@@ -198,6 +201,11 @@ struct DashboardSparkline: View {
                     }
                     if points.count > 1 {
                         Group {
+                            if band {
+                                Self.linePath(points)
+                                    .stroke(color.opacity(0.15),
+                                            style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
+                            }
                             if let firstHolding {
                                 // Solid up to the last updated day, darker over the holding days.
                                 Self.linePath(Array(points[..<firstHolding]))
@@ -220,9 +228,10 @@ struct DashboardSparkline: View {
                     ForEach(dotIndices(count: points.count), id: \.self) { index in
                         Group {
                             if isHolding(index) {
+                                // Hollow square in the line color (reference).
                                 Rectangle()
                                     .fill(Theme.raised)
-                                    .overlay(Rectangle().stroke(holdingColor, lineWidth: 1.4))
+                                    .overlay(Rectangle().stroke(color, lineWidth: 1.4))
                                     .frame(width: 6, height: 6)
                             } else {
                                 Circle()

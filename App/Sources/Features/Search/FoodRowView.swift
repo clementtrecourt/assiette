@@ -24,6 +24,10 @@ struct FoodRowView: View {
         self.highlight = highlight
     }
 
+    /// Leading of the name / detail text inside the row (38 pt icon + 14 pt gap): list
+    /// separators start there, like MF.
+    static let textLeading: CGFloat = 38 + 14
+
     private static let nameFont = Theme.font(15, .regular, relativeTo: .subheadline)
     private static let nameBoldFont = Theme.font(15, .bold, relativeTo: .subheadline)
     private static let brandFont = Theme.font(15, .regular, relativeTo: .subheadline)

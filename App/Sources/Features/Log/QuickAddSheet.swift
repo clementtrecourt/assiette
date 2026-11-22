@@ -186,7 +186,8 @@ struct QuickAddSheet: View {
                     .id(QuickAddField.name)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 6)
+                // MF: 12 pt from the tab divider to the "Énergie" label.
+                .padding(.top, 12)
                 // Room so the last block scrolls fully above the action buttons, with air.
                 .padding(.bottom, 48)
             }
@@ -260,7 +261,7 @@ struct QuickAddSheet: View {
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 16)
                 .frame(width: 112, height: 50)
-                .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(QuickAddFieldBox.fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .accessibilityLabel("Unité d'énergie : \(energyInKJ ? "kilojoules" : "kilocalories")")
         }
@@ -455,9 +456,11 @@ struct QuickAddSheet: View {
     }
 }
 
-/// Input surface (raised2) with a 1 px border: brighter while focused, red when invalid.
-/// `isBare` drops the surface and focus outline (MF focused energy entry).
+/// Input surface (MF #2E2E2E on the #1F1F1F sheet) with a 1 px border: brighter while focused,
+/// red when invalid. `isBare` drops the surface and focus outline (MF focused energy entry).
 private struct QuickAddFieldBox: ViewModifier {
+    static let fill = Theme.hex(0x2E2E2E)
+
     let isFocused: Bool
     let isInvalid: Bool
     /// No fill and no focus outline (focused energy entry); an invalid value still shows red.
@@ -465,7 +468,7 @@ private struct QuickAddFieldBox: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(isBare ? Color.clear : Theme.raised2,
+            .background(isBare ? Color.clear : QuickAddFieldBox.fill,
                         in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

@@ -362,7 +362,7 @@ struct FoodSearchView: View {
         .overlay {
             Capsule()
                 .strokeBorder(isSearchFocused ? Theme.textPrimary : Theme.separatorStrong,
-                              lineWidth: isSearchFocused ? 3 : 1)
+                              lineWidth: isSearchFocused ? 3 : 2)
         }
         .contentShape(Rectangle())
         .onTapGesture { isSearchFocused = true }
@@ -629,7 +629,7 @@ struct FoodSearchView: View {
         return "OPENNUTRITION · \(count) RÉSULTAT\(count > 1 ? "S" : "")"
     }
 
-    private func sectionHeaderRow(_ title: String, bottom: CGFloat = 6) -> some View {
+    private func sectionHeaderRow(_ title: String, bottom: CGFloat = 0) -> some View {
         SearchSectionHeader(title: title)
             .modifier(SearchHeaderRowStyle(bottom: bottom))
     }
@@ -654,10 +654,12 @@ struct FoodSearchView: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
+        // MF: the row divider starts under the name, not under the icon.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in FoodRowView.textLeading }
         // 44 pt "+" target + 9 + 9 = 62 pt rows (MF 61-64); content 3 pt left of the headers.
         .listRowInsets(EdgeInsets(top: 9, leading: 13, bottom: 9, trailing: 10))
         .listRowBackground(checked ? Theme.raised2 : Theme.raised)
-        .listRowSeparatorTint(Theme.separator)
+        .listRowSeparatorTint(Theme.separatorStrong)
     }
 
     // MARK: Actions
@@ -846,9 +848,10 @@ private struct SearchSectionHeader: View {
     }
 }
 
-/// List row style of the in-list section headers (no hairlines).
+/// List row style of the in-list section headers (no hairlines). MF: the first food row
+/// sits right under its heading (no bottom inset).
 private struct SearchHeaderRowStyle: ViewModifier {
-    var bottom: CGFloat = 6
+    var bottom: CGFloat = 0
 
     func body(content: Content) -> some View {
         content

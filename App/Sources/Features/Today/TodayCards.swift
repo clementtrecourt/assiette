@@ -35,7 +35,7 @@ struct TodayRoundIcon: View {
 // MARK: - Pinned macro header
 
 /// Pinned header: 4 equal columns kcal / G / P / L (DESIGN.md macro order), each with the
-/// remaining (or consumed) value and a 3 pt bar in the macro color.
+/// remaining (or consumed) value and a 5 pt bar in the macro color.
 struct TodayMacroHeader: View {
     let totals: NutrientValues
     let targets: TodayTargets
@@ -67,7 +67,7 @@ struct TodayMacroHeader: View {
     }
 }
 
-/// One header column: "G 165" (or "1 251 kcal") + a 3 pt bar. Remaining mode: the bar shows the
+/// One header column: "G 165" (or "1 251 kcal") + a 5 pt bar right under it. Remaining mode: the bar shows the
 /// remaining share, anchored on the trailing edge; consumed mode: the eaten share from the left.
 struct TodayMacroHeaderColumn: View {
     let key: NutrientKey
@@ -93,7 +93,8 @@ struct TodayMacroHeaderColumn: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        // Reference: the bar hugs the value line.
+        VStack(alignment: .leading, spacing: 0) {
             valueLine
             TodayMacroBar(fraction: fraction, fromTrailing: !showsConsumed, color: barColor)
         }
@@ -135,7 +136,7 @@ struct TodayMacroHeaderColumn: View {
     }
 }
 
-/// 3 pt track + fill; `fromTrailing` anchors the fill on the right (remaining share).
+/// 5 pt track + fill; `fromTrailing` anchors the fill on the right (remaining share).
 private struct TodayMacroBar: View {
     let fraction: Double
     let fromTrailing: Bool
@@ -150,7 +151,7 @@ private struct TodayMacroBar: View {
                     .frame(width: geo.size.width * fraction)
             }
         }
-        .frame(height: 4)
+        .frame(height: 5)
         .animation(.quick, value: fraction)
         .accessibilityHidden(true)
     }

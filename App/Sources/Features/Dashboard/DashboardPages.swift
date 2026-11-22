@@ -68,13 +68,14 @@ struct DashboardWeekPage: View {
             .frame(maxWidth: .infinity)
             .overlay {
                 // Reference: ~39 pt wide outline around the whole column, letter included,
-                // starting 6 pt above the first cell row and ending 1 pt above the column end.
+                // starting ~9 pt above the first cell's top and ending 2 pt below the column end.
                 if isSelected {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .strokeBorder(Theme.textPrimary, lineWidth: 1.5)
                         .frame(width: 39)
-                        .padding(.top, -6)
-                        .padding(.bottom, 1)
+                        // Cells sit ~3 pt higher inside the outline than they used to.
+                        .padding(.top, -3)
+                        .padding(.bottom, -2)
                 }
             }
             .contentShape(Rectangle())
@@ -214,12 +215,14 @@ struct DashboardBalancePage: View {
                     .foregroundStyle(Theme.textPrimary)
                     .padding(.top, 2)
                 figure(averageLine, legend: againstExpenditure ? "Dépense" : "Objectif") {
-                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                        .foregroundStyle(lineColor)
+                    // Reference glyph: a small smooth wave stroke.
+                    DashboardWaveGlyph()
+                        .stroke(lineColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .frame(width: 18, height: 10)
                 }
             }
         }
-        .padding(.bottom, 16)
+        .padding(.bottom, 13)
     }
 
     private func figure<Icon: View>(_ value: Double?, legend: String, @ViewBuilder icon: () -> Icon) -> some View {
@@ -279,6 +282,22 @@ struct DashboardBalancePage: View {
     }
 }
 
+/// Legend glyph of the expenditure / target line: one smooth wave (rise, dip, rise).
+struct DashboardWaveGlyph: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width, h = rect.height
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + h * 0.75))
+        path.addCurve(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY + h * 0.5),
+                      control1: CGPoint(x: rect.minX + w * 0.15, y: rect.minY - h * 0.1),
+                      control2: CGPoint(x: rect.minX + w * 0.35, y: rect.minY + h * 0.1))
+        path.addCurve(to: CGPoint(x: rect.maxX, y: rect.minY + h * 0.25),
+                      control1: CGPoint(x: rect.minX + w * 0.65, y: rect.minY + h * 0.9),
+                      control2: CGPoint(x: rect.minX + w * 0.85, y: rect.minY + h * 1.1))
+        return path
+    }
+}
+
 /// Two-option capsule toggle under a carousel page (same look as Mangé / Restant).
 struct DashboardPageToggle: View {
     let first: String
@@ -290,7 +309,7 @@ struct DashboardPageToggle: View {
             segment(first, selected: !secondSelected) { secondSelected = false }
             segment(second, selected: secondSelected) { secondSelected = true }
         }
-        // Selected capsule nearly fills the 40 pt track (reference: 1 pt inset).
+        // Selected capsule nearly fills the 44 pt track (reference: 1 pt inset).
         .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
@@ -302,7 +321,7 @@ struct DashboardPageToggle: View {
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 38)
+                .frame(width: 100, height: 42)
                 .background(Capsule().fill(selected ? Theme.accent : Color.clear))
                 .contentShape(Rectangle())
         }

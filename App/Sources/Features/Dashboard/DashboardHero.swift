@@ -234,7 +234,7 @@ struct DashboardModePicker: View {
             segment("Mangé", selected: !showRemaining) { showRemaining = false }
             segment("Restant", selected: showRemaining) { showRemaining = true }
         }
-        // Selected capsule nearly fills the 40 pt track (reference: 1 pt inset).
+        // Selected capsule nearly fills the 44 pt track (reference: 1 pt inset).
         .padding(1)
         .background(Theme.raised2, in: Capsule())
     }
@@ -243,11 +243,11 @@ struct DashboardModePicker: View {
         Button {
             withAnimation(.quick) { action() }
         } label: {
-            // Reference: 40 pt tall, ~100 pt segments, 15 pt regular text (white when idle).
+            // Reference: 44 pt tall, ~100 pt segments, 15 pt regular text (white when idle).
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 100, height: 38)
+                .frame(width: 100, height: 42)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)

@@ -78,11 +78,7 @@ struct AddFlowView: View {
             AddFlowHeader(context: $context, pending: pending, onClose: { dismiss() })
             VStack(spacing: 0) {
               if let openedItem {
-                Capsule()
-                    .fill(Theme.raised2)
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 6)
-                    .accessibilityHidden(true)
+                // MF: no grabber on the quantity screen, its "< title" row sits right under the panel top.
                 AddEntrySheet(item: openedItem, context: context, onLogged: { close() },
                               onBack: { withAnimation(.quick) { self.openedItem = nil } })
                     .id(openedItem.id)
@@ -92,8 +88,9 @@ struct AddFlowView: View {
                     Capsule()
                         .fill(Theme.raised2)
                         .frame(width: 40, height: 5)
-                        .padding(.top, 6)
-                        .padding(.bottom, 2)
+                        // MF: 42 pt from the panel top to the tab labels.
+                        .padding(.top, 9)
+                        .padding(.bottom, 11)
                         .accessibilityHidden(true)
                     AddFlowModeTabs(selection: $mode)
                 }
@@ -183,7 +180,7 @@ private struct AddFlowHeader: View {
                     .font(Theme.font(17, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 22)
                     .frame(height: 48)
                 .background(Theme.raised2, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -311,23 +308,25 @@ private struct AddFlowModeTabs: View {
         return Button {
             selection = mode
         } label: {
-            VStack(spacing: 0) {
-                HStack(spacing: 6) {
-                    Image(systemName: mode.addFlowSymbol)
-                        .font(.system(size: 14, weight: .regular))
-                    Text(mode.addFlowTitle)
-                        .font(Theme.font(15, .regular, relativeTo: .body))
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-                .foregroundStyle(Theme.textPrimary)
-                .padding(.horizontal, 12)
-                .padding(.top, 9)
-                .padding(.bottom, 15)
+            HStack(spacing: 6) {
+                Image(systemName: mode.addFlowSymbol)
+                    .font(.system(size: 14, weight: .regular))
+                Text(mode.addFlowTitle)
+                    .font(Theme.font(15, .regular, relativeTo: .body))
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.top, 9)
+            .padding(.bottom, 19)
+            // MF: the underline spans the icon + label plus 8 pt on each side, not the whole button.
+            .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(isSelected ? Theme.textPrimary : Color.clear)
                     .frame(height: 4)
+                    .padding(.horizontal, -8)
             }
+            .padding(.horizontal, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

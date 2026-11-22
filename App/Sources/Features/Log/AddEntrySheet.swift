@@ -358,22 +358,27 @@ struct AddEntrySheet: View {
             }
             .padding(.leading, 6)
         }
-        .padding(.vertical, 2)
+        // MF: the "< title" row sits right under the panel top (no grabber): 36 pt row, the
+        // 44 pt chevron target overflows it.
+        .frame(height: 36)
     }
 
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                // Title raised, macros kept where they were (MF: 79 pt title -> big figures).
                 AddEntryMacroSummary(per100: item.per100, portion: portion)
-                    .padding(.top, 4)
+                    .padding(.top, 27)
                 if !isQuickAdd {
                     // MF: tiles right under the macro labels.
                     actionsRow
                 }
+                // MF: edge-to-edge divider above the impact section.
                 AddEntryHairline()
+                    .padding(.horizontal, -16)
                     .padding(.top, 12)
                 dayShare
-                    .padding(.top, 12)
+                    .padding(.top, 21)
                 whenRow
                     .padding(.top, 14)
                 if showsDatasetAttribution {
@@ -578,15 +583,18 @@ struct AddEntrySheet: View {
     /// Reference panel: #313133 background, white-bordered field, unit chips, 4-column keypad
     /// whose last row holds the two actions.
     private var entryPanel: some View {
-        VStack(spacing: 8) {
+        // MF spacing: field 10 pt above the unit chips, chips 12 pt above the keypad.
+        VStack(spacing: 0) {
             quantityField
             unitRow
+                .padding(.top, 10)
             AddEntryKeypad(onKey: press, onClear: clearQuantity) {
                 actionKeys
             }
+            .padding(.top, 12)
         }
         .padding(.horizontal, 6)
-        .padding(.top, 10)
+        .padding(.top, 11)
         .padding(.bottom, 4)
         .background(AddEntryPanel.background.ignoresSafeArea(edges: .bottom))
     }

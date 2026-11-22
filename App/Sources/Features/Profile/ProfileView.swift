@@ -132,6 +132,8 @@ private struct ProfileHome: View {
                 .font(Theme.screenTitle())
                 .foregroundStyle(Theme.textPrimary)
                 .frame(height: 34)
+                // Reference: the title sits ~4 pt higher than the 18 pt avatar gap implies.
+                .offset(y: -4)
                 .accessibilityAddTraits(.isHeader)
             NavigationLink(value: ProfilePage.account) {
                 HStack(spacing: 24) {
@@ -153,7 +155,7 @@ private struct ProfileHome: View {
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                         Text("Membre depuis le \(profile.createdAt.formatted(.dateTime.day().month(.wide).year()))")
-                            .font(Theme.font(15, .regular, relativeTo: .callout))
+                            .font(Theme.font(16, .regular, relativeTo: .callout))
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -220,8 +222,9 @@ struct ProfileRowLabel: View {
             Spacer(minLength: 8)
             Image(systemName: accessory)
                 .font(.system(size: accessory == "chevron.right" ? 15 : 18, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
-                .padding(.trailing, 22)
+                // Reference: dim (~40 % white) accessory, 28 pt from the card edge.
+                .foregroundStyle(Color.white.opacity(0.4))
+                .padding(.trailing, 28)
         }
         .frame(minHeight: 66)
         .contentShape(Rectangle())

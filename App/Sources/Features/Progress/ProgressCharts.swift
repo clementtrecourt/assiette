@@ -7,6 +7,10 @@ import SwiftUI
 
 private enum InsightAxis {
     static let labelFont = Theme.font(13, .regular, relativeTo: .caption)
+    /// Date labels under the x axis (reference: 1 pt larger than the value labels).
+    static let dateLabelFont = Theme.font(14, .regular, relativeTo: .caption)
+    /// Thin vertical separator through the date-label strip (reference), not a short tick.
+    static let dateSeparator = StrokeStyle(lineWidth: Theme.hairline)
     static let grid = StrokeStyle(lineWidth: 0.6, dash: [3, 3])
 }
 
@@ -16,32 +20,32 @@ private extension View {
         chartXAxis {
             if range == .week && averaging == .daily {
                 AxisMarks(values: .stride(by: .day, count: 1)) { _ in
-                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
-                        .foregroundStyle(Theme.raised2)
+                    AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
+                        .foregroundStyle(Theme.separator)
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated).locale(Formatters.locale), centered: false)
-                        .font(InsightAxis.labelFont)
+                        .font(InsightAxis.dateLabelFont)
                         .foregroundStyle(Theme.textTertiary)
                 }
             } else if range.labelStrideDays > 0 && averaging != .monthly {
                 AxisMarks(values: .stride(by: .day, count: range.labelStrideDays)) { _ in
-                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
-                        .foregroundStyle(Theme.raised2)
+                    AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
+                        .foregroundStyle(Theme.separator)
                     AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
-                        .font(InsightAxis.labelFont)
+                        .font(InsightAxis.dateLabelFont)
                         .foregroundStyle(Theme.textTertiary)
                 }
             } else {
                 AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
-                        .foregroundStyle(Theme.raised2)
+                    AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
+                        .foregroundStyle(Theme.separator)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).year(.twoDigits).locale(Formatters.locale))
-                        .font(InsightAxis.labelFont)
+                        .font(InsightAxis.dateLabelFont)
                         .foregroundStyle(Theme.textTertiary)
                 }
             }
         }
         .chartBackground { proxy in
-            // Reference: subtle 1 pt baseline along the bottom of the plot, above the date ticks.
+            // Reference: subtle 1 pt baseline along the bottom of the plot, above the date strip.
             GeometryReader { geo in
                 if let plot = proxy.plotFrame {
                     let frame = geo[plot]

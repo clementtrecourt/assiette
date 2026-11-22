@@ -203,8 +203,9 @@ struct InsightHeadlineValue: View {
                 .font(Theme.font(14, .regular, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textTertiary)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
+                // Reference: ~30 pt medium, a touch lighter than the screen titles.
                 Text(value)
-                    .font(Theme.font(32, .medium, relativeTo: .largeTitle))
+                    .font(Theme.font(30, .medium, relativeTo: .largeTitle))
                     .tracking(-0.8)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: numeric))
@@ -231,7 +232,8 @@ struct InsightHeadline: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
+            // Reference: the date range sits right under the values (tight line).
+            VStack(alignment: .leading, spacing: -2) {
                 HStack(alignment: .top, spacing: 0) {
                     primary
                         .frame(width: secondary == nil ? nil : 155, alignment: .leading)
