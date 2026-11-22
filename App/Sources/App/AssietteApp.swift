@@ -125,7 +125,6 @@ struct AssietteApp: App {
                 .tint(Theme.accent)
         }
         .modelContainer(for: AppSchema.models, inMemory: Self.isRunningTests)
-        .backgroundTask(.appRefresh(NutritionSync.refreshTaskID)) { await NutritionSync.backgroundRefresh() }
     }
 }
 
