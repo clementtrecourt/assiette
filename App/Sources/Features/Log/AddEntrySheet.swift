@@ -10,11 +10,10 @@ private enum AddEntryUnit: Hashable {
     case serving
     /// Number of packages (when the food knows its package size).
     case package
-}
-
-private struct AddEntryChip: Hashable {
-    let label: String
-    let value: Double
+    /// Ounces (by weight; fluid ounces for liquids).
+    case ounce
+    /// Pounds (solids only).
+    case pound
 }
 
 /// Keys of the in-sheet numeric keypad.
@@ -54,6 +53,8 @@ struct AddEntrySheet: View {
     @State private var time: Date
     @State private var showDeleteConfirm = false
     @State private var showCustomEditor = false
+    /// Custom food opened by "Modifier" (nil = new custom food prefilled from `item`).
+    @State private var editedCustomFood: CustomFood?
     @State private var caretOn = false
     @State private var favoriteToggles = 0
 
@@ -167,14 +168,20 @@ struct AddEntrySheet: View {
         var units: [AddEntryUnit] = [.base]
         if servingGrams != nil { units.append(.serving) }
         if packageGrams != nil { units.append(.package) }
+        units.append(.ounce)
+        // A pound of a liquid has no clean volume equivalent: liquids get fl oz only.
+        if !item.isLiquid { units.append(.pound) }
         return units
     }
 
+    /// 1 oz = 28.3495 g (1 fl oz = 29.5735 ml for liquids), 1 lb = 453.592 g.
     private func gramsPerUnit(_ unit: AddEntryUnit) -> Double? {
         switch unit {
         case .base: return 1
         case .serving: return servingGrams
         case .package: return packageGrams
+        case .ounce: return item.isLiquid ? 29.5735 : 28.3495
+        case .pound: return item.isLiquid ? nil : 453.592
         }
     }
 
@@ -203,6 +210,7 @@ struct AddEntrySheet: View {
         case .base: return item.unitSymbol
         case .serving: return count > 1 ? "portions" : "portion"
         case .package: return count > 1 ? "emballages" : "emballage"
+        case .ounce, .pound: return unitTitle(unit)
         }
     }
 
@@ -211,13 +219,16 @@ struct AddEntrySheet: View {
         case .base: return item.unitSymbol
         case .serving: return "portion"
         case .package: return "emballage"
+        case .ounce: return item.isLiquid ? "fl oz" : "oz"
+        case .pound: return "lb"
         }
     }
 
     private var step: Double {
         switch unit {
         case .serving: return 0.5
-        case .package: return 0.25
+        case .package, .pound: return 0.25
+        case .ounce: return 1
         case .base: return (quantity ?? 0) >= 200 ? 25 : 10
         }
     }
@@ -233,7 +244,7 @@ struct AddEntrySheet: View {
             guard let servingGrams else { return word }
             let n = grams / servingGrams
             return "\(word) · ≈ \(Formatters.number(n, maxFractionDigits: 2)) \(n > 1 ? "portions" : "portion")"
-        case .serving, .package:
+        case .serving, .package, .ounce, .pound:
             return "\(word) · \(gramsText)"
         }
     }
@@ -285,7 +296,7 @@ struct AddEntrySheet: View {
                 Button("Annuler", role: .cancel) {}
             }
             .slideCover(isPresented: $showCustomEditor) {
-                CustomFoodEditor(food: nil, prefill: item)
+                CustomFoodEditor(food: editedCustomFood, prefill: editedCustomFood == nil ? item : nil)
             }
             .sensoryFeedback(.selection, trigger: favoriteToggles)
             .onAppear { caretOn = true }
@@ -328,10 +339,10 @@ struct AddEntrySheet: View {
     private var embeddedHeader: some View {
         ZStack {
             Text(item.name)
-                .font(Theme.font(20, .regular, relativeTo: .title3))
+                .font(Theme.font(18, .regular, relativeTo: .title3))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .truncationMode(.tail)
                 .padding(.horizontal, 52)
             HStack {
                 Button { close() } label: {
@@ -417,7 +428,7 @@ struct AddEntrySheet: View {
                 Button("Annuler", role: .cancel) {}
             }
             .slideCover(isPresented: $showCustomEditor) {
-                CustomFoodEditor(food: nil, prefill: item)
+                CustomFoodEditor(food: editedCustomFood, prefill: editedCustomFood == nil ? item : nil)
             }
             .sensoryFeedback(.selection, trigger: favoriteToggles)
             .onAppear { caretOn = true }
@@ -450,13 +461,12 @@ struct AddEntrySheet: View {
         .padding(.top, 6)
     }
 
-    /// Square tiles with a label below (reference: "To Custom", "Favorite").
+    /// Five tiles spread over the full width (reference: Edit, Share, Favorite, Delete, Duplicate).
     private var actionsRow: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if item.source != .custom {
-                actionTile("Modifier", systemImage: "pencil") { showCustomEditor = true }
-                    .accessibilityLabel("Créer un aliment personnalisé à partir de celui-ci")
-            }
+        HStack(alignment: .top, spacing: 0) {
+            actionTile("Modifier", systemImage: "pencil", action: openEditor)
+                .accessibilityLabel(item.source == .custom ? "Modifier l'aliment"
+                                                           : "Créer un aliment personnalisé à partir de celui-ci")
             ShareLink(item: shareText) {
                 actionTileLabel("Partager", systemImage: "square.and.arrow.up", tint: Theme.textPrimary)
             }
@@ -464,12 +474,11 @@ struct AddEntrySheet: View {
             actionTile("Favori", systemImage: isFavorite ? "heart.fill" : "heart",
                        tint: isFavorite ? Theme.protein : Theme.textPrimary, action: toggleFavorite)
                 .accessibilityLabel(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
-            if entry != nil {
-                actionTile("Supprimer", systemImage: "trash.fill") { showDeleteConfirm = true }
-            }
-            Spacer(minLength: 0)
+            actionTile("Supprimer", systemImage: "trash.fill") { showDeleteConfirm = true }
+                .disabled(entry == nil)
+                .opacity(entry == nil ? 0.35 : 1)
+            actionTile("Dupliquer", systemImage: "square.on.square.fill", action: duplicate)
         }
-        .padding(.leading, 4)
     }
 
     private func actionTile(_ title: String, systemImage: String, tint: Color = Theme.textPrimary,
@@ -481,19 +490,20 @@ struct AddEntrySheet: View {
     }
 
     private func actionTileLabel(_ title: String, systemImage: String, tint: Color) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(tint)
-                .frame(width: 40, height: 40)
-                .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .frame(width: 44, height: 44)
+                .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Text(title)
                 .font(Theme.font(14, .regular, relativeTo: .footnote))
                 .foregroundStyle(Theme.textPrimary)
-                .fixedSize()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        // Reference: tiles on a ~78 pt pitch (Edit, Share, Favorite, Delete, Duplicate).
-        .frame(width: 66)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 
     /// Plain-text summary shared from the "Partager" tile.
@@ -506,11 +516,10 @@ struct AddEntrySheet: View {
     }
 
     private var dayShare: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Impact sur les objectifs")
                 .font(Theme.font(18, .bold, relativeTo: .title3))
                 .foregroundStyle(Theme.textBody)
-                .padding(.bottom, 2)
             HStack(spacing: 0) {
                 AddEntryDayRing(fraction: share(of: .calories), color: Theme.calories, title: "Calories")
                 ForEach(Theme.macroOrder, id: \.self) { key in
@@ -633,6 +642,7 @@ struct AddEntrySheet: View {
         }
     }
 
+    /// Reference strip: cycle arrows, base unit, divider, then portion / package / oz / lb.
     private var unitRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -647,27 +657,14 @@ struct AddEntrySheet: View {
                 .accessibilityLabel("Changer d'unité")
                 if availableUnits.count > 1 {
                     ForEach(availableUnits, id: \.self) { candidate in
-                        Button {
-                            select(candidate)
-                        } label: {
-                            AddEntryChipLabel(label: unitTitle(candidate), isSelected: unit == candidate)
+                        unitButton(candidate)
+                        if candidate == .base {
+                            Rectangle()
+                                .fill(Theme.textTertiary.opacity(0.5))
+                                .frame(width: 1.5, height: 40)
+                                .padding(.horizontal, 2)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(unit == candidate ? .isSelected : [])
                     }
-                    Rectangle()
-                        .fill(Theme.textTertiary)
-                        .frame(width: 2, height: 40)
-                        .padding(.horizontal, 6)
-                }
-                ForEach(chips, id: \.self) { chip in
-                    Button {
-                        quantityText = AddEntrySheet.format(chip.value)
-                        replacesOnType = true
-                    } label: {
-                        AddEntryChipLabel(label: chip.label, isSelected: false, isOutlined: isSelected(chip.value))
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 1)
@@ -675,39 +672,19 @@ struct AddEntrySheet: View {
         }
     }
 
+    private func unitButton(_ candidate: AddEntryUnit) -> some View {
+        Button {
+            select(candidate)
+        } label: {
+            AddEntryChipLabel(label: unitTitle(candidate), isSelected: unit == candidate)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(unit == candidate ? .isSelected : [])
+    }
+
     private func cycleUnit() {
         guard availableUnits.count > 1, let index = availableUnits.firstIndex(of: unit) else { return }
         select(availableUnits[(index + 1) % availableUnits.count])
-    }
-
-    private var chips: [AddEntryChip] {
-        switch unit {
-        case .serving:
-            return [
-                AddEntryChip(label: "½", value: 0.5),
-                AddEntryChip(label: "1", value: 1),
-                AddEntryChip(label: "1½", value: 1.5),
-                AddEntryChip(label: "2", value: 2),
-                AddEntryChip(label: "3", value: 3),
-            ]
-        case .package:
-            return [
-                AddEntryChip(label: "¼", value: 0.25),
-                AddEntryChip(label: "½", value: 0.5),
-                AddEntryChip(label: "1", value: 1),
-            ]
-        case .base:
-            let symbol = item.unitSymbol
-            let values: [Double] = [50, 100, 150, 200, 250]
-            return values.map { value in
-                AddEntryChip(label: "\(Formatters.number(value, maxFractionDigits: 0)) \(symbol)", value: value)
-            }
-        }
-    }
-
-    private func isSelected(_ value: Double) -> Bool {
-        guard let quantity else { return false }
-        return abs(quantity - value) < 0.001
     }
 
     /// Last keypad row actions: secondary (dark) and primary (white).
@@ -806,6 +783,12 @@ struct AddEntrySheet: View {
             case .serving, .package:
                 let quarters = (converted * 4).rounded() / 4
                 quantityText = AddEntrySheet.format(quarters > 0 ? quarters : converted)
+            case .ounce:
+                let tenths = (converted * 10).rounded() / 10
+                quantityText = AddEntrySheet.format(tenths > 0 ? tenths : converted)
+            case .pound:
+                let hundredths = (converted * 100).rounded() / 100
+                quantityText = AddEntrySheet.format(hundredths > 0 ? hundredths : converted)
             }
         }
         unit = newUnit
@@ -851,6 +834,33 @@ struct AddEntrySheet: View {
         close()
     }
 
+    /// "Modifier": edits the custom food itself, otherwise creates one prefilled from this food.
+    private func openEditor() {
+        editedCustomFood = nil
+        if item.source == .custom, let ref = item.ref, let id = UUID(uuidString: ref) {
+            let descriptor = FetchDescriptor<CustomFood>(predicate: #Predicate { $0.id == id })
+            if let food = try? modelContext.fetch(descriptor).first, !food.isRecipe {
+                editedCustomFood = food
+            }
+        }
+        showCustomEditor = true
+    }
+
+    /// "Dupliquer": copies the journal entry (same day, time and meal); for a food not yet
+    /// logged, creates a custom food prefilled from it.
+    private func duplicate() {
+        guard let entry else {
+            editedCustomFood = nil
+            showCustomEditor = true
+            return
+        }
+        modelContext.insert(JournalEntry(item: entry.item, grams: entry.grams, day: entry.day,
+                                         meal: entry.meal, at: entry.createdAt))
+        try? modelContext.save()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        if let onLogged { onLogged() } else { close() }
+    }
+
     private func deleteEntry() {
         guard let entry else { return }
         modelContext.delete(entry)
@@ -867,8 +877,9 @@ enum AddEntryPanel {
     static let background = Theme.hex(0x313133)
     static let field = Theme.hex(0x3F3F41)
     static let chip = Theme.hex(0x232323)
-    static let digitKey = Theme.hex(0x6F6F71)
-    static let sideKey = Theme.hex(0x4B4B4D)
+    /// Sampled on the reference keypad.
+    static let digitKey = Theme.hex(0x636264)
+    static let sideKey = Theme.hex(0x424143)
     /// Labels under the big figures (measured on the reference).
     static let label = Theme.hex(0x787878)
 
@@ -904,7 +915,7 @@ private struct AddEntryMacroSummary: View {
         HStack(alignment: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Text(Formatters.number(portion.calories, maxFractionDigits: 0))
-                    .font(Theme.font(34, .bold, relativeTo: .largeTitle))
+                    .font(Theme.font(35, .bold, relativeTo: .largeTitle))
                     .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
@@ -959,11 +970,11 @@ private struct AddEntryDayRing: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .stroke(Theme.track, lineWidth: 4)
+                    .stroke(Theme.track, lineWidth: 3)
                 Circle()
                     .trim(from: 0, to: min(max(fraction, 0), 1))
                     .stroke(fraction > 1.05 ? Theme.overTarget : color,
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 Text(Formatters.percent(fraction))
                     .font(Theme.font(15, .regular, relativeTo: .body))
@@ -973,7 +984,7 @@ private struct AddEntryDayRing: View {
                     .minimumScaleFactor(0.6)
                     .padding(.horizontal, 6)
             }
-            .frame(width: 58, height: 58)
+            .frame(width: 54, height: 54)
             .animation(.quick, value: fraction)
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
@@ -1051,7 +1062,7 @@ private struct AddEntryKeypad<Actions: View>: View {
             .font(Theme.font(22, .regular, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 50)
             .background(Self.isSide(key) ? AddEntryPanel.sideKey : AddEntryPanel.digitKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -1095,7 +1106,7 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
             .minimumScaleFactor(0.7)
             .foregroundStyle(isPrimary ? Theme.onAccent : Theme.textPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 50)
             .background(isPrimary ? Theme.accent : AddEntryPanel.sideKey,
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : (isEnabled ? 1 : 0.55))
@@ -1103,8 +1114,7 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
     }
 }
 
-/// Unit / quick-value chip: dark capsule; the current unit is white with black text
-/// (reference), a quick value matching the typed quantity gets a white outline.
+/// Unit chip: dark capsule; the current unit is white with black text (reference).
 private struct AddEntryChipLabel: View {
     let label: String
     let isSelected: Bool
@@ -1115,7 +1125,8 @@ private struct AddEntryChipLabel: View {
             .font(Theme.font(14, isSelected ? .medium : .regular, relativeTo: .body))
             .monospacedDigit()
             .foregroundStyle(isSelected ? Theme.onAccent : Theme.textPrimary)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
+            .frame(minWidth: 60)
             .frame(height: 40)
             .background(isSelected ? Theme.accent : AddEntryPanel.chip, in: Capsule())
             .overlay {

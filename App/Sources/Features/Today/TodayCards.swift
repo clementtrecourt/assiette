@@ -17,14 +17,14 @@ struct TodayHairline: View {
 
 // MARK: - Round icon button label
 
-/// 44 pt `raised2` circle with an SF Symbol (title bar buttons).
+/// 40 pt `raised2` circle with an SF Symbol (title bar buttons, MF size).
 struct TodayRoundIcon: View {
     let systemName: String
-    var size: CGFloat = 44
+    var size: CGFloat = 40
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 17, weight: .semibold))
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(Theme.textBody)
             .frame(width: size, height: size)
             .background(Circle().fill(Theme.raised2))
@@ -93,7 +93,7 @@ struct TodayMacroHeaderColumn: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             valueLine
             TodayMacroBar(fraction: fraction, fromTrailing: !showsConsumed, color: barColor)
         }
@@ -178,13 +178,13 @@ enum TodayTimelineMetrics {
     /// Space between the screen's trailing edge and the hour pills.
     static let pillTrailing: CGFloat = 6
     static let pillWidth: CGFloat = 58
-    static let pillHeight: CGFloat = 28
+    static let pillHeight: CGFloat = 25
     /// Distance from the trailing edge to the vertical line (center of the pills).
     static let lineCenterTrailing: CGFloat = pillTrailing + pillWidth / 2
     /// Food cards stop before the pill column.
     static let cardTrailing: CGFloat = pillTrailing + pillWidth + 6
     static let hourRowHeight: CGFloat = 52
-    static let addSize: CGFloat = 28
+    static let addSize: CGFloat = 25
     static let cardIconSize: CGFloat = 40
     static let cardRadius: CGFloat = 13
 }
@@ -266,7 +266,7 @@ struct TodayHourRow: View {
     private var addButton: some View {
         Button(action: onAdd) {
             Image(systemName: "plus")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: TodayTimelineMetrics.addSize, height: TodayTimelineMetrics.addSize)
                 .background(Circle().fill(Theme.raised2))

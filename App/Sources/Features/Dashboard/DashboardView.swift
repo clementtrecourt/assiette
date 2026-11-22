@@ -122,7 +122,8 @@ private struct DashboardContent: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.top, 33)
+                        // Reference: the week grid (tallest page) ends 16 pt above the toggle.
+                        .padding(.top, 16)
                     }
                     .padding(.horizontal, -16)
                     .padding(.top, 8)
@@ -228,7 +229,8 @@ private struct DashboardContent: View {
     }
 
     private func balancePage(todayKcal: Double) -> some View {
-        let start = today.adding(days: -20).startOfDay
+        // Reference: ~30 days, bars ~5 pt wide on a ~12 pt pitch.
+        let start = today.adding(days: -29).startOfDay
         let days = DashboardInsights.balanceDays(snapshot: snapshot, from: start, today: today,
                                                  todayIntake: todayKcal, target: calorieTargetLookup)
         return VStack(alignment: .leading, spacing: 18) {

@@ -280,7 +280,7 @@ struct BarcodeScanView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .padding(.top, 10)
     }
 
@@ -926,18 +926,19 @@ private struct ScanCornerBrackets: Shape {
     }
 }
 
-/// "Code-barres / Étiquette" switch on a translucent dark capsule.
+/// "Code-barres / Étiquette" switch (49 pt): white selected segment, white text on raised2.
 private struct ScanModeSwitch: View {
     let mode: ScanMode
     let onSelect: (ScanMode) -> Void
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             segment(.barcode, title: "Code-barres")
             segment(.label, title: "Étiquette")
         }
-        .padding(3)
-        .background(Color.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .padding(4)
+        .frame(height: 49)
+        .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Mode de scan")
     }
@@ -948,10 +949,13 @@ private struct ScanModeSwitch: View {
             onSelect(value)
         } label: {
             Text(title)
-                .font(Theme.font(13, isSelected ? .bold : .medium, relativeTo: .subheadline))
-                .foregroundStyle(isSelected ? Theme.onAccent : Theme.textBody)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
+                .font(Theme.font(16, .medium, relativeTo: .body))
+                .lineLimit(1)
+                // Standalone mode adds a close button: shrink a little rather than overflow.
+                .minimumScaleFactor(0.8)
+                .foregroundStyle(isSelected ? Theme.onAccent : Theme.textPrimary)
+                .padding(.horizontal, 16)
+                .frame(maxHeight: .infinity)
                 .background {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.accent)
@@ -964,7 +968,7 @@ private struct ScanModeSwitch: View {
     }
 }
 
-/// Round translucent button of the camera top bar.
+/// Round translucent 49 pt button of the camera top bar.
 private struct ScanRoundButton: View {
     let systemImage: String
     let label: String
@@ -974,12 +978,12 @@ private struct ScanRoundButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(isOn ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 36, height: 36)
+                .frame(width: 49, height: 49)
                 .background(isOn ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Color.black.opacity(0.55)),
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

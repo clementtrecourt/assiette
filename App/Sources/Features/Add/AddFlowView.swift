@@ -81,7 +81,7 @@ struct AddFlowView: View {
                 Capsule()
                     .fill(Theme.raised2)
                     .frame(width: 40, height: 5)
-                    .padding(.top, 8)
+                    .padding(.top, 6)
                     .accessibilityHidden(true)
                 AddEntrySheet(item: openedItem, context: context, onLogged: { close() },
                               onBack: { withAnimation(.quick) { self.openedItem = nil } })
@@ -92,8 +92,8 @@ struct AddFlowView: View {
                     Capsule()
                         .fill(Theme.raised2)
                         .frame(width: 40, height: 5)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+                        .padding(.top, 6)
+                        .padding(.bottom, 2)
                         .accessibilityHidden(true)
                     AddFlowModeTabs(selection: $mode)
                 }
@@ -218,8 +218,8 @@ private struct AddFlowHeader: View {
         }
         .padding(.leading, 9)
         .padding(.trailing, 8)
-        .padding(.top, 6)
-        .padding(.bottom, 12)
+        .padding(.top, 2)
+        .padding(.bottom, 6)
     }
 }
 
@@ -322,8 +322,8 @@ private struct AddFlowModeTabs: View {
                 }
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 12)
-                .padding(.top, 12)
-                .padding(.bottom, 16)
+                .padding(.top, 9)
+                .padding(.bottom, 15)
                 Rectangle()
                     .fill(isSelected ? Theme.textPrimary : Color.clear)
                     .frame(height: 4)

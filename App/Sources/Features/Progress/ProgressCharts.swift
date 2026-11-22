@@ -6,7 +6,7 @@ import SwiftUI
 // around the line, open circle markers (squares while the expenditure is holding).
 
 private enum InsightAxis {
-    static let labelFont = Theme.font(12, .regular, relativeTo: .caption)
+    static let labelFont = Theme.font(13, .regular, relativeTo: .caption)
     static let grid = StrokeStyle(lineWidth: 0.6, dash: [3, 3])
 }
 

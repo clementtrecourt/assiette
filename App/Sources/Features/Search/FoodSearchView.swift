@@ -339,11 +339,11 @@ struct FoodSearchView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Theme.textTertiary)
             TextField("Rechercher un aliment", text: $query,
                       prompt: Text("Rechercher un aliment").foregroundColor(Theme.textTertiary))
-                .font(Theme.font(15, .regular, relativeTo: .body))
+                .font(Theme.font(16, .regular, relativeTo: .body))
                 .foregroundStyle(Theme.textPrimary)
                 .tint(Theme.textPrimary)
                 .focused($isSearchFocused)
@@ -356,13 +356,13 @@ struct FoodSearchView: View {
                 clearButton
             }
         }
-        .padding(.horizontal, 14)
-        .frame(height: 44)
+        .padding(.horizontal, 16)
+        .frame(height: 49)
         .background(Theme.raised, in: Capsule())
         .overlay {
             Capsule()
                 .strokeBorder(isSearchFocused ? Theme.textPrimary : Theme.separatorStrong,
-                              lineWidth: isSearchFocused ? 2 : 1)
+                              lineWidth: isSearchFocused ? 3 : 1)
         }
         .contentShape(Rectangle())
         .onTapGesture { isSearchFocused = true }
@@ -371,11 +371,12 @@ struct FoodSearchView: View {
     private var addSelectionButton: some View {
         Button(action: logSelection) {
             Text(selection.isEmpty ? "Ajouter" : "Ajouter (\(selection.count))")
-                .font(Theme.font(15, .medium, relativeTo: .body))
+                .font(Theme.font(16, .medium, relativeTo: .body))
                 .monospacedDigit()
                 .foregroundStyle(Theme.onAccent)
                 .padding(.horizontal, 18)
-                .frame(height: 44)
+                .frame(minWidth: 112)
+                .frame(height: 49)
                 .background(Theme.accent, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
@@ -516,11 +517,9 @@ struct FoodSearchView: View {
                         favoriteTile(favorite, recent: recent)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
-                .padding(.bottom, 6)
+                .padding(.horizontal, 6)
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 6, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
         }
@@ -637,7 +636,7 @@ struct FoodSearchView: View {
     /// Icon tile, name, "🔥 kcal · G · P · L · quantity", trailing round "+" / check.
     private func foodRow(_ item: FoodItem, grams: Double, highlight: String? = nil) -> some View {
         let checked = isSelected(item)
-        return HStack(spacing: 10) {
+        return HStack(spacing: 0) {
             Button {
                 open(item)
             } label: {
@@ -654,7 +653,7 @@ struct FoodSearchView: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
-        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 12))
+        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 10))
         .listRowBackground(checked ? Theme.raised2 : Theme.raised)
         .listRowSeparatorTint(Theme.separator)
     }
@@ -860,25 +859,25 @@ private struct SearchFavoriteTile: View {
     let item: FoodItem
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             FoodIconView(item: item, size: 40)
-                .frame(width: 52, height: 44, alignment: .topLeading)
+                .frame(width: 56, height: 44, alignment: .topLeading)
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
                         .background(Theme.raised2, in: Circle())
                         .offset(x: 2, y: 2)
                 }
             Text(item.name)
-                .font(Theme.font(12, .regular, relativeTo: .caption2))
+                .font(Theme.font(12.5, .regular, relativeTo: .caption2))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(width: 76)
+                .frame(width: 88)
         }
-        .frame(width: 76)
+        .frame(width: 92)
         .contentShape(Rectangle())
     }
 }
@@ -921,7 +920,7 @@ private struct SearchCheckCircle: View {
             .background {
                 Circle().fill(isOn ? Theme.accent : Theme.raised2)
             }
-            .frame(width: 40, height: 40)
+            .frame(width: 36, height: 44)
             .contentShape(Rectangle())
             .animation(.snappy(duration: 0.18), value: isOn)
     }

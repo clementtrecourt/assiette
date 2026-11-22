@@ -22,7 +22,7 @@ struct DashboardSectionHeader<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(Theme.font(18, .bold, relativeTo: .title3))
+                .font(Theme.font(20, .bold, relativeTo: .title3))
                 .tracking(-0.3)
                 .foregroundStyle(Theme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
@@ -61,7 +61,7 @@ struct DashboardCard<Visual: View>: View {
     let visual: Visual
 
     init(title: String, subtitle: String, value: String, unit: String = "",
-         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 38,
+         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 56,
          accessory: String = "chevron.right", @ViewBuilder visual: () -> Visual)
     {
         self.title = title
@@ -76,14 +76,17 @@ struct DashboardCard<Visual: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Reference: 18–19 pt title on one line, 14 pt period.
             Text(title)
-                .font(Theme.font(17, .medium, relativeTo: .headline))
+                .font(Theme.font(19, .medium, relativeTo: .headline))
                 .foregroundStyle(Theme.textPrimary)
-                .lineLimit(2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(subtitle)
-                .font(Theme.font(12, .regular, relativeTo: .caption))
+                .font(Theme.font(14, .regular, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .padding(.top, 1)
             visual
                 .frame(maxWidth: .infinity)
@@ -118,7 +121,8 @@ struct DashboardCard<Visual: View>: View {
         .padding(.top, 12)
         .padding(.bottom, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard()
+        // Plain fill, no outline (reference tiles have no border).
+        .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.raised))
         .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(unit.isEmpty ? "\(title), \(subtitle), \(value)" : "\(title), \(subtitle), \(value) \(unit)")

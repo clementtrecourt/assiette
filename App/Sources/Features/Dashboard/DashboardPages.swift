@@ -21,8 +21,14 @@ struct DashboardWeekPage: View {
     @Binding var selected: Date
 
     private static let keys: [NutrientKey] = [.calories] + Theme.macroOrder
-    private static let rowHeight: CGFloat = 40
-    private static let rowSpacing: CGFloat = 6
+    /// Reference: 54 pt row pitch, 22 × 35 pt cells, hairlines between the rows.
+    private static let rowHeight: CGFloat = 54
+    private static let cellSize = CGSize(width: 22, height: 35)
+    /// Weekday letter row, then the margin kept inside the selection outline below it.
+    private static let letterHeight: CGFloat = 26
+    private static let outlineBottom: CGFloat = 6
+
+    @Environment(\.displayScale) private var displayScale
 
     private var selectedDay: DashboardWeekDay? {
         days.first { Calendar.current.isDate($0.date, inSameDayAs: selected) } ?? days.last { !$0.isFuture }
@@ -30,12 +36,13 @@ struct DashboardWeekPage: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            HStack(spacing: 4) {
+            HStack(spacing: 0) {
                 ForEach(days) { day in
                     column(day)
                 }
             }
             .frame(maxWidth: .infinity)
+            .background(alignment: .top) { rowSeparators }
             values
                 .frame(width: 86, alignment: .leading)
         }
@@ -47,22 +54,24 @@ struct DashboardWeekPage: View {
             guard !day.isFuture else { return }
             withAnimation(.quick) { selected = day.date }
         } label: {
-            VStack(spacing: Self.rowSpacing) {
+            VStack(spacing: 0) {
                 ForEach(Self.keys, id: \.self) { key in
                     cell(day, key: key)
                         .frame(height: Self.rowHeight)
                 }
                 Text(CoachingFormat.dayLetters[CoachingFormat.mondayIndex(of: day.date)])
-                    .font(Theme.font(13, isSelected ? .bold : .regular, relativeTo: .caption))
+                    .font(Theme.font(14, isSelected ? .bold : .regular, relativeTo: .caption))
                     .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
-                    .frame(height: 20)
+                    .frame(height: Self.letterHeight)
             }
-            .padding(.vertical, 5)
+            .padding(.bottom, Self.outlineBottom)
             .frame(maxWidth: .infinity)
             .overlay {
+                // Reference: ~39 pt wide outline around the whole column, letter included.
                 if isSelected {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .strokeBorder(Theme.textPrimary, lineWidth: 1.5)
+                        .frame(width: 39)
                 }
             }
             .contentShape(Rectangle())
@@ -77,9 +86,9 @@ struct DashboardWeekPage: View {
         let eaten = day.totals.value(key)
         let shown = showRemaining ? max(target - eaten, 0) : eaten
         let fraction = target > 0 ? min(shown / target, 1) : 0
-        return RoundedRectangle(cornerRadius: 3, style: .continuous)
+        return RoundedRectangle(cornerRadius: 2, style: .continuous)
             .fill(Theme.tile)
-            .frame(width: 22)
+            .frame(width: Self.cellSize.width, height: Self.cellSize.height)
             .overlay(alignment: .bottom) {
                 if day.isFuture || (eaten <= 0 && !showRemaining) {
                     Capsule()
@@ -104,14 +113,28 @@ struct DashboardWeekPage: View {
             }
     }
 
+    /// 1 px lines between the macro rows, across the day columns.
+    private var rowSeparators: some View {
+        let line = 1 / max(displayScale, 1)
+        return VStack(spacing: 0) {
+            ForEach(1..<Self.keys.count, id: \.self) { _ in
+                Color.clear
+                    .frame(height: Self.rowHeight)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Theme.separator).frame(height: line)
+                    }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
     private var values: some View {
-        VStack(alignment: .leading, spacing: Self.rowSpacing) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(Self.keys, id: \.self) { key in
                 valueRow(key)
                     .frame(height: Self.rowHeight, alignment: .leading)
             }
         }
-        .padding(.top, 5)
     }
 
     private func valueRow(_ key: NutrientKey) -> some View {
@@ -147,7 +170,8 @@ struct DashboardBalancePage: View {
     let days: [InsightBalanceDay]
     let againstExpenditure: Bool
 
-    private static let chartHeight: CGFloat = 96
+    /// Reference: chart baseline ~60 pt above the averages, page as tall as the week page.
+    private static let chartHeight: CGFloat = 130
 
     private var lineColor: Color { againstExpenditure ? Theme.expenditure : Theme.targetLine }
     private func lineValue(_ day: InsightBalanceDay) -> Double {
@@ -167,7 +191,7 @@ struct DashboardBalancePage: View {
     }
 
     var body: some View {
-        VStack(spacing: 34) {
+        VStack(spacing: 60) {
             chart
                 .frame(height: Self.chartHeight)
             HStack(alignment: .top, spacing: 0) {
@@ -195,7 +219,7 @@ struct DashboardBalancePage: View {
                 .foregroundStyle(Theme.textPrimary)
             HStack(spacing: 6) {
                 icon()
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                 Text(legend)
                     .font(Theme.font(15, .regular, relativeTo: .subheadline))
                     .foregroundStyle(Theme.textSecondary)

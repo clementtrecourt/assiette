@@ -31,6 +31,11 @@ private struct DashboardDetailScaffold<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarRole(.editor)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                InsightNavigationTitle(title: title)
+            }
+        }
     }
 }
 
@@ -143,10 +148,11 @@ struct DashboardExpenditureDetail: View {
                 dates: InsightCalendar.rangeLabel(start, today),
                 fitToData: $fitToData)
             if points.isEmpty {
-                DashboardChartPlaceholder(text: "Enregistrez vos repas et votre poids quelques jours pour voir l'évolution de votre dépense.", height: 270)
+                DashboardChartPlaceholder(text: "Enregistrez vos repas et votre poids quelques jours pour voir l'évolution de votre dépense.", height: 300)
             } else {
                 InsightLineChart(points: points, kind: .expenditure, range: range, averaging: averaging,
-                                 startDate: start, endDate: range.endDate(today: today), fitToData: fitToData)
+                                 startDate: start, endDate: range.endDate(today: today), fitToData: fitToData,
+                                 height: 300)
                     .padding(.top, 8)
             }
             InsightRangeBar(range: settings.range, averaging: settings.averaging)

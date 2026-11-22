@@ -21,17 +21,17 @@ struct DashboardHero: View {
 
     var body: some View {
         // Reference: the three captions (Mangé / Restant / Objectif) sit on one line, so the
-        // sides are 7.5 pt lower than the ring's centre.
+        // sides are 8.5 pt lower than the ring's centre.
         HStack(alignment: .center, spacing: 4) {
             leadingSide
                 .frame(maxWidth: .infinity)
-                .offset(y: 7.5)
+                .offset(y: 8.5)
             DashboardCalorieRing(progress: progress, isOver: isOver, revealed: revealed) {
                 center
             }
             DashboardHeroSide(caption: "Objectif", value: target, color: Theme.textPrimary)
                 .frame(maxWidth: .infinity)
-                .offset(y: 7.5)
+                .offset(y: 8.5)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -63,7 +63,7 @@ struct DashboardHero: View {
         }
         return VStack(spacing: 0) {
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(36, .bold, relativeTo: .largeTitle))
+                .font(Theme.font(38, .bold, relativeTo: .largeTitle))
                 .tracking(-1)
                 .monospacedDigit()
                 .foregroundStyle(color)
@@ -77,7 +77,7 @@ struct DashboardHero: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .frame(width: 124)
+        .frame(width: 128)
     }
 
     private var accessibilityText: String {
@@ -151,7 +151,7 @@ struct DashboardCalorieRing<Center: View>: View {
             center()
         }
         .padding(4)
-        .frame(width: 178, height: 178)
+        .frame(width: 184, height: 184)
         .animation(.spring(response: 1.55, dampingFraction: 1), value: revealed)
     }
 }

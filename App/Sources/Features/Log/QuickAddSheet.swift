@@ -154,36 +154,50 @@ struct QuickAddSheet: View {
     }
 
     private var form: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if let lastAdded {
-                    confirmation(lastAdded)
-                        .padding(.bottom, 12)
-                }
-                fieldLabel("Énergie", color: Theme.textBody)
-                energyRow
-                macroSumNote
-                    .padding(.top, 7)
-                HStack(spacing: 8) {
-                    ForEach(Theme.macroOrder, id: \.self) { key in
-                        macroField(key)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let lastAdded {
+                        confirmation(lastAdded)
+                            .padding(.bottom, 12)
                     }
+                    fieldLabel("Énergie", color: Theme.textBody)
+                    energyRow
+                    macroSumNote
+                        .padding(.top, 7)
+                    HStack(spacing: 8) {
+                        ForEach(Theme.macroOrder, id: \.self) { key in
+                            macroField(key)
+                        }
+                    }
+                    .padding(.top, 16)
+                    fieldLabel("Alcool", color: Theme.textBody)
+                        .padding(.top, 16)
+                    alcoholField
+                        .id(QuickAddField.alcohol)
+                    fieldLabel("Nom", color: Theme.textBody)
+                        .padding(.top, 16)
+                    nameField
+                        .id(QuickAddField.name)
                 }
-                .padding(.top, 16)
-                fieldLabel("Alcool", color: Theme.textBody)
-                    .padding(.top, 16)
-                alcoholField
-                fieldLabel("Nom", color: Theme.textBody)
-                    .padding(.top, 16)
-                nameField
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                // Room so the last field can scroll fully above the action buttons.
+                .padding(.bottom, 32)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 16)
+            .scrollDismissesKeyboard(.never)
+            .background(Theme.raised.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+            .task(id: focus) {
+                // Alcohol / name sit low: bring the focused one above the buttons, again once
+                // the keyboard has finished changing height (decimal pad -> text keyboard).
+                guard let field = focus, field == .alcohol || field == .name else { return }
+                withAnimation(.quick) { proxy.scrollTo(field, anchor: .bottom) }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                guard !Task.isCancelled, focus == field else { return }
+                withAnimation(.quick) { proxy.scrollTo(field, anchor: .bottom) }
+            }
         }
-        .scrollDismissesKeyboard(.never)
-        .background(Theme.raised.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .task {
             // Keyboard first: energy field focused as soon as the page is in place.
             await SlideCoverMotion.untilSettled(slideCover)
@@ -348,7 +362,7 @@ struct QuickAddSheet: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 54)
+                        .frame(height: 58)
                         .background(Theme.raised2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -364,7 +378,7 @@ struct QuickAddSheet: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 54)
+                        .frame(height: 58)
                         .background(Theme.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)

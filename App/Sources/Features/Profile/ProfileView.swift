@@ -21,6 +21,8 @@ struct ProfileView: View {
                                     CustomFoodsListView(pickContext: nil)
                                 case .about:
                                     ProfileAboutView()
+                                case .dashboard, .journal:
+                                    ProfileFeatureSettingsView(page: page)
                                 default:
                                     ProfileSettingsForm(profile: profile, page: page)
                                 }
@@ -43,11 +45,13 @@ struct ProfileView: View {
 
 /// Settings pages of the Profil tab.
 enum ProfilePage: Hashable {
-    case account, program, foods, data, about
+    case account, dashboard, journal, program, foods, data, about
 
     var title: String {
         switch self {
         case .account: "Compte"
+        case .dashboard: "Accueil"
+        case .journal: "Journal"
         case .program: "Programme"
         case .foods: "Aliments et recettes"
         case .data: "Données"
@@ -73,7 +77,7 @@ private struct ProfileHome: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 26)
+                    .padding(.bottom, 17)
                     .background(Theme.raised)
                 ProfileGroupTitle("Général")
                 ProfileGroup {
@@ -92,6 +96,10 @@ private struct ProfileHome: View {
                 }
                 ProfileGroupTitle("Réglages des fonctions")
                 ProfileGroup {
+                    ProfileNavRow(title: "Accueil", systemImage: "square.grid.2x2.fill", value: .dashboard)
+                    ProfileGroupDivider()
+                    ProfileNavRow(title: "Journal", systemImage: "fork.knife", value: .journal)
+                    ProfileGroupDivider()
                     ProfileNavRow(title: "Programme", systemImage: "circle.grid.3x3.circle", value: .program)
                     ProfileGroupDivider()
                     ProfileNavRow(title: "Aliments et recettes", systemImage: "takeoutbag.and.cup.and.straw.fill",
@@ -116,12 +124,12 @@ private struct ProfileHome: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 26) {
+        // Measured on the reference "More" header: title, avatar 18 pt below, 17 pt bottom margin.
+        VStack(alignment: .leading, spacing: 18) {
             Text("PROFIL")
                 .font(Theme.screenTitle())
                 .foregroundStyle(Theme.textPrimary)
-                .frame(height: 44)
-                .padding(.top, 2)
+                .frame(height: 34)
                 .accessibilityAddTraits(.isHeader)
             NavigationLink(value: ProfilePage.account) {
                 HStack(spacing: 24) {
@@ -292,7 +300,7 @@ private struct ProfileSettingsForm: View {
             case .data:
                 dataSection
                     .profileListRow()
-            case .foods, .about:
+            case .foods, .about, .dashboard, .journal:
                 EmptyView()
             }
         }
@@ -568,5 +576,53 @@ private struct ProfileSettingsForm: View {
             alertTitle = "Erreur"
             alertMessage = error.localizedDescription
         }
+    }
+}
+
+/// "Accueil" / "Journal" feature settings: the display toggles those screens already store
+/// (same `@AppStorage` keys, so changes show up there immediately).
+private struct ProfileFeatureSettingsView: View {
+    let page: ProfilePage
+
+    @AppStorage("dashboard.showRemaining") private var dashboardShowsRemaining = true
+    @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = true
+    @AppStorage("today.headerShowsConsumed") private var journalShowsConsumed = false
+    @AppStorage("today.hideFoodDetails") private var hideFoodDetails = false
+    @AppStorage("today.hideEmptyHours") private var hideEmptyHours = false
+
+    var body: some View {
+        Form {
+            switch page {
+            case .dashboard:
+                Section {
+                    Toggle("Afficher le restant", isOn: $dashboardShowsRemaining)
+                    Toggle("Comparer à la dépense", isOn: $balanceAgainstExpenditure)
+                } header: {
+                    ProfileSectionHeader("Affichage")
+                } footer: {
+                    ProfileSectionFooter("Le restant montre ce qu'il reste à manger plutôt que ce qui a été mangé. Le bilan énergétique est comparé à votre dépense estimée, ou sinon à votre objectif.")
+                }
+                .profileListRow()
+            default:
+                Section {
+                    Toggle("Afficher le consommé", isOn: $journalShowsConsumed)
+                    Toggle("Masquer les détails", isOn: $hideFoodDetails)
+                    Toggle("Masquer les heures vides", isOn: $hideEmptyHours)
+                } header: {
+                    ProfileSectionHeader("Affichage")
+                } footer: {
+                    ProfileSectionFooter("Le bandeau du journal montre le consommé plutôt que le restant. Masquer les détails n'affiche que le nom des aliments.")
+                }
+                .profileListRow()
+            }
+        }
+        .font(Theme.body)
+        .foregroundStyle(Theme.textPrimary)
+        .tint(Theme.good)
+        .listSectionSpacing(.compact)
+        .themedBackground()
+        .navigationTitle(page.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
     }
 }

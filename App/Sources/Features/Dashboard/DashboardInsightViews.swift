@@ -46,6 +46,9 @@ struct InsightScaffold<Top: View, Content: View>: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarRole(.editor) // back button = chevron only, as on the reference
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                InsightNavigationTitle(title: title)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingExplanation = true
@@ -60,6 +63,19 @@ struct InsightScaffold<Top: View, Content: View>: View {
         .sheet(isPresented: $showingExplanation) {
             InsightExplanationSheet(title: title, text: explanation)
         }
+    }
+}
+
+/// Navigation bar title of the detail screens (reference: 18 pt regular, not the system semibold).
+struct InsightNavigationTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(Theme.font(18, .regular, relativeTo: .headline))
+            .foregroundStyle(Theme.textPrimary)
+            .lineLimit(1)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -314,7 +330,7 @@ struct InsightRangeBar: View {
             .accessibilityLabel("Moyenne du graphique : \(averaging.title)")
         }
         .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.top, 22)
         .padding(.bottom, 16)
         .sensoryFeedback(.selection, trigger: range)
         .sheet(isPresented: $showingAveraging) {
@@ -402,18 +418,18 @@ struct InsightLegend: View {
             rows([Array(items.prefix(2)), Array(items.dropFirst(2))])
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 20)
         .padding(.horizontal, 10)
         .themedCard()
         .accessibilityElement(children: .combine)
     }
 
     private func rows(_ rows: [[InsightLegendItem]]) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             ForEach(rows.indices, id: \.self) { row in
-                HStack(spacing: 18) {
+                HStack(spacing: 28) {
                     ForEach(rows[row], id: \.self) { item in
-                        HStack(spacing: 7) {
+                        HStack(spacing: 8) {
                             marker(item.mark)
                             Text(item.text)
                                 .font(Theme.font(14, .regular, relativeTo: .subheadline))

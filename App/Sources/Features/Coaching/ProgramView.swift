@@ -274,8 +274,10 @@ private struct ProgramContent: View {
         isDue ? 7 : max(0, min(7, 7 - daysLeft))
     }
 
+    /// Measured on the reference: ring 32 pt under the title bar, Goal / Check-In row ~44 pt
+    /// under the visible ring (37 pt + the ring frame's 6.5 pt margin).
     private var countdown: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 37) {
             CoachingCountdownRing(filledDays: filledDays, goalProgress: goalProgress) {
                 countdownCenter
             }
@@ -306,7 +308,7 @@ private struct ProgramContent: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(minHeight: 276)
+        .padding(.top, 32)
     }
 
     @ViewBuilder
@@ -428,7 +430,7 @@ private struct ProgramContent: View {
                                 protein: profile.proteinTarget, fat: profile.fatTarget,
                                 todayIndex: CoachingFormat.mondayIndex(of: .now),
                                 excludedDays: excludedDays)
-                .padding(.top, 22)
+                .padding(.top, 9)
             cardHairline
                 .padding(.top, 22)
             VStack(alignment: .leading, spacing: 6) {
@@ -463,7 +465,7 @@ private struct ProgramContent: View {
             }
             .padding(.top, 16)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .padding(.vertical, 20)
         .themedCard()
     }

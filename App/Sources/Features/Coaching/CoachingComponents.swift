@@ -433,9 +433,11 @@ struct CoachingWeekColumns: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(Theme.onAccent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 26)
+                // Reference: 37 × 23 pt capsule, narrower than the blocks, centered on the column.
+                .frame(maxWidth: isLarge ? .infinity : 37)
+                .frame(height: isLarge ? 26 : 23)
                 .background(Theme.calories, in: Capsule())
+                .frame(maxWidth: .infinity)
                 .padding(.bottom, 4)
             ForEach(Theme.macroOrder, id: \.self) { key in
                 let value = Self.grams(key, of: day)

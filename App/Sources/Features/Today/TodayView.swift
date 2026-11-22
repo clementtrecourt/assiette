@@ -60,8 +60,7 @@ struct TodayTitleBar<Accessory: View>: View {
             accessory
         }
         .padding(.horizontal, 16)
-        .padding(.top, 2)
-        .padding(.bottom, 10)
+        .padding(.bottom, 4)
     }
 
     private var titleButton: some View {
