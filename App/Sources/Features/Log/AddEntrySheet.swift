@@ -452,13 +452,21 @@ struct AddEntrySheet: View {
 
     /// Square tiles with a label below (reference: "To Custom", "Favorite").
     private var actionsRow: some View {
-        HStack(alignment: .top, spacing: 18) {
+        HStack(alignment: .top, spacing: 14) {
             if item.source != .custom {
-                actionTile("Personnaliser", systemImage: "square.on.square.fill") { showCustomEditor = true }
+                actionTile("Modifier", systemImage: "pencil") { showCustomEditor = true }
+                    .accessibilityLabel("Créer un aliment personnalisé à partir de celui-ci")
             }
+            ShareLink(item: shareText) {
+                actionTileLabel("Partager", systemImage: "square.and.arrow.up", tint: Theme.textPrimary)
+            }
+            .buttonStyle(.plain)
             actionTile("Favori", systemImage: isFavorite ? "heart.fill" : "heart",
                        tint: isFavorite ? Theme.protein : Theme.textPrimary, action: toggleFavorite)
                 .accessibilityLabel(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
+            if entry != nil {
+                actionTile("Supprimer", systemImage: "trash.fill") { showDeleteConfirm = true }
+            }
             Spacer(minLength: 0)
         }
         .padding(.leading, 4)
@@ -467,19 +475,33 @@ struct AddEntrySheet: View {
     private func actionTile(_ title: String, systemImage: String, tint: Color = Theme.textPrimary,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 40, height: 40)
-                    .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                Text(title)
-                    .font(Theme.font(14, .regular, relativeTo: .footnote))
-                    .foregroundStyle(Theme.textPrimary)
-                    .fixedSize()
-            }
+            actionTileLabel(title, systemImage: systemImage, tint: tint)
         }
         .buttonStyle(.plain)
+    }
+
+    private func actionTileLabel(_ title: String, systemImage: String, tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(Theme.hex(0x2E2E2E), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            Text(title)
+                .font(Theme.font(14, .regular, relativeTo: .footnote))
+                .foregroundStyle(Theme.textPrimary)
+                .fixedSize()
+        }
+        .frame(minWidth: 56)
+    }
+
+    /// Plain-text summary shared from the "Partager" tile.
+    private var shareText: String {
+        let v = item.per100
+        let macros = Theme.macroOrder
+            .map { "\(Formatters.number(v.value($0), maxFractionDigits: 1)) g \($0.label.lowercased())" }
+            .joined(separator: ", ")
+        return "\(item.name) — pour 100 \(item.unitSymbol) : \(Formatters.kcal(v.calories)), \(macros)"
     }
 
     private var dayShare: some View {
@@ -615,7 +637,7 @@ struct AddEntrySheet: View {
             HStack(spacing: 8) {
                 Button(action: cycleUnit) {
                     Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                         .frame(width: 44, height: 44)
                 }
@@ -1080,7 +1102,8 @@ private struct AddEntryActionButtonStyle: ButtonStyle {
     }
 }
 
-/// Unit / quick-value chip: dark capsule, white outline when it is the current choice.
+/// Unit / quick-value chip: dark capsule; the current unit is white with black text
+/// (reference), a quick value matching the typed quantity gets a white outline.
 private struct AddEntryChipLabel: View {
     let label: String
     let isSelected: Bool
@@ -1088,15 +1111,15 @@ private struct AddEntryChipLabel: View {
 
     var body: some View {
         Text(label)
-            .font(Theme.font(14, .regular, relativeTo: .body))
+            .font(Theme.font(14, isSelected ? .medium : .regular, relativeTo: .body))
             .monospacedDigit()
-            .foregroundStyle(Theme.textPrimary)
+            .foregroundStyle(isSelected ? Theme.onAccent : Theme.textPrimary)
             .padding(.horizontal, 20)
-            .frame(height: 44)
-            .background(AddEntryPanel.chip, in: Capsule())
+            .frame(height: 40)
+            .background(isSelected ? Theme.accent : AddEntryPanel.chip, in: Capsule())
             .overlay {
-                if isSelected || isOutlined {
-                    Capsule().strokeBorder(Theme.textPrimary, lineWidth: isSelected ? 2 : 1)
+                if isOutlined && !isSelected {
+                    Capsule().strokeBorder(Theme.textPrimary, lineWidth: 1)
                 }
             }
             .contentShape(Capsule())

@@ -127,7 +127,7 @@ struct FoodSearchView: View {
         for entry in monthEntries {
             let entryHour = calendar.component(.hour, from: entry.createdAt)
             let difference = abs(entryHour - hour)
-            guard min(difference, 24 - difference) <= 1 else { continue }
+            guard min(difference, 24 - difference) <= 2 else { continue }
             let key = FoodSearchView.key(of: entry)
             days[key, default: []].insert(entry.day)
             if latest[key] == nil { latest[key] = entry }
@@ -323,10 +323,8 @@ struct FoodSearchView: View {
             }
             HStack(spacing: 8) {
                 searchField
-                if !selection.isEmpty {
-                    addSelectionButton
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
+                // Always shown, like the reference's "Log Foods"; logs the checked foods.
+                addSelectionButton
             }
             .padding(.horizontal, 16)
         }
@@ -336,12 +334,6 @@ struct FoodSearchView: View {
         .background {
             Theme.raised.ignoresSafeArea(.container, edges: .bottom)
         }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: Theme.hairline)
-        }
-        .animation(.quick, value: selection.isEmpty)
     }
 
     private var searchField: some View {
@@ -351,7 +343,7 @@ struct FoodSearchView: View {
                 .foregroundStyle(Theme.textTertiary)
             TextField("Rechercher un aliment", text: $query,
                       prompt: Text("Rechercher un aliment").foregroundColor(Theme.textTertiary))
-                .font(Theme.font(16, .medium, relativeTo: .body))
+                .font(Theme.font(15, .regular, relativeTo: .body))
                 .foregroundStyle(Theme.textPrimary)
                 .tint(Theme.textPrimary)
                 .focused($isSearchFocused)
@@ -364,8 +356,8 @@ struct FoodSearchView: View {
                 clearButton
             }
         }
-        .padding(.horizontal, 11)
-        .frame(height: 42)
+        .padding(.horizontal, 14)
+        .frame(height: 44)
         .background(Theme.raised, in: Capsule())
         .overlay {
             Capsule()
@@ -378,12 +370,12 @@ struct FoodSearchView: View {
 
     private var addSelectionButton: some View {
         Button(action: logSelection) {
-            Text("Ajouter (\(selection.count))")
-                .font(Theme.font(15, .bold, relativeTo: .body))
+            Text(selection.isEmpty ? "Ajouter" : "Ajouter (\(selection.count))")
+                .font(Theme.font(15, .medium, relativeTo: .body))
                 .monospacedDigit()
                 .foregroundStyle(Theme.onAccent)
-                .padding(.horizontal, 14)
-                .frame(height: 42)
+                .padding(.horizontal, 18)
+                .frame(height: 44)
                 .background(Theme.accent, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
@@ -490,7 +482,7 @@ struct FoodSearchView: View {
         let frequent = frequentItems(hour: hour)
         if !frequent.isEmpty {
             Section {
-                sectionHeaderRow("Souvent à \(hour) h")
+                sectionHeaderRow("Choix de \(String(format: "%02d", hour)):00")
                 ForEach(frequent) { item in
                     foodRow(item, grams: usualGrams(for: item, recent: recent))
                 }
@@ -501,7 +493,7 @@ struct FoodSearchView: View {
         let recents = recentItems(excluding: Set(frequent.map(\.id)))
         if !recents.isEmpty {
             Section {
-                sectionHeaderRow("Récents")
+                sectionHeaderRow("Derniers")
                 ForEach(recents) { item in
                     foodRow(item, grams: usualGrams(for: item, recent: recent))
                 }
@@ -519,7 +511,7 @@ struct FoodSearchView: View {
         Section {
             sectionHeaderRow("Favoris")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: 4) {
                     ForEach(favorites) { favorite in
                         favoriteTile(favorite, recent: recent)
                     }
@@ -662,7 +654,7 @@ struct FoodSearchView: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(checked ? "Décocher \(item.name)" : "Cocher \(item.name)")
         }
-        .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 12))
         .listRowBackground(checked ? Theme.raised2 : Theme.raised)
         .listRowSeparatorTint(Theme.separator)
     }
@@ -846,7 +838,7 @@ private struct SearchSectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(14, .bold, relativeTo: .subheadline))
+            .font(Theme.font(17, .medium, relativeTo: .headline))
             .foregroundStyle(Theme.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
@@ -857,7 +849,7 @@ private struct SearchSectionHeader: View {
 private struct SearchHeaderRowStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 4, trailing: 16))
+            .listRowInsets(EdgeInsets(top: 18, leading: 16, bottom: 6, trailing: 16))
             .listRowBackground(Theme.raised)
             .listRowSeparator(.hidden)
     }
@@ -868,23 +860,25 @@ private struct SearchFavoriteTile: View {
     let item: FoodItem
 
     var body: some View {
-        VStack(spacing: 5) {
-            FoodIconView(item: item, size: 52)
+        VStack(spacing: 6) {
+            FoodIconView(item: item, size: 40)
+                .frame(width: 52, height: 44, alignment: .topLeading)
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Theme.onAccent)
-                        .frame(width: 19, height: 19)
-                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                        .offset(x: 4, y: 4)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .frame(width: 24, height: 24)
+                        .background(Theme.raised2, in: Circle())
+                        .offset(x: 2, y: 2)
                 }
             Text(item.name)
-                .font(Theme.font(11, .medium, relativeTo: .caption2))
-                .foregroundStyle(Theme.textBody)
+                .font(Theme.font(12, .regular, relativeTo: .caption2))
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .frame(width: 62)
+                .truncationMode(.tail)
+                .frame(width: 76)
         }
-        .frame(width: 62)
+        .frame(width: 76)
         .contentShape(Rectangle())
     }
 }
@@ -923,13 +917,9 @@ private struct SearchCheckCircle: View {
         Image(systemName: isOn ? "checkmark" : "plus")
             .font(.system(size: 13, weight: .bold))
             .foregroundStyle(isOn ? Theme.onAccent : Theme.textPrimary)
-            .frame(width: 30, height: 30)
+            .frame(width: 28, height: 28)
             .background {
-                if isOn {
-                    Circle().fill(Theme.accent)
-                } else {
-                    Circle().strokeBorder(Theme.separatorStrong, lineWidth: Theme.hairline)
-                }
+                Circle().fill(isOn ? Theme.accent : Theme.raised2)
             }
             .frame(width: 40, height: 40)
             .contentShape(Rectangle())

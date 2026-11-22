@@ -87,7 +87,10 @@ enum DemoSupport {
         profile.goal = .lose
         profile.weeklyRateKg = 0.5
         profile.targetWeightKg = 78
-        profile.manualTargets = true
+        // Coached program like the reference: last check-in yesterday, next one in a few days.
+        profile.manualTargets = false
+        profile.lastCheckInDate = Date.now.startOfDay.adding(days: -1)
+        profile.checkInWeekday = (Calendar.current.component(.weekday, from: .now) + 4) % 7 + 1
         profile.calorieTarget = 2200
         profile.proteinTarget = 150
         profile.carbsTarget = 240
@@ -116,6 +119,12 @@ enum DemoSupport {
             context.insert(WeightEntry(date: cal.date(bySettingHour: 7, minute: 30, second: 0, of: day) ?? day,
                                        kg: (kg * 10).rounded() / 10))
             for _ in 0..<(offset == 0 ? 5 : 8) { context.insert(WaterEntry(day: day, ml: 250)) }
+        }
+        // Initials avatar on the Profil header, like the reference.
+        UserDefaults.standard.set("Alex Martin", forKey: "profile.displayName")
+        // Favorites row of the search tab (reference shows four).
+        for index in [0, 3, 5, 6] {
+            if let item = items[index] { context.insert(FavoriteFood(item: item)) }
         }
         try? context.save()
     }

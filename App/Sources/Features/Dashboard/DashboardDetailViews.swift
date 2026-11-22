@@ -114,7 +114,7 @@ struct DashboardExpenditureDetail: View {
     let today: Date
 
     @Environment(AppState.self) private var appState
-    private var settings = InsightSettings("expenditure", defaultRange: .week)
+    private var settings = InsightSettings("expenditure", defaultRange: .month)
     @State private var fitToData = false
 
     init(snapshot: CoachingSnapshot, today: Date) {

@@ -285,11 +285,23 @@ private struct ProgramContent: View {
             }
             .accessibilityElement(children: .combine)
 
-            HStack(spacing: 16) {
-                legendItem(icon: "Glyph-objectif", color: Theme.good, text: goalLegend)
+            // Reference: two short buttons under the ring ("Goal", "Check-In").
+            HStack(spacing: 22) {
+                Button {
+                    goalFlowIsNew = false
+                } label: {
+                    legendItem(icon: "Glyph-objectif", color: Theme.good, text: "Objectif")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Objectif : \(goalLegend)")
                 if mode != .manual {
-                    legendItem(icon: "Glyph-bilan", color: Theme.textPrimary,
-                               text: "Bilan le \(CoachingFormat.weekdayName(profile.checkInWeekday))")
+                    Button {
+                        appState.showingCheckIn = true
+                    } label: {
+                        legendItem(icon: "Glyph-bilan", color: Theme.textPrimary, text: "Bilan")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Bilan le \(CoachingFormat.weekdayName(profile.checkInWeekday))")
                 }
             }
         }
@@ -339,7 +351,7 @@ private struct ProgramContent: View {
 
     private func ringDetail(_ text: String) -> some View {
         Text(text)
-            .font(Theme.font(16, .regular, relativeTo: .callout))
+            .font(Theme.font(13, .regular, relativeTo: .callout))
             .foregroundStyle(Theme.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
@@ -347,9 +359,9 @@ private struct ProgramContent: View {
 
     private func legendItem(icon: String, color: Color, text: String) -> some View {
         HStack(spacing: 8) {
-            Image(icon).resizable().frame(width: 22, height: 22).foregroundStyle(color)
+            Image(icon).resizable().frame(width: 20, height: 20).foregroundStyle(color)
             Text(text)
-                .font(Theme.font(17, .regular, relativeTo: .body))
+                .font(Theme.font(15, .regular, relativeTo: .body))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textPrimary)
         }

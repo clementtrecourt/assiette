@@ -50,7 +50,7 @@ struct DayRemainingView: View {
         Group {
             switch layout {
             case .grid:
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                Grid(alignment: .leading, horizontalSpacing: 9, verticalSpacing: 5) {
                     GridRow {
                         cellView(cells[0])
                         cellView(cells[1])
@@ -93,7 +93,7 @@ struct DayRemainingView: View {
                 Text(unit)
                     .foregroundStyle(Theme.textPrimary)
             }
-            .font(Theme.font(14, .regular, relativeTo: .footnote))
+            .font(Theme.font(12, .regular, relativeTo: .footnote))
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.75)
@@ -109,7 +109,7 @@ struct DayRemainingView: View {
                         .frame(width: geo.size.width * fraction(min(cell.before, cell.after), of: cell.target))
                 }
             }
-            .frame(height: 4)
+            .frame(height: 3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy(duration: 0.2), value: cell.after)

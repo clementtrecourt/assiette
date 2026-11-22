@@ -79,6 +79,9 @@ private struct ProfileHome: View {
                 ProfileGroup {
                     ProfileNavRow(title: "Compte", systemImage: "person.crop.circle", value: .account)
                     ProfileGroupDivider()
+                    // Apple Santé import lives on the Données page.
+                    ProfileNavRow(title: "Intégrations", systemImage: "arrow.triangle.2.circlepath", value: .data)
+                    ProfileGroupDivider()
                     Button {
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                     } label: {
@@ -136,11 +139,11 @@ private struct ProfileHome: View {
                     .background(Theme.accent, in: Circle())
                     VStack(alignment: .leading, spacing: 4) {
                         Text(displayName.isEmpty ? "\(profile.sex.label), \(profile.age) ans" : displayName)
-                            .font(Theme.font(19, .regular, relativeTo: .title3))
+                            .font(Theme.font(18, .regular, relativeTo: .title3))
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                         Text("Membre depuis le \(profile.createdAt.formatted(.dateTime.day().month(.wide).year()))")
-                            .font(Theme.font(16, .regular, relativeTo: .callout))
+                            .font(Theme.font(15, .regular, relativeTo: .callout))
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -159,7 +162,7 @@ struct ProfileGroupTitle: View {
 
     var body: some View {
         Text(title)
-            .font(Theme.font(22, .bold, relativeTo: .title2))
+            .font(Theme.font(20, .bold, relativeTo: .title2))
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 16)
             .padding(.top, 30)

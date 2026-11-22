@@ -169,7 +169,7 @@ private struct AddFlowHeader: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(Theme.textPrimary)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 48, height: 48)
                     .background(Theme.raised2, in: Circle())
                     .contentShape(Circle())
             }
@@ -183,8 +183,8 @@ private struct AddFlowHeader: View {
                     .font(Theme.font(17, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-                    .padding(.horizontal, 18)
-                    .frame(height: 50)
+                    .padding(.horizontal, 16)
+                    .frame(height: 48)
                 .background(Theme.raised2, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
@@ -197,9 +197,27 @@ private struct AddFlowHeader: View {
 
             DayRemainingView(day: pending?.day ?? context.day, pending: pending?.nutrients)
                 .frame(maxWidth: .infinity)
-                .padding(.leading, 6)
+                .padding(.leading, 2)
+
+            // Meal of the entries (reference: the dim fork-and-knife pill on the right).
+            Menu {
+                Picker("Repas", selection: $context.meal) {
+                    ForEach(Meal.allCases) { meal in
+                        Label(meal.label, systemImage: meal.systemImage).tag(meal)
+                    }
+                }
+            } label: {
+                Image(systemName: "fork.knife")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(Theme.textQuaternary)
+                    .frame(width: 66, height: 50)
+                    .background(Theme.raised2.opacity(0.55), in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .accessibilityLabel("Repas : \(context.meal.label)")
         }
-        .padding(.horizontal, 12)
+        .padding(.leading, 9)
+        .padding(.trailing, 8)
         .padding(.top, 6)
         .padding(.bottom, 12)
     }
@@ -294,16 +312,16 @@ private struct AddFlowModeTabs: View {
             selection = mode
         } label: {
             VStack(spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: mode.addFlowSymbol)
-                        .font(.system(size: 17, weight: .regular))
+                        .font(.system(size: 14, weight: .regular))
                     Text(mode.addFlowTitle)
-                        .font(Theme.font(17, .regular, relativeTo: .body))
+                        .font(Theme.font(15, .regular, relativeTo: .body))
                         .lineLimit(1)
                         .fixedSize()
                 }
                 .foregroundStyle(Theme.textPrimary)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 12)
                 .padding(.top, 12)
                 .padding(.bottom, 16)
                 Rectangle()

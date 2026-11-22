@@ -3,15 +3,16 @@ import SwiftUI
 import UIKit
 
 private enum QuickAddField: Hashable {
-    case calories, carbs, protein, fat, name
+    case calories, carbs, protein, fat, alcohol, name
 
-    /// Keyboard "next" order: kcal → G → P → L → name.
+    /// Keyboard "next" order: kcal → G → P → L → alcohol → name.
     var next: QuickAddField? {
         switch self {
         case .calories: .carbs
         case .carbs: .protein
         case .protein: .fat
-        case .fat: .name
+        case .fat: .alcohol
+        case .alcohol: .name
         case .name: nil
         }
     }
@@ -22,6 +23,7 @@ private enum QuickAddField: Hashable {
         case .carbs: "Glucides"
         case .protein: "Protéines"
         case .fat: "Lipides"
+        case .alcohol: "Alcool"
         case .name: "Nom"
         }
     }
@@ -53,6 +55,7 @@ struct QuickAddSheet: View {
     @State private var carbsText = ""
     @State private var proteinText = ""
     @State private var fatText = ""
+    @State private var alcoholText = ""
     /// Confirmation of the last "Ajouter et continuer".
     @State private var lastAdded: String?
     @FocusState private var focus: QuickAddField?
@@ -93,10 +96,11 @@ struct QuickAddSheet: View {
     private var carbs: Double? { QuickAddSheet.parse(carbsText) }
     private var protein: Double? { QuickAddSheet.parse(proteinText) }
     private var fat: Double? { QuickAddSheet.parse(fatText) }
+    private var alcohol: Double? { QuickAddSheet.parse(alcoholText) }
 
-    /// Energy from the macros (4 / 4 / 9 kcal per g).
+    /// Energy from the macros (4 / 4 / 9 kcal per g, alcohol 7).
     private var macroCalories: Double {
-        (carbs ?? 0) * 4 + (protein ?? 0) * 4 + (fat ?? 0) * 9
+        (carbs ?? 0) * 4 + (protein ?? 0) * 4 + (fat ?? 0) * 9 + (alcohol ?? 0) * 7
     }
 
     /// Typed energy, or the macro sum when the energy is left empty.
@@ -115,6 +119,7 @@ struct QuickAddSheet: View {
             && !isInvalid(carbsText)
             && !isInvalid(proteinText)
             && !isInvalid(fatText)
+            && !isInvalid(alcoholText)
     }
 
     private var timeLabel: String { AddTime.label(AddTime.effectiveTime(of: context)) }
@@ -165,8 +170,12 @@ struct QuickAddSheet: View {
                     }
                 }
                 .padding(.top, 16)
-                nameField
+                fieldLabel("Alcool", color: Theme.textBody)
                     .padding(.top, 16)
+                alcoholField
+                fieldLabel("Nom", color: Theme.textBody)
+                    .padding(.top, 16)
+                nameField
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -283,9 +292,30 @@ struct QuickAddSheet: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Full-width alcohol field (g), counted 7 kcal/g in the macro sum.
+    private var alcoholField: some View {
+        HStack(spacing: 4) {
+            TextField("", text: $alcoholText)
+                .keyboardType(.decimalPad)
+                .focused($focus, equals: .alcohol)
+                .font(Theme.font(20, .regular, relativeTo: .title3))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textPrimary)
+                .tint(Theme.textPrimary)
+            Text("g")
+                .font(Theme.font(17, .regular, relativeTo: .body))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 50)
+        .modifier(QuickAddFieldBox(isFocused: focus == .alcohol, isInvalid: isInvalid(alcoholText)))
+        .contentShape(Rectangle())
+        .onTapGesture { focus = .alcohol }
+        .accessibilityLabel("Alcool, en grammes")
+    }
+
     private var nameField: some View {
-        TextField("Nom (facultatif)", text: $name,
-                  prompt: Text("Nom (facultatif)").foregroundColor(Theme.textTertiary))
+        TextField("Nom", text: $name, prompt: Text(""))
             .focused($focus, equals: .name)
             .submitLabel(.done)
             .onSubmit { save(continuing: false) }
@@ -312,7 +342,7 @@ struct QuickAddSheet: View {
                 Button {
                     save(continuing: true)
                 } label: {
-                    Text("Ajouter et continuer")
+                    Text("Ajout rapide")
                         .font(Theme.font(17, .regular, relativeTo: .body))
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
@@ -327,7 +357,7 @@ struct QuickAddSheet: View {
                 Button {
                     save(continuing: false)
                 } label: {
-                    Text("Ajouter à \(timeLabel)")
+                    Text("Ajouter au journal")
                         .font(Theme.font(17, .medium, relativeTo: .body))
                         .monospacedDigit()
                         .foregroundStyle(Theme.onAccent)
@@ -347,11 +377,6 @@ struct QuickAddSheet: View {
         .background {
             Theme.raised.ignoresSafeArea(.container, edges: .bottom)
         }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.separator)
-                .frame(height: Theme.hairline)
-        }
         .animation(.snappy(duration: 0.2), value: focus)
     }
 
@@ -366,6 +391,7 @@ struct QuickAddSheet: View {
         if let carbs { values[.carbohydrates] = carbs }
         if let protein { values[.protein] = protein }
         if let fat { values[.totalFat] = fat }
+        if let alcohol, alcohol > 0 { values[.alcohol] = alcohol }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let item = FoodItem(
@@ -396,6 +422,7 @@ struct QuickAddSheet: View {
             carbsText = ""
             proteinText = ""
             fatText = ""
+            alcoholText = ""
             focus = .calories
         } else if isEmbedded {
             if let onLogged { onLogged() } else { dismiss() }
