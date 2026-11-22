@@ -171,8 +171,8 @@ private struct DashboardContent: View {
                                   value: DashboardFormat.kcalNumber(snapshot.isEmpty ? nil : snapshot.expenditure),
                                   unit: "kcal") {
                         DashboardSparkline(values: expenditures, color: Theme.expenditure,
-                                           style: .markers, minimumSpan: 60,
-                                           holding: lastWeek.map(\.isHolding))
+                                           style: .markers, holding: lastWeek.map(\.isHolding),
+                                           minimumSpan: 60)
                     }
                 }
                 NavigationLink(value: DashboardRoute.weightTrend) {
