@@ -165,13 +165,26 @@ struct DashboardSparkline: View {
     var holding: [Bool] = []
     /// Smallest value span mapped to the full height (avoids blowing up tiny changes).
     var minimumSpan: Double = 0
+    /// Opening animation (reference recording, 60 fps): when it turns true the line draws
+    /// from left to right at constant speed in 0.68 s, then the markers appear together 0.9 s
+    /// after the start. nil = drawn at once.
+    var revealed: Bool?
+
+    private static let drawDuration = 0.68
+    private static let markersDelay = 0.9
+    /// Holding days (and the segment leading to them) are drawn darker, as on the reference.
+    private var holdingColor: Color { color.opacity(0.55) }
+
+    private func isHolding(_ index: Int) -> Bool { index < holding.count && holding[index] }
 
     var body: some View {
         if values.isEmpty {
             DashboardNoData()
         } else {
+            let shown = revealed ?? true
             GeometryReader { geo in
                 let points = Self.points(values, in: geo.size, minimumSpan: minimumSpan)
+                let firstHolding = (1..<max(points.count, 1)).first { isHolding($0) }
                 ZStack {
                     if style == .area, points.count > 1 {
                         Self.areaPath(points, height: geo.size.height)
@@ -179,23 +192,43 @@ struct DashboardSparkline: View {
                                                  startPoint: .top, endPoint: .bottom))
                     }
                     if points.count > 1 {
-                        Self.linePath(points)
-                            .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                        Group {
+                            if let firstHolding {
+                                // Solid up to the last updated day, darker over the holding days.
+                                Self.linePath(Array(points[..<firstHolding]))
+                                    .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                                Self.linePath(Array(points[(firstHolding - 1)...]))
+                                    .stroke(holdingColor, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                            } else {
+                                Self.linePath(points)
+                                    .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                            }
+                        }
+                        .mask(alignment: .leading) {
+                            Rectangle()
+                                .frame(width: shown ? geo.size.width + 8 : 0)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, -4)
+                        }
+                        .animation(.linear(duration: Self.drawDuration), value: shown)
                     }
                     ForEach(dotIndices(count: points.count), id: \.self) { index in
-                        if index < holding.count && holding[index] {
-                            Rectangle()
-                                .fill(Theme.raised)
-                                .overlay(Rectangle().stroke(color, lineWidth: 1.4))
-                                .frame(width: 6, height: 6)
-                                .position(points[index])
-                        } else {
-                            Circle()
-                                .fill(Theme.raised)
-                                .overlay(Circle().stroke(color, lineWidth: 1.4))
-                                .frame(width: style == .markers ? 7 : 5, height: style == .markers ? 7 : 5)
-                                .position(points[index])
+                        Group {
+                            if isHolding(index) {
+                                Rectangle()
+                                    .fill(Theme.raised)
+                                    .overlay(Rectangle().stroke(holdingColor, lineWidth: 1.4))
+                                    .frame(width: 6, height: 6)
+                            } else {
+                                Circle()
+                                    .fill(Theme.raised)
+                                    .overlay(Circle().stroke(color, lineWidth: 1.4))
+                                    .frame(width: style == .markers ? 7 : 5, height: style == .markers ? 7 : 5)
+                            }
                         }
+                        .position(points[index])
+                        .opacity(shown ? 1 : 0)
+                        .animation(.easeOut(duration: 0.12).delay(Self.markersDelay), value: shown)
                     }
                 }
             }

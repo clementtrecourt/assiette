@@ -54,6 +54,12 @@ private struct DashboardContent: View {
     /// Starts from the last computed snapshot, so the cards are filled from the first frame.
     @State private var snapshot = DashboardSnapshotCache.last
     @State private var showingAddWeight = false
+    /// Opening animation of the ring and the trend cards (replayed each time Accueil shows,
+    /// except when coming back from a detail screen).
+    @State private var revealed = false
+    @State private var returningFromDetail = false
+    @State private var lastOpening = Date.distantPast
+    @Environment(\.scenePhase) private var scenePhase
 
     private static let regularityDays = 30
 
@@ -84,7 +90,7 @@ private struct DashboardContent: View {
                         Text("Nutrition du jour")
                             .font(Theme.title)
                         DashboardHero(consumed: totals.calories, target: targets.calories,
-                                      showRemaining: showRemaining)
+                                      showRemaining: showRemaining, revealed: revealed)
                             .padding(.top, 18)
                         DashboardMacroBars(totals: totals, targets: targets, showRemaining: showRemaining)
                             .padding(.horizontal, 4)
@@ -121,13 +127,25 @@ private struct DashboardContent: View {
         .navigationDestination(for: DashboardRoute.self) { route in
             destination(route, goal: goal, totals: totals, targets: targets,
                         entryCount: todayEntries.count)
+                .onAppear { returningFromDetail = true }
         }
         .sheet(isPresented: $showingAddWeight) {
             ProgressAddWeightSheet(initialKg: weights.last?.kg ?? profile?.weightKg)
         }
         .onAppear {
-            // Synchronous, before the first frame is shown: no empty cards filling in.
+            // Synchronous, before the first frame is shown: the cards have their data when
+            // the opening animation starts.
             if snapshot.isEmpty { refreshSnapshot() }
+            if returningFromDetail {
+                returningFromDetail = false
+            } else {
+                playOpening()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && appState.selectedTab == .progress && !appState.dashboardDetailShown {
+                playOpening()
+            }
         }
         .task(id: snapshotKey) {
             refreshSnapshot()
@@ -180,14 +198,15 @@ private struct DashboardContent: View {
                                   unit: "kcal") {
                         DashboardSparkline(values: expenditures, color: Theme.expenditure,
                                            style: .markers, holding: lastWeek.map(\.isHolding),
-                                           minimumSpan: 60)
+                                           minimumSpan: 60, revealed: revealed)
                     }
                 }
                 NavigationLink(value: DashboardRoute.weightTrend) {
                     DashboardCard(title: "Poids tendance", subtitle: "7 derniers jours",
                                   value: snapshot.trendKg.map { Formatters.number($0, maxFractionDigits: 1) } ?? "–",
                                   unit: "kg") {
-                        DashboardSparkline(values: trend, color: Theme.weight, style: .markers, minimumSpan: 0.6)
+                        DashboardSparkline(values: trend, color: Theme.weight, style: .markers, minimumSpan: 0.6,
+                                           revealed: revealed)
                     }
                 }
                 NavigationLink(value: DashboardRoute.goal) {
@@ -381,6 +400,21 @@ private struct DashboardContent: View {
             "\(profile?.calorieTarget ?? 0)", "\(profile?.initialExpenditure ?? 0)",
             "\(profile?.expenditureAnchorKcal ?? 0)", "\(healthSync)",
         ].joined(separator: "|")
+    }
+
+    /// Empties the ring and the trend lines at once, then lets them fill 0.27 s later
+    /// (delay measured on the reference between the page appearing and the ring starting).
+    private func playOpening() {
+        // Launch fires both onAppear and scene activation: play once.
+        guard Date.now.timeIntervalSince(lastOpening) > 1 else { return }
+        lastOpening = .now
+        var reset = Transaction(animation: nil)
+        reset.disablesAnimations = true
+        withTransaction(reset) { revealed = false }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(270))
+            revealed = true
+        }
     }
 
     private func refreshSnapshot() {

@@ -5,6 +5,8 @@ struct DashboardHero: View {
     let consumed: Double
     let target: Double
     let showRemaining: Bool
+    /// Opening animation: the ring fills when this turns true (see `DashboardCalorieRing`).
+    var revealed = true
 
     private var isOver: Bool { target > 0 && consumed > target }
     private var excess: Double { max(consumed - target, 0) }
@@ -24,7 +26,7 @@ struct DashboardHero: View {
             leadingSide
                 .frame(maxWidth: .infinity)
                 .offset(y: 7.5)
-            DashboardCalorieRing(progress: progress, isOver: isOver) {
+            DashboardCalorieRing(progress: progress, isOver: isOver, revealed: revealed) {
                 center
             }
             DashboardHeroSide(caption: "Objectif", value: target, color: Theme.textPrimary)
@@ -128,10 +130,13 @@ private struct DashboardHeroSide: View {
 struct DashboardCalorieRing<Center: View>: View {
     let progress: Double
     let isOver: Bool
+    /// Opening animation (reference recording): the arc grows from its right end with a
+    /// critically damped spring (ω ≈ 4 rad/s: 6 % at 0.1 s, 59 % at 0.5 s, 99 % at 1.2 s).
+    var revealed = true
     @ViewBuilder let center: () -> Center
 
     var body: some View {
-        let fraction = CGFloat(min(max(progress, 0), 1))
+        let fraction = revealed ? CGFloat(min(max(progress, 0), 1)) : 0
         let stroke = StrokeStyle(lineWidth: 5, lineCap: .round)
         ZStack {
             Circle()
@@ -147,8 +152,7 @@ struct DashboardCalorieRing<Center: View>: View {
         }
         .padding(4)
         .frame(width: 178, height: 178)
-        // No implicit animation: the ring is drawn filled when Accueil opens (as on the
-        // reference); the Mangé / Restant toggle animates it with `withAnimation`.
+        .animation(.spring(response: 1.55, dampingFraction: 1), value: revealed)
     }
 }
 
