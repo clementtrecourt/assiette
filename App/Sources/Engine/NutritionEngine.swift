@@ -12,6 +12,10 @@ enum NutritionEngine {
         var smoothedTrendKg: Double?
         /// Expenditure estimate at the end of that day (kcal/day).
         var expenditure: Double
+        /// The expenditure did not update that day: too little data in the window ("holding").
+        var isHolding: Bool = false
+        /// Raw 7-day energy-balance measurement the estimate moved toward that day (nil when holding).
+        var energyBalance: Double?
     }
 
     /// - Parameters:
@@ -27,8 +31,11 @@ enum NutritionEngine {
                                                      initial: initialExpenditure, anchor: anchor,
                                                      parameters: parameters)
         return days.indices.map { i in
-            DayResult(date: days[i].date, realtimeTrendKg: trend[i]?.realtime,
-                      smoothedTrendKg: trend[i]?.smoothed, expenditure: expenditure[i])
+            let balance = EngineExpenditure.energyBalance(at: i, days: days, realtimeTrend: realtime,
+                                                          parameters: parameters)
+            return DayResult(date: days[i].date, realtimeTrendKg: trend[i]?.realtime,
+                             smoothedTrendKg: trend[i]?.smoothed, expenditure: expenditure[i],
+                             isHolding: anchor?.index != i && balance == nil, energyBalance: balance)
         }
     }
 }

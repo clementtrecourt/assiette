@@ -4,7 +4,8 @@ import Foundation
 ///
 /// Defaults come from replaying a real 181-day MacroFactor export (2026-05 → 2026-11) with
 /// `tools/mf/` and keeping the values that best reproduce its published numbers:
-/// trend weight ≈ 0.06 kg RMSE, expenditure ≈ 42 kcal RMSE, loss targets within ±1 kcal.
+/// trend weight ≈ 0.06 kg RMSE, expenditure ≈ 30 kcal RMSE (with the owner's surgery period marked as an
+/// exception), loss targets within ±1 kcal.
 struct EngineParameters: Equatable, Sendable {
     // MARK: Weight trend (local linear trend Kalman model, one observation per day)
 
@@ -23,7 +24,19 @@ struct EngineParameters: Equatable, Sendable {
     /// Loosely determined by the calibration (4400–6700 fit equally well); 5000 is the best fit.
     var expenditureEnergyDensity: Double = 5000
     /// Fraction of the gap to the latest energy-balance estimate closed each day.
-    var expenditureAdaptationRate: Double = 0.017
+    /// 0.02 with trimming (0.017 was the best fit without it).
+    var expenditureAdaptationRate: Double = 0.02
+    /// Intake days dropped at each end (lowest and highest) before averaging the window, so one
+    /// party or fasting day doesn't move the estimate. MacroFactor barely reacts to such days;
+    /// trimming one each side cuts the bias against it from +25 to +3 kcal on the calibration data.
+    var expenditureTrimmedDays: Int = 1
+    /// Trimming only applies when the window holds at least this many usable intake days.
+    var expenditureTrimMinimumDays: Int = 5
+    /// MacroFactor "holding": the estimate only updates when the window holds at least this many
+    /// logged days…
+    var expenditureMinimumIntakeDays: Int = 3
+    /// …and at least this many weigh-ins; otherwise it holds its last value.
+    var expenditureMinimumWeighIns: Int = 1
 
     // MARK: Coaching
 

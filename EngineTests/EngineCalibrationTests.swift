@@ -8,8 +8,13 @@ final class EngineCalibrationTests: XCTestCase {
         guard let rows = EngineReference.table("daily.csv") else {
             throw XCTSkip("reference/daily.csv absent (run tools/mf/parse_export.py on a MacroFactor export)")
         }
+        // The owner's surgery period (manual targets in MacroFactor, from the first to the last
+        // "manual" check-in) is replayed as an exception period, like it is set up in the app.
+        let manual = (EngineReference.table("checkins.csv") ?? []).filter { $0["goal"] == "manual" }.compactMap { $0["date"] }
+        let exception = manual.min().flatMap { first in manual.max().map { first...$0 } }
         let days = rows.enumerated().map { i, row in
-            EngineDay(date: EngineFixtures.date(i), intakeKcal: row.number("kcal"), scaleWeightKg: row.number("weight"))
+            EngineDay(date: EngineFixtures.date(i), intakeKcal: row.number("kcal"), scaleWeightKg: row.number("weight"),
+                      isExcluded: row["date"].map { exception?.contains($0) ?? false } ?? false)
         }
         return (days, rows)
     }
@@ -36,8 +41,11 @@ final class EngineCalibrationTests: XCTestCase {
         let pairs = ((accountStart + 1)..<days.count).compactMap { i in rows[i].number("expenditure").map { (estimate[i], $0) } }
         let fit = engineRMSE(pairs)
         print("expenditure vs MacroFactor: RMSE \(fit.rmse) kcal, max \(fit.max) kcal over \(pairs.count) days")
-        XCTAssertLessThan(fit.rmse, 45)
-        XCTAssertLessThan(fit.max, 120)
+        XCTAssertLessThan(fit.rmse, 32)
+        XCTAssertLessThan(fit.max, 60)
+        let bias = pairs.map { $0.0 - $0.1 }.reduce(0, +) / Double(pairs.count)
+        print("expenditure bias vs MacroFactor: \(bias) kcal")
+        XCTAssertLessThan(abs(bias), 10)
     }
 
     func testCheckInTargetsMatchMacroFactor() throws {
