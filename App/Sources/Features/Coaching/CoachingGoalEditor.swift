@@ -351,14 +351,9 @@ struct CoachingGoalEditor: View {
         let snapshot = CoachingService.snapshot(profile: profile, context: modelContext)
         let weight = snapshot.latestScaleKg ?? profile.weightKg
         let rate = ratePercent ?? profile.effectiveRatePercent
-        let engineGoal: EngineCoach.Goal
-        switch goal {
-        case .lose: engineGoal = .lose(ratePercent: rate)
-        case .gain: engineGoal = .gain(ratePercent: rate)
-        case .maintain:
-            engineGoal = .maintain(goalWeightKg: targetWeight ?? snapshot.trendKg ?? weight,
-                                   correctionRatePercent: CoachingService.maintenanceCorrectionPercent)
-        }
+        // A program change starts maintenance at the expenditure (see CoachingService.engineGoal).
+        let engineGoal = CoachingService.engineGoal(goal, ratePercent: rate, maintainedKg: nil,
+                                                    trendKg: snapshot.trendKg ?? weight)
         let calories = EngineCoach.calorieTarget(expenditure: snapshot.expenditure, latestScaleWeightKg: weight,
                                                  trendWeightKg: snapshot.trendKg ?? weight, goal: engineGoal)
         let proposal = CoachingService.proposal(calories: calories, weightKg: weight, goal: goal)

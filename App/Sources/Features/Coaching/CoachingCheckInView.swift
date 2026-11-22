@@ -61,7 +61,7 @@ struct CoachingCheckInView: View {
         guard snapshot == nil else { return }
         let snapshot = CoachingService.snapshot(profile: profile, context: modelContext)
         self.snapshot = snapshot
-        base = CoachingService.proposal(snapshot: snapshot, profile: profile)
+        base = CoachingService.proposal(snapshot: snapshot, profile: profile, steerToGoalWeight: true)
     }
 
     // MARK: - Header
