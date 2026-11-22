@@ -439,7 +439,8 @@ private struct ProgramContent: View {
                                 protein: profile.proteinTarget, fat: profile.fatTarget,
                                 todayIndex: CoachingFormat.mondayIndex(of: .now),
                                 excludedDays: excludedDays)
-                .padding(.top, 9)
+                // MF (aligned pair): chip tops 23 pt under the subtitle cap top.
+                .padding(.top, 6)
             cardHairline
                 .padding(.top, 22)
             VStack(alignment: .leading, spacing: 6) {

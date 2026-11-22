@@ -338,9 +338,10 @@ struct FoodSearchView: View {
 
     private var searchField: some View {
         HStack(spacing: 8) {
+            // MF: white glyph, 1.7 pt stroke.
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.textPrimary)
             TextField("Rechercher un aliment", text: $query,
                       prompt: Text("Rechercher un aliment").foregroundColor(Theme.textTertiary))
                 .font(Theme.font(16, .regular, relativeTo: .body))

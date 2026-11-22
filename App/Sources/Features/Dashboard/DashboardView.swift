@@ -278,6 +278,13 @@ private struct DashboardContent: View {
         let lastWeek = Array(snapshot.last(7))
         let expenditures = lastWeek.map(\.expenditure)
         let trend = lastWeek.compactMap(\.smoothedTrendKg)
+        // MF: days after the last weigh-in (trend carried forward) end the line as squares.
+        let weighed = DashboardData.presence(of: Set(weights.map { $0.date.startOfDay }),
+                                             count: lastWeek.count, today: today)
+        let lastWeighed = weighed.lastIndex(of: true) ?? -1
+        let trendCarried = lastWeek.indices.compactMap { index in
+            lastWeek[index].smoothedTrendKg.map { _ in index > lastWeighed }
+        }
         let balance = DashboardData.balancePoints(snapshot: snapshot, count: 7, today: today,
                                                   todayIntake: todayKcal)
         let averageBalance = snapshot.averageBalance(lastDays: 7)
@@ -298,8 +305,8 @@ private struct DashboardContent: View {
                     DashboardCard(title: "Poids tendance", subtitle: "7 derniers jours",
                                   value: snapshot.trendKg.map { Formatters.number($0, maxFractionDigits: 1) } ?? "–",
                                   unit: "kg") {
-                        DashboardSparkline(values: trend, color: Theme.weight, style: .markers, minimumSpan: 0.6,
-                                           revealed: revealed)
+                        DashboardSparkline(values: trend, color: Theme.weight, style: .markers,
+                                           holding: trendCarried, minimumSpan: 0.6, revealed: revealed)
                     }
                 }
                 NavigationLink(value: DashboardRoute.goal) {

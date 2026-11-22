@@ -48,10 +48,11 @@ struct AssietteApp: App {
         let selected = UIColor(Theme.textPrimary)
         var normalAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: normal]
         var selectedAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: selected]
-        // Reference tab bar: 12 pt labels, regular for idle tabs and medium for the selected one.
-        if let regular = UIFont(name: "DMSans-Regular", size: 12), let medium = UIFont(name: "DMSans-Medium", size: 12) {
+        // Reference tab bar: 12 pt regular labels; the selected tab only turns white (its stems
+        // measure the same ~1 pt as the idle ones).
+        if let regular = UIFont(name: "DMSans-Regular", size: 12) {
             normalAttributes[.font] = regular
-            selectedAttributes[.font] = medium
+            selectedAttributes[.font] = regular
         }
         let itemAppearances = [
             appearance.stackedLayoutAppearance,

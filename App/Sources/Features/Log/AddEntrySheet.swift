@@ -478,12 +478,12 @@ struct AddEntrySheet: View {
                 actionTileLabel("Partager", systemImage: "square.and.arrow.up", tint: Theme.textPrimary)
             }
             .buttonStyle(.plain)
-            actionTile("Favori", systemImage: isFavorite ? "heart.fill" : "heart",
-                       tint: isFavorite ? Theme.protein : Theme.textPrimary, action: toggleFavorite)
+            // MF: every action icon in the same light foreground; the heart only fills.
+            actionTile("Favori", systemImage: isFavorite ? "heart.fill" : "heart", action: toggleFavorite)
                 .accessibilityLabel(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
             actionTile("Supprimer", systemImage: "trash.fill") { showDeleteConfirm = true }
                 .disabled(entry == nil)
-                .opacity(entry == nil ? 0.35 : 1)
+                .opacity(entry == nil ? 0.55 : 1)
             actionTile("Dupliquer", systemImage: "square.on.square.fill", action: duplicate)
         }
     }
@@ -535,6 +535,9 @@ struct AddEntrySheet: View {
                     AddEntryDayRing(fraction: share(of: key), color: Theme.color(for: key), title: key.label)
                 }
             }
+            // MF: four columns over almost the full width (4 pt side insets, first ring centre
+            // ~52 pt from the edge).
+            .padding(.horizontal, -12)
         }
     }
 

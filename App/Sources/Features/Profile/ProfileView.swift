@@ -75,12 +75,12 @@ private struct ProfileHome: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Aligned pair: PROFIL caps 46 pt under the status bar, band ends 17 pt under
-                // the 64 pt reference avatar (14 pt under ours, 66 pt).
+                // Aligned pair: PROFIL caps 46 pt under the status bar, band ends 16 pt under
+                // the 64 pt avatar (same band end as before).
                 header
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 16)
                     // Full-bleed raised band (content keeps the 16 pt inset).
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.raised)
@@ -153,7 +153,7 @@ private struct ProfileHome: View {
                         }
                     }
                     .foregroundStyle(Theme.onAccent)
-                    .frame(width: 66, height: 66)
+                    .frame(width: 64, height: 64)
                     .background(Theme.accent, in: Circle())
                     // MF: "member since" cap 23 pt under the name cap; the bottom padding keeps
                     // the name where it was.

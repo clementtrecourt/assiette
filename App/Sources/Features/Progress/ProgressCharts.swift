@@ -26,11 +26,24 @@ private enum InsightAxis {
                 .padding(.top, dateLabelGap)
         }
     }
+
+    /// Every `stride` days counted back from the last day (reference 1M: … 12, 17, 22 nov. when
+    /// the range ends on 22 nov.), oldest first.
+    static func datesAnchoredOnEnd(start: Date, end: Date, stride: Int) -> [Date] {
+        let first = Calendar.current.startOfDay(for: start)
+        var dates: [Date] = []
+        var day = Calendar.current.startOfDay(for: end)
+        while day >= first {
+            dates.append(day)
+            day = day.adding(days: -stride)
+        }
+        return dates.reversed()
+    }
 }
 
 private extension View {
     /// Date x-axis: weekdays for a week, "28 oct." otherwise, every `strideDays` days.
-    func insightDateAxis(range: InsightRange, averaging: InsightAveraging) -> some View {
+    func insightDateAxis(range: InsightRange, averaging: InsightAveraging, start: Date, end: Date) -> some View {
         chartXAxis {
             if range == .week && averaging == .daily {
                 AxisMarks(values: .stride(by: .day, count: 1)) { value in
@@ -38,6 +51,15 @@ private extension View {
                         .foregroundStyle(Theme.separator)
                     AxisValueLabel(centered: false) {
                         InsightAxis.dateLabel(value, format: .dateTime.weekday(.abbreviated).locale(Formatters.locale))
+                    }
+                }
+            } else if range == .month && averaging == .daily {
+                AxisMarks(values: InsightAxis.datesAnchoredOnEnd(start: start, end: end,
+                                                                 stride: range.labelStrideDays)) { value in
+                    AxisTick(length: .longestLabel, stroke: InsightAxis.dateSeparator)
+                        .foregroundStyle(Theme.separator)
+                    AxisValueLabel {
+                        InsightAxis.dateLabel(value, format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
                     }
                 }
             } else if range.labelStrideDays > 0 && averaging != .monthly {
@@ -172,7 +194,7 @@ struct InsightLineChart: View {
         .chartXScale(domain: startDate...endDate.addingTimeInterval(range == .week ? 16 * 3600 : 0))
         .chartYScale(domain: domain)
         .chartPlotStyle { $0.clipped() }
-        .insightDateAxis(range: range, averaging: averaging)
+        .insightDateAxis(range: range, averaging: averaging, start: startDate, end: endDate)
         .insightValueAxis(desiredCount: kind == .weight ? 5 : 3)
         .frame(height: height + InsightAxis.dateLabelGap)
         .padding(.leading, 0)
@@ -258,7 +280,7 @@ struct InsightBalanceChart: View {
         .chartXScale(domain: startDate...endDate.adding(days: 1))
         .chartYScale(domain: bottom...top)
         .chartPlotStyle { $0.clipped() }
-        .insightDateAxis(range: range, averaging: averaging)
+        .insightDateAxis(range: range, averaging: averaging, start: startDate, end: endDate)
         .insightValueAxis(desiredCount: 2)
         .frame(height: 170 + InsightAxis.dateLabelGap)
         .padding(.trailing, 12)

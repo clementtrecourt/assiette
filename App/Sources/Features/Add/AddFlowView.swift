@@ -181,8 +181,9 @@ private struct AddFlowHeader: View {
                     .font(Theme.font(17, .regular, relativeTo: .body))
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-                    .padding(.horizontal, 22)
-                    .frame(height: 48)
+                    .padding(.horizontal, 14)
+                    // MF: 72 pt pill for an HH:MM label.
+                    .frame(minWidth: 72, minHeight: 48, maxHeight: 48)
                 .background(Theme.raised2, in: Capsule())
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
@@ -195,7 +196,8 @@ private struct AddFlowHeader: View {
 
             DayRemainingView(day: pending?.day ?? context.day, pending: pending?.nutrients)
                 .frame(maxWidth: .infinity)
-                .padding(.leading, 2)
+                // Visual block (cap top to lower bar) centred on the buttons like MF.
+                .padding(.bottom, 4)
 
             // Meal of the entries (reference: the dim fork-and-knife pill on the right).
             Menu {

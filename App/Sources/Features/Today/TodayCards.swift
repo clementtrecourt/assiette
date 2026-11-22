@@ -185,8 +185,8 @@ enum TodayTimelineMetrics {
     static let lineCenterTrailing: CGFloat = pillTrailing + pillWidth / 2
     /// Food cards stop before the pill column.
     static let cardTrailing: CGFloat = pillTrailing + pillWidth + 6
-    /// Reference: 53 pt pitch between empty hour slots.
-    static let hourRowHeight: CGFloat = 53
+    /// Reference: 52 pt pitch between empty hour slots (MF frame: 07:00 → 16:00 in 468 pt).
+    static let hourRowHeight: CGFloat = 52
     static let addSize: CGFloat = 25
     static let cardIconSize: CGFloat = 40
     static let cardRadius: CGFloat = 13

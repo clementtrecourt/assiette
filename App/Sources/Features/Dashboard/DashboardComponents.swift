@@ -61,7 +61,7 @@ struct DashboardCard<Visual: View>: View {
     let visual: Visual
 
     init(title: String, subtitle: String, value: String, unit: String = "",
-         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 56,
+         valueColor: Color = Theme.textPrimary, visualHeight: CGFloat = 48,
          accessory: String = "chevron.right", @ViewBuilder visual: () -> Visual)
     {
         self.title = title
@@ -97,9 +97,10 @@ struct DashboardCard<Visual: View>: View {
                 .fill(Theme.separator)
                 .frame(height: Theme.hairline)
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                // Reference: medium-weight value, 15 pt unit in a light grey, ~5 pt apart.
+                // Reference: medium-weight 18 pt value (13 pt digits), 15 pt unit in a light
+                // grey, ~5 pt apart.
                 Text(value)
-                    .font(Theme.font(20, .medium, relativeTo: .title3))
+                    .font(Theme.font(18, .medium, relativeTo: .title3))
                     .tracking(-0.3)
                     .monospacedDigit()
                     .foregroundStyle(valueColor)
@@ -120,7 +121,8 @@ struct DashboardCard<Visual: View>: View {
             .padding(.top, 7)
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        // MF (aligned pair, from the card top): title cap 20 pt, divider 115 pt, value cap 129 pt.
+        .padding(.top, 14)
         .padding(.bottom, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Plain fill, no outline (reference tiles have no border).
@@ -167,7 +169,8 @@ struct DashboardSparkline: View {
     let values: [Double]
     let color: Color
     var style: Style = .line
-    /// `.markers`: days drawn as squares (expenditure holding) instead of circles.
+    /// `.markers`: days drawn as squares (expenditure holding, weight trend after the last
+    /// weigh-in) instead of circles.
     var holding: [Bool] = []
     /// Smallest value span mapped to the full height (avoids blowing up tiny changes).
     var minimumSpan: Double = 0
@@ -231,8 +234,8 @@ struct DashboardSparkline: View {
                                 // Hollow square in the line color (reference).
                                 Rectangle()
                                     .fill(Theme.raised)
-                                    .overlay(Rectangle().stroke(color, lineWidth: 1.4))
-                                    .frame(width: 6, height: 6)
+                                    .overlay(Rectangle().stroke(holdingColor, lineWidth: 1.6))
+                                    .frame(width: 7, height: 7)
                             } else {
                                 Circle()
                                     .fill(Theme.raised)

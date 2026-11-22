@@ -165,7 +165,8 @@ struct QuickAddSheet: View {
                     energyRow
                     macroSumNote
                         .padding(.top, 7)
-                    HStack(spacing: 8) {
+                    // MF: 16 pt gutters between the three macro fields.
+                    HStack(spacing: 16) {
                         ForEach(Theme.macroOrder, id: \.self) { key in
                             macroField(key)
                         }

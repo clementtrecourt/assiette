@@ -50,7 +50,7 @@ struct DayRemainingView: View {
         Group {
             switch layout {
             case .grid:
-                Grid(alignment: .leading, horizontalSpacing: 9, verticalSpacing: 5) {
+                Grid(alignment: .leading, horizontalSpacing: 9, verticalSpacing: 4.5) {
                     GridRow {
                         cellView(cells[0])
                         cellView(cells[1])
@@ -85,7 +85,9 @@ struct DayRemainingView: View {
     private func cellView(_ cell: Cell) -> some View {
         let unit = cell.key == .calories ? " rest." : " \(Theme.letter(for: cell.key)) rest."
         let color = Theme.color(for: cell.key)
-        return VStack(alignment: .leading, spacing: 3) {
+        // MF grid: 4 pt bar ~3 pt under the digits, 24 pt row pitch.
+        let isGrid = layout == .grid
+        return VStack(alignment: .leading, spacing: isGrid ? 0 : 3) {
             HStack(spacing: 0) {
                 Text(cell.target > 0 ? Formatters.number(cell.after, maxFractionDigits: 0) : "—")
                     .foregroundStyle(cell.after < 0 ? Theme.overTarget : Theme.textPrimary)
@@ -109,7 +111,7 @@ struct DayRemainingView: View {
                         .frame(width: geo.size.width * fraction(min(cell.before, cell.after), of: cell.target))
                 }
             }
-            .frame(height: 3)
+            .frame(height: isGrid ? 4 : 3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy(duration: 0.2), value: cell.after)

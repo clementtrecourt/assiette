@@ -61,9 +61,11 @@ struct DashboardHero: View {
             value = consumed
             color = isOver ? Theme.overTarget : Theme.textPrimary
         }
-        return VStack(spacing: 0) {
+        // MF (aligned pair): 26 pt digits whose centre is 5.5 pt above the ring's, caption cap
+        // ~11 pt under them.
+        return VStack(spacing: -4) {
             Text(Formatters.number(value, maxFractionDigits: 0))
-                .font(Theme.font(38, .bold, relativeTo: .largeTitle))
+                .font(Theme.font(36, .bold, relativeTo: .largeTitle))
                 .tracking(-1)
                 .monospacedDigit()
                 .foregroundStyle(color)
@@ -78,6 +80,7 @@ struct DashboardHero: View {
                 .minimumScaleFactor(0.8)
         }
         .frame(width: 128)
+        .offset(y: 2.5)
     }
 
     private var accessibilityText: String {
@@ -205,18 +208,20 @@ struct DashboardMacroBars: View {
 
         // Reference: label → bar 14 pt, bar → values 14 pt (centres).
         return VStack(spacing: 1) {
+            // MF: 14 pt labels and values.
             Text(key.label)
-                .font(Theme.font(16, .regular, relativeTo: .callout))
+                .font(Theme.font(14, .regular, relativeTo: .subheadline))
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             DashboardBar(fraction: fraction, color: isOver ? Theme.overTarget : color,
                          fromTrailing: showRemaining)
             (main + rest)
-                .font(Theme.font(16, .regular, relativeTo: .callout))
+                .font(Theme.font(14, .regular, relativeTo: .subheadline))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
