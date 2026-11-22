@@ -25,6 +25,10 @@ shot 04b-ajout-quantite-panneau -startTab today -startSheet addflow-entry
 shot 05-ajout-rapide -startTab today -startSheet quickadd
 shot 06-scanner -startTab today -startSheet scan
 shot 07-accueil -startTab progress
+shot 07a-depense -startTab progress -startRoute expenditure
+shot 07b-poids-tendance -startTab progress -startRoute weight
+shot 07c-objectif -startTab progress -startRoute goal
+shot 07d-bilan -startTab progress -startRoute balance
 shot 09-programme -startTab program
 shot 08-profil -startTab profile
 shot 10-programme-regime -startTab program -startSheet wizard

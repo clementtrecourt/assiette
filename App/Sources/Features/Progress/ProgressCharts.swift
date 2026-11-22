@@ -1,182 +1,107 @@
 import Charts
 import SwiftUI
 
-// Charts of the dashboard detail screens (Dépense, Poids tendance, Objectif, Bilan énergétique).
+// Charts of the dashboard detail screens (Dépense, Poids tendance, Objectif, Bilan énergétique),
+// drawn like the reference app: dashed grid, trailing y labels, French date labels, a band
+// around the line, open circle markers (squares while the expenditure is holding).
+
+private enum InsightAxis {
+    static let labelFont = Theme.font(13, .regular, relativeTo: .caption)
+    static let grid = StrokeStyle(lineWidth: 0.6, dash: [3, 3])
+}
 
 private extension View {
-    /// Date x-axis with short French day labels.
-    func progressDateAxis() -> some View {
+    /// Date x-axis: weekdays for a week, "28 oct." otherwise, every `strideDays` days.
+    func insightDateAxis(range: InsightRange, averaging: InsightAveraging) -> some View {
         chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisGridLine()
-                    .foregroundStyle(Theme.separator)
-                AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
-                    .font(Theme.font(10, .regular, relativeTo: .caption2))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-        }
-    }
-
-    /// Value y-axis (trailing) with dark grid lines and tertiary labels.
-    func progressValueAxis() -> some View {
-        chartYAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                AxisGridLine()
-                    .foregroundStyle(Theme.separator)
-                AxisValueLabel()
-                    .font(Theme.font(10, .regular, relativeTo: .caption2))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-        }
-    }
-}
-
-/// Small legend item (colored line + text).
-struct ProgressLegendItem: View {
-    let color: Color
-    let text: String
-    var dashed = false
-    var dot = false
-
-    var body: some View {
-        HStack(spacing: 5) {
-            if dot {
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
+            if range == .week && averaging == .daily {
+                AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
+                        .foregroundStyle(Theme.raised2)
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated).locale(Formatters.locale), centered: false)
+                        .font(InsightAxis.labelFont)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            } else if range.labelStrideDays > 0 && averaging != .monthly {
+                AxisMarks(values: .stride(by: .day, count: range.labelStrideDays)) { _ in
+                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
+                        .foregroundStyle(Theme.raised2)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Formatters.locale))
+                        .font(InsightAxis.labelFont)
+                        .foregroundStyle(Theme.textTertiary)
+                }
             } else {
-                Capsule()
-                    .fill(color)
-                    .frame(width: dashed ? 10 : 12, height: dashed ? 2 : 3)
+                AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                    AxisTick(stroke: StrokeStyle(lineWidth: 0.6))
+                        .foregroundStyle(Theme.raised2)
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).year(.twoDigits).locale(Formatters.locale))
+                        .font(InsightAxis.labelFont)
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
-            Text(text)
         }
-        .font(Theme.caption)
-        .foregroundStyle(Theme.textTertiary)
+    }
+
+    /// Trailing value axis with dashed grid lines.
+    func insightValueAxis(desiredCount: Int = 3) -> some View {
+        chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: desiredCount)) { value in
+                AxisGridLine(stroke: InsightAxis.grid)
+                    .foregroundStyle(Theme.raised2)
+                AxisValueLabel {
+                    if let number = value.as(Double.self) {
+                        Text(Formatters.number(number, maxFractionDigits: 1))
+                    }
+                }
+                .font(InsightAxis.labelFont)
+                .foregroundStyle(Theme.textTertiary)
+            }
+        }
     }
 }
 
-/// Range selector chips (30 j / 90 j): selected = white fill + near-black text,
-/// unselected = hairline outline + secondary text.
-struct ProgressRangeChips: View {
-    @Binding var rangeRaw: Int
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(ProgressRange.allCases) { range in
-                chip(range)
-            }
-            Spacer(minLength: 0)
-        }
-        .sensoryFeedback(.selection, trigger: rangeRaw)
-    }
-
-    private func chip(_ range: ProgressRange) -> some View {
-        let selected = range.rawValue == rangeRaw
-        return Button {
-            rangeRaw = range.rawValue
-        } label: {
-            Text(range.label)
-                .font(Theme.font(13, selected ? .bold : .medium, relativeTo: .subheadline))
-                .monospacedDigit()
-                .foregroundStyle(selected ? Theme.onAccent : Theme.textSecondary)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 30)
-                .background(Capsule().fill(selected ? Theme.accent : Color.clear))
-                .overlay(Capsule().strokeBorder(selected ? Theme.accent : Theme.separatorStrong,
-                                                lineWidth: Theme.hairline))
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(range.longLabel)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
+/// Domain padded around `values`, rounded to `step`.
+private func insightDomain(_ values: [Double], minimumSpan: Double, pad: Double, step: Double) -> ClosedRange<Double> {
+    let lo = values.min() ?? 0
+    let hi = values.max() ?? 1
+    let span = max(hi - lo, minimumSpan)
+    let mid = (hi + lo) / 2
+    let low = ((mid - span / 2 - span * pad) / step).rounded(.down) * step
+    let high = ((mid + span / 2 + span * pad) / step).rounded(.up) * step
+    return low...max(high, low + step)
 }
 
-// MARK: - Weight trend
+// MARK: - Line with band (expenditure, trend weight)
 
-/// Smoothed trend weight (engine, RTS smoother) as a line, scale readings as dots,
-/// optional dashed goal weight.
-struct ProgressWeightTrendChart: View {
-    let trend: [ProgressChartPoint]
-    let scale: [ProgressChartPoint]
-    let targetKg: Double?
+struct InsightLineChart: View {
+    enum Kind { case expenditure, weight }
+
+    let points: [InsightPoint]
+    let kind: Kind
+    let range: InsightRange
+    let averaging: InsightAveraging
     let startDate: Date
     let endDate: Date
+    let fitToData: Bool
+    var height: CGFloat = 270
 
-    /// Values the y-domain is built from (the goal only when it is close to the data,
-    /// so a distant goal does not flatten the curve).
-    private var visibleTarget: Double? {
-        guard let targetKg else { return nil }
-        let values = trend.map(\.value) + scale.map(\.value)
-        guard let lo = values.min(), let hi = values.max() else { return targetKg }
-        return targetKg >= lo - 3 && targetKg <= hi + 3 ? targetKg : nil
-    }
+    private var color: Color { kind == .expenditure ? Theme.expenditure : Theme.weight }
+    private var bandColor: Color { kind == .expenditure ? Theme.expenditureBand : Theme.weightBand }
+    /// Markers on every point only while they stay readable.
+    private var showsMarkers: Bool { points.count <= 45 }
 
     private var yDomain: ClosedRange<Double> {
-        var values = trend.map(\.value) + scale.map(\.value)
-        if let visibleTarget { values.append(visibleTarget) }
-        let lo = values.min() ?? 0
-        let hi = values.max() ?? 100
-        let pad = max(0.5, (hi - lo) * 0.15)
-        return (lo - pad).rounded(.down)...(hi + pad).rounded(.up)
-    }
-
-    var body: some View {
-        let target = visibleTarget
-        VStack(alignment: .leading, spacing: 10) {
-            Chart {
-                if let target {
-                    RuleMark(y: .value("Objectif", target))
-                        .foregroundStyle(Theme.good.opacity(0.7))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                }
-                ForEach(scale) { point in
-                    PointMark(x: .value("Date", point.date),
-                              y: .value("Poids", point.value))
-                        .foregroundStyle(Theme.weight.opacity(0.45))
-                        .symbolSize(16)
-                }
-                ForEach(trend) { point in
-                    LineMark(x: .value("Date", point.date),
-                             y: .value("Poids", point.value),
-                             series: .value("Série", "Tendance"))
-                        .foregroundStyle(Theme.weight)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.monotone)
-                }
-            }
-            .chartXScale(domain: startDate...endDate)
-            .chartYScale(domain: yDomain)
-            .progressDateAxis()
-            .progressValueAxis()
-            .frame(height: 220)
-
-            HStack(spacing: 14) {
-                ProgressLegendItem(color: Theme.weight, text: "Tendance")
-                ProgressLegendItem(color: Theme.weight.opacity(0.45), text: "Pesées", dot: true)
-                if target != nil {
-                    ProgressLegendItem(color: Theme.good.opacity(0.7), text: "Poids visé", dashed: true)
-                }
-            }
+        let values = points.flatMap { [$0.low, $0.high] + ($0.scale.map { [$0] } ?? []) }
+        switch kind {
+        case .expenditure:
+            return fitToData
+                ? insightDomain(values, minimumSpan: 40, pad: 0.1, step: 10)
+                : insightDomain(values, minimumSpan: 150, pad: 0.35, step: 50)
+        case .weight:
+            return fitToData
+                ? insightDomain(values, minimumSpan: 0.4, pad: 0.1, step: 0.1)
+                : insightDomain(values, minimumSpan: 2, pad: 0.3, step: 1)
         }
-    }
-}
-
-// MARK: - Expenditure
-
-/// Daily expenditure estimate as a line with a soft orange area.
-struct ProgressExpenditureChart: View {
-    let points: [ProgressChartPoint]
-    let startDate: Date
-    let endDate: Date
-
-    private var yDomain: ClosedRange<Double> {
-        let values = points.map(\.value)
-        let lo = values.min() ?? 0
-        let hi = values.max() ?? 2500
-        let pad = max(50, (hi - lo) * 0.2)
-        return max(0, ((lo - pad) / 50).rounded(.down) * 50)...(((hi + pad) / 50).rounded(.up) * 50)
     }
 
     var body: some View {
@@ -184,71 +109,194 @@ struct ProgressExpenditureChart: View {
         Chart {
             ForEach(points) { point in
                 AreaMark(x: .value("Jour", point.date),
-                         yStart: .value("Base", domain.lowerBound),
-                         yEnd: .value("Dépense", point.value))
-                    .foregroundStyle(LinearGradient(colors: [Theme.expenditure.opacity(0.28),
-                                                             Theme.expenditure.opacity(0)],
-                                                    startPoint: .top, endPoint: .bottom))
+                         yStart: .value("Bas", point.low),
+                         yEnd: .value("Haut", point.high))
+                    .foregroundStyle(bandColor)
                     .interpolationMethod(.monotone)
+            }
+            if kind == .weight && showsMarkers {
+                ForEach(points.filter { $0.scale != nil }) { point in
+                    PointMark(x: .value("Jour", point.date), y: .value("Balance", point.scale ?? point.value))
+                        .foregroundStyle(Theme.weightDark)
+                        .symbolSize(22)
+                }
             }
             ForEach(points) { point in
                 LineMark(x: .value("Jour", point.date),
-                         y: .value("Dépense", point.value))
-                    .foregroundStyle(Theme.expenditure)
+                         y: .value("Valeur", point.value),
+                         series: .value("Série", "Ligne"))
+                    .foregroundStyle(color)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                     .interpolationMethod(.monotone)
+            }
+            if showsMarkers {
+                ForEach(points) { point in
+                    PointMark(x: .value("Jour", point.date), y: .value("Valeur", point.value))
+                        .symbol {
+                            InsightMarker(color: color, square: point.isHolding)
+                        }
+                }
             }
         }
         .chartXScale(domain: startDate...endDate)
         .chartYScale(domain: domain)
-        .progressDateAxis()
-        .progressValueAxis()
-        .frame(height: 220)
+        .chartPlotStyle { $0.clipped() }
+        .insightDateAxis(range: range, averaging: averaging)
+        .insightValueAxis(desiredCount: kind == .weight ? 5 : 3)
+        .frame(height: height)
+        .padding(.leading, 0)
+        .padding(.trailing, 12)
+        .animation(.quick, value: points)
+        .animation(.quick, value: fitToData)
+    }
+}
+
+/// Open circle (or square while holding) on the chart background.
+private struct InsightMarker: View {
+    let color: Color
+    let square: Bool
+
+    var body: some View {
+        Group {
+            if square {
+                Rectangle().fill(Theme.raised)
+                    .overlay(Rectangle().strokeBorder(color, lineWidth: 1.6))
+            } else {
+                Circle().fill(Theme.raised)
+                    .overlay(Circle().strokeBorder(color, lineWidth: 1.6))
+            }
+        }
+        .frame(width: 8, height: 8)
     }
 }
 
 // MARK: - Energy balance
 
-/// Daily intake bars against the dashed expenditure line.
-struct ProgressEnergyBalanceChart: View {
-    let points: [ProgressBalancePoint]
+/// Daily (or averaged) intake bars against the dotted expenditure or calorie target line.
+struct InsightBalanceChart: View {
+    let days: [InsightBalanceDay]
+    let againstTargets: Bool
+    let range: InsightRange
+    let averaging: InsightAveraging
     let startDate: Date
     let endDate: Date
+    let fitToData: Bool
 
-    private var yMax: Double {
-        let intake = points.compactMap(\.intake).max() ?? 0
-        let expenditure = points.map(\.expenditure).max() ?? 0
-        return max(max(intake, expenditure) * 1.1, 500)
+    private var lineColor: Color { againstTargets ? Theme.targetLine : Theme.expenditure }
+
+    private var unit: Calendar.Component {
+        switch averaging {
+        case .daily: .day
+        case .weekly: .weekOfYear
+        case .monthly: .month
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Chart {
-                ForEach(points.filter { $0.intake != nil }) { point in
-                    BarMark(x: .value("Jour", point.date, unit: .day),
-                            y: .value("Apport", point.intake ?? 0))
-                        .foregroundStyle(Theme.calories.opacity(point.isPartial ? 0.45 : 1))
-                        .cornerRadius(2)
-                }
-                ForEach(points) { point in
-                    // Middle of the day, to line up with the bars.
-                    LineMark(x: .value("Jour", point.date.addingTimeInterval(12 * 3600)),
-                             y: .value("Dépense", point.expenditure),
-                             series: .value("Série", "Dépense"))
-                        .foregroundStyle(Theme.expenditure)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-                }
-            }
-            .chartXScale(domain: startDate...endDate)
-            .chartYScale(domain: 0...yMax)
-            .progressDateAxis()
-            .progressValueAxis()
-            .frame(height: 220)
+        let bars = InsightPoint.averaged(
+            days.compactMap { day in day.intake.map { InsightPoint(date: day.date, value: $0, isHolding: day.isPartial) } },
+            by: averaging)
+        let lastLogged = days.last(where: { $0.intake != nil })?.date ?? startDate
+        let line = InsightPoint.averaged(
+            days.filter { $0.date <= lastLogged }.map {
+                InsightPoint(date: $0.date, value: againstTargets ? $0.target : $0.expenditure)
+            },
+            by: averaging)
+        let values = bars.map(\.value) + line.map(\.value)
+        let top = max((values.max() ?? 2000) * 1.08, 500)
+        let bottom = fitToData ? max(((values.min() ?? 0) * 0.8 / 100).rounded(.down) * 100, 0) : 0
+        let halfUnit: TimeInterval = averaging == .daily ? 12 * 3600 : (averaging == .weekly ? 3.5 * 86400 : 15 * 86400)
 
-            HStack(spacing: 14) {
-                ProgressLegendItem(color: Theme.calories, text: "Apport")
-                ProgressLegendItem(color: Theme.expenditure, text: "Dépense", dashed: true)
+        Chart {
+            ForEach(bars) { bar in
+                BarMark(x: .value("Jour", bar.date, unit: unit),
+                        yStart: .value("Base", bottom),
+                        yEnd: .value("Calories", max(bar.value, bottom)),
+                        width: .ratio(0.7))
+                    .foregroundStyle(Theme.calories.opacity(bar.isHolding ? 0.45 : 1))
+            }
+            ForEach(line) { point in
+                LineMark(x: .value("Jour", point.date.addingTimeInterval(halfUnit)),
+                         y: .value("Référence", point.value),
+                         series: .value("Série", "Référence"))
+                    .foregroundStyle(lineColor)
+                    .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, dash: [0.1, 4.6]))
             }
         }
+        .chartXScale(domain: startDate...endDate.adding(days: 1))
+        .chartYScale(domain: bottom...top)
+        .chartPlotStyle { $0.clipped() }
+        .insightDateAxis(range: range, averaging: averaging)
+        .insightValueAxis(desiredCount: 2)
+        .frame(height: 170)
+        .padding(.trailing, 12)
+        .animation(.quick, value: days)
+        .animation(.quick, value: againstTargets)
+    }
+}
+
+// MARK: - Goal waterfall
+
+/// Distance to the goal weight: day 0, then a floating bar per step (light = moving away,
+/// dark = getting closer), then the current status in grey.
+struct InsightGoalChart: View {
+    let steps: [DashboardInsights.GoalStep]
+    let useTrend: Bool
+    let fitToData: Bool
+
+    private var awayColor: Color { useTrend ? Theme.weight : Theme.goalAway }
+    private var towardsColor: Color { useTrend ? Theme.weightDark : Theme.goalTowards }
+
+    private func color(_ kind: DashboardInsights.GoalStep.Kind) -> Color {
+        switch kind {
+        case .away: awayColor
+        case .towards: towardsColor
+        case .status: Theme.raised2
+        }
+    }
+
+    /// Labels under the bars: day 0, every 4th step (as "Jour n"), and "Statut".
+    private var labeled: [String] {
+        guard steps.count > 1 else { return steps.map(\.label) }
+        let every = max(1, (steps.count - 2) / 3)
+        return steps.enumerated().compactMap { index, step in
+            index == 0 || index == steps.count - 1 || (index % every == 0 && index < steps.count - 2) ? step.label : nil
+        }
+    }
+
+    var body: some View {
+        let values = steps.flatMap { [$0.start, $0.end] }
+        let hi = max(((values.max() ?? 1) * 1.1).rounded(.up), 1)
+        let lo = fitToData ? max(((steps.dropFirst().filter { $0.kind != .status }.flatMap { [$0.start, $0.end] }.min() ?? 0) * 0.8 * 2).rounded(.down) / 2, 0) : 0
+        let shown = Set(labeled)
+
+        Chart {
+            ForEach(steps) { step in
+                let thin = abs(step.end - step.start) < 0.03
+                BarMark(x: .value("Étape", step.label),
+                        yStart: .value("Avant", max(step.start, lo)),
+                        yEnd: .value("Après", max(thin ? step.start + 0.03 : step.end, lo)),
+                        width: .ratio(0.72))
+                    .foregroundStyle(color(step.kind))
+            }
+        }
+        .chartYScale(domain: lo...hi)
+        .chartPlotStyle { $0.clipped() }
+        .chartXAxis {
+            AxisMarks(values: steps.map(\.label)) { value in
+                if let label = value.as(String.self), shown.contains(label) {
+                    AxisValueLabel(centered: true) {
+                        Text(label == "Statut" ? "Statut" : "Jour \(label)")
+                    }
+                    .font(InsightAxis.labelFont)
+                    .foregroundStyle(Theme.textTertiary)
+                }
+            }
+        }
+        .insightValueAxis(desiredCount: 4)
+        .frame(height: 300)
+        .padding(.trailing, 12)
+        .animation(.quick, value: steps)
+        .animation(.quick, value: fitToData)
     }
 }

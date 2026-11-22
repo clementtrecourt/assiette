@@ -24,6 +24,11 @@ struct EngineParameters: Equatable, Sendable {
     var expenditureEnergyDensity: Double = 5000
     /// Fraction of the gap to the latest energy-balance estimate closed each day.
     var expenditureAdaptationRate: Double = 0.017
+    /// MacroFactor "holding": the estimate only updates when the window holds at least this many
+    /// logged days…
+    var expenditureMinimumIntakeDays: Int = 3
+    /// …and at least this many weigh-ins; otherwise it holds its last value.
+    var expenditureMinimumWeighIns: Int = 1
 
     // MARK: Coaching
 

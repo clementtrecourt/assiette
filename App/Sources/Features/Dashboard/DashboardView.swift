@@ -7,14 +7,26 @@ import SwiftUI
 /// Régularité cards. The floating search bar is added below by RootView.
 struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppState.self) private var appState
     @State private var today = Date.now.startOfDay
+    @State private var path: [DashboardRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             DashboardContent(today: today)
                 .id(today)
                 .navigationTitle("Accueil")
                 .toolbar(.hidden, for: .navigationBar)
+        }
+        .onChange(of: path.isEmpty) { _, isEmpty in
+            // Detail screens hide the floating search bar (RootView), as on the reference.
+            appState.dashboardDetailShown = !isEmpty
+        }
+        .task {
+            if let route = DemoSupport.startRoute, path.isEmpty {
+                try? await Task.sleep(for: .seconds(1.5)) // let the demo data and snapshot settle
+                path = [route]
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // Roll over to the new day when the app comes back after midnight.
@@ -159,14 +171,15 @@ private struct DashboardContent: View {
                                   value: DashboardFormat.kcalNumber(snapshot.isEmpty ? nil : snapshot.expenditure),
                                   unit: "kcal") {
                         DashboardSparkline(values: expenditures, color: Theme.expenditure,
-                                           style: .area, minimumSpan: 60)
+                                           style: .markers, minimumSpan: 60,
+                                           holding: lastWeek.map(\.isHolding))
                     }
                 }
                 NavigationLink(value: DashboardRoute.weightTrend) {
                     DashboardCard(title: "Poids tendance", subtitle: "7 derniers jours",
                                   value: snapshot.trendKg.map { Formatters.number($0, maxFractionDigits: 1) } ?? "–",
                                   unit: "kg") {
-                        DashboardSparkline(values: trend, color: Theme.weight, style: .line, minimumSpan: 0.6)
+                        DashboardSparkline(values: trend, color: Theme.weight, style: .markers, minimumSpan: 0.6)
                     }
                 }
                 NavigationLink(value: DashboardRoute.goal) {
@@ -174,20 +187,21 @@ private struct DashboardContent: View {
                 }
                 NavigationLink(value: DashboardRoute.energyBalance) {
                     DashboardCard(title: "Bilan énergétique", subtitle: "7 derniers jours",
-                                  value: averageBalance.map { DashboardFormat.signed($0) } ?? "–",
-                                  unit: "kcal/j") {
+                                  value: averageBalance.map { Formatters.number(abs($0), maxFractionDigits: 0) } ?? "–",
+                                  unit: averageBalance.map { $0 < 0 ? "kcal déficit" : "kcal surplus" } ?? "") {
                         DashboardBalanceBars(points: balance)
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DashboardCardButtonStyle())
         }
     }
 
     private func goalCard(_ goal: DashboardGoalProgress?) -> some View {
         let subtitle: String
         if let goal {
-            subtitle = DashboardFormat.since(goal.startDate, today: today)
+            let days = max(InsightCalendar.days(from: goal.startDate, to: today), 0)
+            subtitle = days == 0 ? "aujourd'hui" : (days == 1 ? "dernier jour" : "\(days) derniers jours")
         } else if profile?.goal == .maintain {
             subtitle = "maintien"
         } else {
@@ -219,7 +233,7 @@ private struct DashboardContent: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DashboardCardButtonStyle())
         }
     }
 
@@ -260,7 +274,7 @@ private struct DashboardContent: View {
                 }
                 .accessibilityLabel("Ajouter une pesée")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DashboardCardButtonStyle())
         }
     }
 
@@ -294,7 +308,7 @@ private struct DashboardContent: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DashboardCardButtonStyle())
         }
     }
 
@@ -311,13 +325,37 @@ private struct DashboardContent: View {
             DashboardWeightTrendDetail(snapshot: snapshot, targetKg: profile?.targetWeightKg, today: today)
         case .goal:
             DashboardGoalDetail(progress: goal, snapshot: snapshot, weights: weights,
-                                goal: profile?.goal ?? .maintain, today: today)
+                                goal: profile?.goal ?? .maintain, weeklyRateKg: weeklyRateKg, today: today)
         case .energyBalance:
-            DashboardEnergyBalanceDetail(snapshot: snapshot, todayIntake: totals.calories, today: today)
+            DashboardEnergyBalanceDetail(snapshot: snapshot, todayIntake: totals.calories, today: today,
+                                         target: calorieTargetLookup)
         case .nutrients:
             DashboardNutrientsView(totals: totals, targets: targets, entryCount: entryCount)
         case .weights:
             ProgressWeightHistoryView()
+        }
+    }
+
+    /// Planned weekly change of the current goal (kg, positive).
+    private var weeklyRateKg: Double {
+        guard let profile, profile.goal != .maintain else { return 0 }
+        return CoachingService.weeklyKg(ratePercent: profile.effectiveRatePercent,
+                                        weightKg: snapshot.trendKg ?? profile.weightKg)
+    }
+
+    /// Calorie target of a past day: the check-in in effect that day when the targets changed
+    /// since, else today's program (weekly distribution applied).
+    private var calorieTargetLookup: (Date) -> Double {
+        let checkIns = self.checkIns
+        let profile = self.profile
+        let lastChange = checkIns.last?.date.startOfDay
+        return { day in
+            let start = day.startOfDay
+            if let lastChange, start < lastChange,
+               let inEffect = checkIns.last(where: { $0.date.startOfDay <= start }), inEffect.calorieTarget > 0 {
+                return inEffect.calorieTarget
+            }
+            return profile?.targets(on: day).calories ?? DashboardTargets(profile: nil).calories
         }
     }
 

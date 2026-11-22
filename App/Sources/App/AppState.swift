@@ -51,6 +51,9 @@ final class AppState {
     var showingShortcuts = false
     /// Weekly check-in sheet.
     var showingCheckIn = false
+    /// A dashboard detail screen is pushed: the floating search bar of the Accueil tab hides,
+    /// as on the reference app.
+    var dashboardDetailShown = false
 
     /// Context for adding food: the selected journal day + meal suggested by the clock.
     var addTabContext: LogContext { LogContext(day: selectedDay, meal: .suggested()) }

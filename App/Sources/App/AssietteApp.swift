@@ -141,7 +141,9 @@ struct RootView: View {
         @Bindable var appState = appState
         TabView(selection: $appState.selectedTab) {
             DashboardView()
-                .safeAreaInset(edge: .bottom, spacing: 0) { AddSearchBar() }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if !appState.dashboardDetailShown { AddSearchBar() }
+                }
                 .tabItem { Label("Accueil", image: appState.selectedTab == .progress ? "Glyph-accueil-active" : "Glyph-accueil") }
                 .tag(AppTab.progress)
 
