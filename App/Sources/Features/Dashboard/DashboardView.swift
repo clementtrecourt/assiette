@@ -50,7 +50,7 @@ private struct DashboardContent: View {
     @Query(sort: \CoachingCheckIn.date) private var checkIns: [CoachingCheckIn]
 
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
-    @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = false
+    @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = true
     /// Page of the header carousel (0 ring, 1 week, 2 energy balance).
     @State private var heroPage: Int? = 0
     @State private var weekSelection = Date.now.startOfDay
@@ -114,8 +114,9 @@ private struct DashboardContent: View {
                         .scrollPosition(id: $heroPage)
                         Group {
                             if (heroPage ?? 0) == 2 {
-                                DashboardPageToggle(first: "Objectif", second: "Dépense",
-                                                    secondSelected: $balanceAgainstExpenditure)
+                                DashboardPageToggle(first: "Dépense", second: "Objectif",
+                                                    secondSelected: Binding(get: { !balanceAgainstExpenditure },
+                                                                            set: { balanceAgainstExpenditure = !$0 }))
                             } else {
                                 DashboardModePicker(showRemaining: $showRemaining)
                             }

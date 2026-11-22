@@ -147,7 +147,7 @@ struct DashboardBalancePage: View {
     let days: [InsightBalanceDay]
     let againstExpenditure: Bool
 
-    private static let chartHeight: CGFloat = 150
+    private static let chartHeight: CGFloat = 96
 
     private var lineColor: Color { againstExpenditure ? Theme.expenditure : Theme.targetLine }
     private func lineValue(_ day: InsightBalanceDay) -> Double {
@@ -167,7 +167,7 @@ struct DashboardBalancePage: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 34) {
             chart
                 .frame(height: Self.chartHeight)
             HStack(alignment: .top, spacing: 0) {
@@ -207,10 +207,10 @@ struct DashboardBalancePage: View {
     private var chart: some View {
         GeometryReader { geo in
             let values = days.map { $0.intake ?? 0 } + days.map(lineValue)
-            let top = max(values.max() ?? 1, 1) * 1.1
+            let top = max(values.max() ?? 1, 1) * 1.3
             let count = max(days.count, 1)
             let slot = geo.size.width / CGFloat(count)
-            let barWidth = max(min(slot * 0.5, 8), 2)
+            let barWidth = max(min(slot * 0.4, 5), 2)
             let y: (Double) -> CGFloat = { geo.size.height * (1 - CGFloat($0 / top)) }
             ZStack(alignment: .topLeading) {
                 ForEach(Array(days.enumerated()), id: \.element.id) { index, day in

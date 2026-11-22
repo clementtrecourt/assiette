@@ -452,7 +452,7 @@ struct AddEntrySheet: View {
 
     /// Square tiles with a label below (reference: "To Custom", "Favorite").
     private var actionsRow: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             if item.source != .custom {
                 actionTile("Modifier", systemImage: "pencil") { showCustomEditor = true }
                     .accessibilityLabel("Créer un aliment personnalisé à partir de celui-ci")
@@ -492,7 +492,8 @@ struct AddEntrySheet: View {
                 .foregroundStyle(Theme.textPrimary)
                 .fixedSize()
         }
-        .frame(minWidth: 56)
+        // Reference: tiles on a ~78 pt pitch (Edit, Share, Favorite, Delete, Duplicate).
+        .frame(width: 66)
     }
 
     /// Plain-text summary shared from the "Partager" tile.
