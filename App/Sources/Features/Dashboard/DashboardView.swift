@@ -51,7 +51,8 @@ private struct DashboardContent: View {
 
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
     @AppStorage(HealthImport.lastSyncKey) private var healthSync = 0.0
-    @State private var snapshot = CoachingSnapshot()
+    /// Starts from the last computed snapshot, so the cards are filled from the first frame.
+    @State private var snapshot = DashboardSnapshotCache.last
     @State private var showingAddWeight = false
 
     private static let regularityDays = 30
@@ -100,7 +101,7 @@ private struct DashboardContent: View {
                 .padding(.horizontal, -16)
 
                 trendsSection(goal: goal, todayKcal: totals.calories)
-                    .padding(.top, 30)
+                    .padding(.top, 42)
                 nutritionSection(totals: totals, targets: targets)
                     .padding(.top, 28)
                 measuresSection
@@ -124,6 +125,10 @@ private struct DashboardContent: View {
         .sheet(isPresented: $showingAddWeight) {
             ProgressAddWeightSheet(initialKg: weights.last?.kg ?? profile?.weightKg)
         }
+        .onAppear {
+            // Synchronous, before the first frame is shown: no empty cards filling in.
+            if snapshot.isEmpty { refreshSnapshot() }
+        }
         .task(id: snapshotKey) {
             refreshSnapshot()
         }
@@ -146,12 +151,12 @@ private struct DashboardContent: View {
                 }
             } label: {
                 Image("Glyph-reglage")
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(Theme.raised2, in: Circle())
             }
             .accessibilityLabel("Affichage de la nutrition")
         }
-        .padding(.top, 6)
+        .padding(.top, 4)
         .padding(.bottom, 4)
 
     }
@@ -379,12 +384,18 @@ private struct DashboardContent: View {
     }
 
     private func refreshSnapshot() {
-        guard let profile else {
-            snapshot = CoachingSnapshot()
-            return
-        }
-        snapshot = CoachingService.snapshot(profile: profile, context: modelContext)
+        let fresh = profile.map { CoachingService.snapshot(profile: $0, context: modelContext) } ?? CoachingSnapshot()
+        DashboardSnapshotCache.last = fresh
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { snapshot = fresh }
     }
+}
+
+/// Last engine snapshot shown by Accueil (the content view is re-created at midnight and
+/// when the tab reloads; starting from it avoids an empty first frame).
+enum DashboardSnapshotCache {
+    static var last = CoachingSnapshot()
 }
 
 // MARK: - Nutrient card

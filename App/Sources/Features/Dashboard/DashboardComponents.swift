@@ -364,7 +364,6 @@ struct DashboardMeter: View {
             .frame(width: width, height: geo.size.height)
         }
         .frame(height: height + 6)
-        .animation(.quick, value: fraction)
         .accessibilityHidden(true)
     }
 }
@@ -389,7 +388,6 @@ struct DashboardBar: View {
             }
         }
         .frame(height: height)
-        .animation(.quick, value: fraction)
         .accessibilityHidden(true)
     }
 }

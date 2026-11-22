@@ -18,14 +18,18 @@ struct DashboardHero: View {
     }
 
     var body: some View {
+        // Reference: the three captions (Mangé / Restant / Objectif) sit on one line, so the
+        // sides are 7.5 pt lower than the ring's centre.
         HStack(alignment: .center, spacing: 4) {
             leadingSide
                 .frame(maxWidth: .infinity)
+                .offset(y: 7.5)
             DashboardCalorieRing(progress: progress, isOver: isOver) {
                 center
             }
             DashboardHeroSide(caption: "Objectif", value: target, color: Theme.textPrimary)
                 .frame(maxWidth: .infinity)
+                .offset(y: 7.5)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -143,7 +147,8 @@ struct DashboardCalorieRing<Center: View>: View {
         }
         .padding(4)
         .frame(width: 178, height: 178)
-        .animation(.quick, value: fraction)
+        // No implicit animation: the ring is drawn filled when Accueil opens (as on the
+        // reference); the Mangé / Restant toggle animates it with `withAnimation`.
     }
 }
 
@@ -193,7 +198,8 @@ struct DashboardMacroBars: View {
             : (showRemaining ? "\(Formatters.number(target - eaten, maxFractionDigits: 0)) g restants"
                              : "\(Formatters.number(eaten, maxFractionDigits: 0)) g mangés")
 
-        return VStack(spacing: 3) {
+        // Reference: label → bar 14 pt, bar → values 14 pt (centres).
+        return VStack(spacing: 1) {
             Text(key.label)
                 .font(Theme.font(16, .regular, relativeTo: .callout))
                 .foregroundStyle(Theme.textSecondary)
@@ -236,8 +242,7 @@ struct DashboardModePicker: View {
             Text(title)
                 .font(Theme.font(15, .regular, relativeTo: .subheadline))
                 .foregroundStyle(selected ? Theme.onAccent : Theme.textPrimary)
-                .frame(width: 98)
-                .frame(minHeight: 36)
+                .frame(width: 100, height: 36)
                 .background(
                     Capsule()
                         .fill(selected ? Theme.accent : Color.clear)
