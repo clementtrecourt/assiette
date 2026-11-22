@@ -52,7 +52,7 @@ private struct DashboardContent: View {
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
     @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = false
     /// Page of the header carousel (0 ring, 1 week, 2 energy balance).
-    @State private var heroPage: Int? = 0
+    @State private var heroPage: Int? = DemoSupport.heroPage ?? 0
     @State private var weekSelection = Date.now.startOfDay
     @AppStorage(HealthImport.lastSyncKey) private var healthSync = 0.0
     /// Starts from the last computed snapshot, so the cards are filled from the first frame.

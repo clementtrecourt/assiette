@@ -31,6 +31,9 @@ enum DemoSupport {
 
     static var startSheet: String? { value(after: "-startSheet") }
 
+    /// Page of Accueil's header carousel shown at launch (`-heroPage 1|2`).
+    static var heroPage: Int? { value(after: "-heroPage").flatMap(Int.init) }
+
     /// Dashboard detail screen pushed at launch (`-startRoute expenditure|weight|goal|balance`).
     static var startRoute: DashboardRoute? {
         switch value(after: "-startRoute") {
