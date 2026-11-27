@@ -49,6 +49,7 @@ private struct DashboardContent: View {
     @Query(sort: \WeightEntry.date) private var weights: [WeightEntry]
     @Query(sort: \CoachingCheckIn.date) private var checkIns: [CoachingCheckIn]
 
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @AppStorage("dashboard.showRemaining") private var showRemaining = true
     @AppStorage("dashboard.balanceExpenditure") private var balanceAgainstExpenditure = true
     /// Page of the header carousel (0 ring, 1 week, 2 energy balance).
@@ -80,7 +81,7 @@ private struct DashboardContent: View {
     var body: some View {
         let todayEntries = recentEntries.filter { $0.day.startOfDay == today }
         let totals = NutrientValues.sum(todayEntries.map(\.nutrients))
-        let targets = DashboardTargets(profile: profile, day: today)
+        let targets = DashboardTargets(profile: profile, day: today, overrides: overrides)
         let goal = DashboardGoalProgress.compute(profile: profile, checkIns: checkIns,
                                                  weights: weights, snapshot: snapshot)
 
@@ -220,7 +221,7 @@ private struct DashboardContent: View {
             let day = monday.adding(days: offset).startOfDay
             return DashboardWeekDay(date: day,
                                     totals: NutrientValues.sum((byDay[day] ?? []).map(\.nutrients)),
-                                    targets: DashboardTargets(profile: profile, day: day),
+                                    targets: DashboardTargets(profile: profile, day: day, overrides: overrides),
                                     isFuture: day > today)
         }
     }
@@ -475,14 +476,17 @@ private struct DashboardContent: View {
     private var calorieTargetLookup: (Date) -> Double {
         let checkIns = self.checkIns
         let profile = self.profile
+        let overrides = self.overrides
+        let preferences = ProgramPreferences.current
         let lastChange = checkIns.last?.date.startOfDay
         return { day in
             let start = day.startOfDay
             if let lastChange, start < lastChange,
                let inEffect = checkIns.last(where: { $0.date.startOfDay <= start }), inEffect.calorieTarget > 0 {
-                return inEffect.calorieTarget
+                return inEffect.targets(on: day, preferences: preferences, overrides: overrides).calories
             }
-            return profile?.targets(on: day).calories ?? DashboardTargets(profile: nil).calories
+            return profile?.targets(on: day, preferences: preferences, overrides: overrides).calories
+                ?? DashboardTargets(profile: nil, overrides: overrides).calories
         }
     }
 

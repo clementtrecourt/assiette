@@ -5,6 +5,7 @@ import UIKit
 @main
 struct AssietteApp: App {
     @State private var appState = AppState()
+    @AppStorage(WeekdayCalorieTargets.storageKey) private var weekdayTargetData: Data?
 
     /// Unit tests run inside the app: keep their launches on a throwaway in-memory store.
     private static let isRunningTests =
@@ -119,13 +120,16 @@ struct AssietteApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .modifier(NutritionSyncModifier())
                 .modifier(HealthSyncModifier())
                 .environment(appState)
+                .environment(\.weekdayCalorieTargets, WeekdayCalorieTargets(data: weekdayTargetData))
                 .environment(\.locale, Formatters.locale)
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
         }
         .modelContainer(for: AppSchema.models, inMemory: Self.isRunningTests)
+        .backgroundTask(.appRefresh(NutritionSync.refreshTaskID)) { await NutritionSync.backgroundRefresh() }
     }
 }
 

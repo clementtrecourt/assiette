@@ -156,6 +156,42 @@ enum CalorieDistribution: String, Codable, CaseIterable, Identifiable, Sendable 
     var symbol: String { self == .even ? "equal" : "water.waves" }
 }
 
+/// Fixed recurring targets sit on top of either program distribution. Keys are ISO weekdays
+/// (Monday = 1, Sunday = 7), independent of the device's first weekday setting.
+struct WeekdayCalorieTargets: Equatable, Sendable {
+    static let storageKey = "program.weekdayCalorieTargets"
+    static let allowedCalories = 800...10000
+    private(set) var values: [Int: Int] = [:]
+
+    init(data: Data? = nil) {
+        if let data, let decoded = try? JSONDecoder().decode([Int: Int].self, from: data) {
+            values = decoded.filter { (1...7).contains($0.key) && Self.allowedCalories.contains($0.value) }
+        }
+    }
+
+    static var current: Self { Self(data: UserDefaults.standard.data(forKey: storageKey)) }
+
+    /// Set or clear just one day, leaving the program and other weekdays alone.
+    @MainActor @discardableResult
+    static func set(_ kcal: Int?, forISOWeekday day: Int) -> Bool {
+        guard (1...7).contains(day), kcal.map(allowedCalories.contains) ?? true else { return false }
+        var targets = current.values
+        guard targets[day] != kcal else { return true }
+        targets[day] = kcal
+        if targets.isEmpty {
+            UserDefaults.standard.removeObject(forKey: storageKey)
+        } else {
+            guard let data = try? JSONEncoder().encode(targets) else { return false }
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
+        return true
+    }
+
+    func calories(on day: Date) -> Double? {
+        values[CoachingFormat.mondayIndex(of: day) + 1].map(Double.init)
+    }
+}
+
 struct ProgramPreferences: Codable, Equatable, Sendable {
     struct MacroSplit: Codable, Equatable, Sendable {
         var protein: Double
@@ -237,10 +273,12 @@ struct ProgramPreferences: Codable, Equatable, Sendable {
 
     /// Targets of one weekday: protein and fat stay constant, carbs absorb the calorie shift
     /// (fat does on keto).
-    func dayTargets(weekday index: Int, calories: Double, protein: Double, carbs: Double, fat: Double)
+    func dayTargets(weekday index: Int, calories: Double, protein: Double, carbs: Double, fat: Double,
+                    overrides: WeekdayCalorieTargets = .current)
         -> (calories: Double, protein: Double, carbs: Double, fat: Double)
     {
-        let kcal = weekCalories(average: calories)[min(max(index, 0), 6)]
+        let index = min(max(index, 0), 6)
+        let kcal = overrides.values[index + 1].map(Double.init) ?? weekCalories(average: calories)[index]
         let delta = kcal - calories
         guard delta != 0 else { return (calories, protein, carbs, fat) }
         if let split = collaborativeSplit, split.isValid {
@@ -254,12 +292,30 @@ struct ProgramPreferences: Codable, Equatable, Sendable {
     }
 }
 
-extension UserProfile {
-    /// Targets of `day`, with the weekly calorie distribution applied (fiber unchanged).
-    func targets(on day: Date, preferences: ProgramPreferences = .current) -> NutrientValues {
+extension CoachingCheckIn {
+    /// Older records contain base targets, not the distribution that was in effect. Preserve
+    /// their recorded values unless an explicit recurring target applies to the requested day.
+    func targets(on day: Date, preferences: ProgramPreferences = .current,
+                 overrides: WeekdayCalorieTargets = .current) -> NutrientValues {
+        guard overrides.calories(on: day) != nil else {
+            return NutrientValues([.calories: calorieTarget, .protein: proteinTarget,
+                                   .carbohydrates: carbsTarget, .totalFat: fatTarget])
+        }
         let t = preferences.dayTargets(weekday: CoachingFormat.mondayIndex(of: day),
                                        calories: calorieTarget, protein: proteinTarget,
-                                       carbs: carbsTarget, fat: fatTarget)
+                                       carbs: carbsTarget, fat: fatTarget, overrides: overrides)
+        return NutrientValues([.calories: t.calories, .protein: t.protein,
+                               .carbohydrates: t.carbs, .totalFat: t.fat])
+    }
+}
+
+extension UserProfile {
+    /// Targets of `day`, with the weekly calorie distribution applied (fiber unchanged).
+    func targets(on day: Date, preferences: ProgramPreferences = .current,
+                 overrides: WeekdayCalorieTargets = .current) -> NutrientValues {
+        let t = preferences.dayTargets(weekday: CoachingFormat.mondayIndex(of: day),
+                                       calories: calorieTarget, protein: proteinTarget,
+                                       carbs: carbsTarget, fat: fatTarget, overrides: overrides)
         return NutrientValues([
             .calories: t.calories, .protein: t.protein,
             .carbohydrates: t.carbs, .totalFat: t.fat, .dietaryFiber: fiberTarget,

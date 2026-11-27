@@ -11,6 +11,7 @@ struct FoodDetailView: View {
     let onLogged: (() -> Void)?
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @Query private var favoriteMatches: [FavoriteFood]
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
 
@@ -65,7 +66,7 @@ struct FoodDetailView: View {
                 FoodDetailSectionTitle(title: referenceDescription)
                     .padding(.top, 14)
 
-                SearchMacroColumns(values: values, targets: profiles.first?.targets)
+                SearchMacroColumns(values: values, targets: profiles.first?.targets(on: context.day, overrides: overrides))
                     .padding(.vertical, 14)
                     .themedCard()
 

@@ -21,7 +21,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.assiette.ios
         GENERATE_INFOPLIST_FILE: YES
+        # Background refresh for the weekly report (merged with the generated keys).
+        INFOPLIST_FILE: App/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Assiette
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "Envoie le bilan nutrition au serveur que vous avez configuré sur le réseau local."
         INFOPLIST_KEY_NSHealthShareUsageDescription: "Assiette lit vos pesées et vos apports nutritionnels enregistrés dans Santé (par exemple par MacroFactor) pour calculer votre tendance de poids et votre dépense."
         CODE_SIGN_ENTITLEMENTS: App/Assiette.entitlements
         INFOPLIST_KEY_NSCameraUsageDescription: "La caméra sert à scanner le code-barres des produits, à lire les étiquettes nutritionnelles et à photographier un repas pour en estimer les calories."

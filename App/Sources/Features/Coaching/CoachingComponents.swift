@@ -4,6 +4,17 @@ import UIKit
 // Building blocks shared by the Programme tab, the goal / targets / exception editors and the
 // weekly check-in (Features/Coaching). Everything is prefixed `Coaching`.
 
+private struct WeekdayTargetsKey: EnvironmentKey {
+    static let defaultValue = WeekdayCalorieTargets()
+}
+
+extension EnvironmentValues {
+    var weekdayCalorieTargets: WeekdayCalorieTargets {
+        get { self[WeekdayTargetsKey.self] }
+        set { self[WeekdayTargetsKey.self] = newValue }
+    }
+}
+
 /// Coaching settings that do not live in the SwiftData model.
 enum CoachingSettings {
     /// `@AppStorage` key of the collaborative mode (the check-in proposes, the user adjusts with − / +).
@@ -397,12 +408,13 @@ struct CoachingWeekColumns: View {
     var preferences: ProgramPreferences = .current
     /// Taller blocks and day letters under the columns (wizard summary).
     var isLarge = false
+    @Environment(\.weekdayCalorieTargets) private var overrides
 
     private typealias Day = (calories: Double, protein: Double, carbs: Double, fat: Double)
 
     private var days: [Day] {
         (0..<7).map { preferences.dayTargets(weekday: $0, calories: calories, protein: protein,
-                                             carbs: carbs, fat: fat) }
+                                             carbs: carbs, fat: fat, overrides: overrides) }
     }
 
     private static func grams(_ key: NutrientKey, of day: Day) -> Double {

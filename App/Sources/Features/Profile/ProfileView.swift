@@ -382,7 +382,7 @@ private struct ProfileSettingsForm: View {
                         .font(Theme.callout)
                         .monospacedDigit()
                         .foregroundStyle(Theme.textSecondary)
-                    Text("\(profile.goal.label) · \(Formatters.kcal(profile.calorieTarget)) / jour")
+                    Text("\(profile.goal.label) · Base : \(Formatters.kcal(profile.calorieTarget)) / jour")
                         .font(Theme.callout)
                         .monospacedDigit()
                         .foregroundStyle(Theme.textTertiary)
@@ -471,7 +471,7 @@ private struct ProfileSettingsForm: View {
             ProfileNumberField("Fibres", value: plain(\.fiberTarget), unit: "g", maxFractionDigits: 0)
             ProfileNumberField("Eau", value: plain(\.waterTargetMl), unit: "ml", maxFractionDigits: 0)
         } header: {
-            ProfileSectionHeader("Objectifs quotidiens")
+            ProfileSectionHeader("Objectifs de base")
         } footer: {
             ProfileSectionFooter(targetsFooter)
         }
@@ -505,6 +505,11 @@ private struct ProfileSettingsForm: View {
     private var dataSection: some View {
         Section {
             NavigationLink {
+                NutritionSyncSettings()
+            } label: {
+                rowLabel("Synchronisation serveur", systemImage: "arrow.triangle.2.circlepath")
+            }
+            NavigationLink {
                 ProfileExportView()
             } label: {
                 rowLabel("Exporter mes données", systemImage: "square.and.arrow.up")
@@ -528,7 +533,7 @@ private struct ProfileSettingsForm: View {
         } header: {
             ProfileSectionHeader("Données")
         } footer: {
-            ProfileSectionFooter("Vos données sont stockées uniquement sur cet appareil.")
+            ProfileSectionFooter("Vos données restent sur cet appareil, sauf si vous activez la synchronisation vers votre serveur ou partagez un export.")
         }
     }
 

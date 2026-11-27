@@ -15,6 +15,7 @@ struct DayRemainingView: View {
         case row
     }
 
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @Query private var entries: [JournalEntry]
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
 
@@ -73,7 +74,7 @@ struct DayRemainingView: View {
     /// kcal, G, P, L (the grid reads kcal G / P L).
     private func makeCells() -> [Cell] {
         let eaten = NutrientValues.sum(entries.map { $0.nutrients })
-        let targets = profiles.first?.targets(on: day)
+        let targets = profiles.first?.targets(on: day, overrides: overrides)
         return ([NutrientKey.calories] + Theme.macroOrder).map { key in
             let target = targets?.value(key) ?? 0
             let before = target - eaten.value(key)

@@ -34,13 +34,14 @@ struct ProgramView: View {
 /// Sheets presented by the Programme tab.
 private enum ProgramSheet: Identifiable {
     case goal(CoachingGoalEditor.Focus?)
-    case targets
+    case targets, weekdayTargets
     case exception(ExceptionPeriod?)
 
     var id: String {
         switch self {
         case .goal(let focus): return "goal-\(String(describing: focus))"
         case .targets: return "targets"
+        case .weekdayTargets: return "weekdayTargets"
         case .exception(let period): return "exception-\(period?.id.uuidString ?? "new")"
         }
     }
@@ -76,6 +77,7 @@ private struct ProgramContent: View {
     @Query(sort: \CoachingCheckIn.date, order: .reverse) private var checkIns: [CoachingCheckIn]
     @Query(sort: \ExceptionPeriod.start, order: .reverse) private var exceptions: [ExceptionPeriod]
     @Query(sort: \WeightEntry.date) private var weights: [WeightEntry]
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @AppStorage(CoachingSettings.collaborativeKey) private var collaborative = false
 
     @State private var sheet: ProgramSheet?
@@ -190,6 +192,8 @@ private struct ProgramContent: View {
                 }
             case .targets:
                 CoachingTargetsEditor(profile: profile)
+            case .weekdayTargets:
+                WeekdayTargetsEditor(profile: profile)
             case .exception(let period):
                 CoachingExceptionEditor(period: period)
             }
@@ -321,12 +325,12 @@ private struct ProgramContent: View {
     private var countdownCenter: some View {
         VStack(spacing: 3) {
             if mode == .manual {
-                Text(CoachingFormat.kcalNumber(profile.calorieTarget))
+                Text(CoachingFormat.kcalNumber(profile.targets(on: .now, overrides: overrides).calories))
                     .font(Theme.screenTitle(26))
                     .tracking(Theme.screenTitleTracking)
                     .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-                ringDetail("kcal / jour")
+                ringDetail("kcal aujourd’hui")
             } else if isDue {
                 Text("BILAN")
                     .font(Theme.screenTitle(26))
@@ -472,6 +476,12 @@ private struct ProgramContent: View {
                     }
                     .buttonStyle(.borderless)
                 }
+                Button {
+                    sheet = .weekdayTargets
+                } label: {
+                    CoachingChipLabel(title: "Objectifs par jour", systemImage: "calendar")
+                }
+                .buttonStyle(.borderless)
             }
             .padding(.top, 16)
         }

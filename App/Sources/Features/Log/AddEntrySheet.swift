@@ -31,6 +31,7 @@ private enum AddEntryKey: Hashable {
 struct AddEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @Query(sort: \UserProfile.createdAt) private var profiles: [UserProfile]
     @Query private var favoriteMatches: [FavoriteFood]
 
@@ -544,7 +545,7 @@ struct AddEntrySheet: View {
     private func share(of key: NutrientKey) -> Double {
         var target: Double?
         if let profile = profiles.first {
-            let targets = profile.targets(on: entry?.day ?? day)
+            let targets = profile.targets(on: entryDay, overrides: overrides)
             switch key {
             case .calories, .carbohydrates, .protein, .totalFat: target = targets.value(key)
             default: target = nil

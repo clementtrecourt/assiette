@@ -20,6 +20,23 @@ struct ProfileBackup: Codable {
     /// Coaching history: weekly check-ins and program changes (absent before coaching).
     var checkIns: [CheckIn]
 
+    var healthDays: [Health] = []
+    var programPreferences: ProgramPreferences?
+    var weekdayCalorieTargets: [Int: Int]?
+    /// Display preferences (`@AppStorage` toggles), only the ones the user has set.
+    var settings: [String: Bool]?
+
+    static let settingKeys = ["dashboard.showRemaining", "dashboard.balanceExpenditure",
+                              "today.headerShowsConsumed", "today.hideFoodDetails", "today.hideEmptyHours"]
+
+    struct Health: Codable {
+        var day: Date
+        var kcal: Double
+        var protein: Double?
+        var carbs: Double?
+        var fat: Double?
+    }
+
     struct Entry: Codable {
         var id: UUID
         var day: Date
@@ -102,6 +119,8 @@ struct ProfileBackup: Codable {
         var expenditureAnchorDate: Date?
         /// `@AppStorage("coaching.collaborative")`.
         var collaborative: Bool?
+        var displayName: String?
+        var hasCompletedOnboarding: Bool?
     }
 
     struct Exception: Codable {
@@ -202,7 +221,7 @@ struct ProfileBackup: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case version, app, exportedAt, entries, weights, water, customFoods, favorites, profile
-        case exceptions, checkIns
+        case exceptions, checkIns, healthDays, programPreferences, weekdayCalorieTargets, settings
     }
 
     /// Lenient decoding: missing arrays are treated as empty.
@@ -217,6 +236,10 @@ struct ProfileBackup: Codable {
         customFoods = try c.decodeIfPresent([Custom].self, forKey: .customFoods) ?? []
         favorites = try c.decodeIfPresent([Favorite].self, forKey: .favorites) ?? []
         profile = try c.decodeIfPresent(Profile.self, forKey: .profile)
+        healthDays = (try? c.decodeIfPresent([Health].self, forKey: .healthDays)) ?? []
+        programPreferences = try? c.decodeIfPresent(ProgramPreferences.self, forKey: .programPreferences)
+        weekdayCalorieTargets = try? c.decodeIfPresent([Int: Int].self, forKey: .weekdayCalorieTargets)
+        settings = try? c.decodeIfPresent([String: Bool].self, forKey: .settings)
         // Coaching data is optional and must never make an otherwise valid backup unreadable.
         exceptions = (try? c.decodeIfPresent([Exception].self, forKey: .exceptions)) ?? []
         checkIns = (try? c.decodeIfPresent([CheckIn].self, forKey: .checkIns)) ?? []
@@ -224,7 +247,7 @@ struct ProfileBackup: Codable {
 
     var isEmpty: Bool {
         entries.isEmpty && weights.isEmpty && water.isEmpty && customFoods.isEmpty
-            && favorites.isEmpty && profile == nil && exceptions.isEmpty && checkIns.isEmpty
+            && favorites.isEmpty && profile == nil && exceptions.isEmpty && checkIns.isEmpty && healthDays.isEmpty
     }
 
     /// "123 entrées, 12 pesées, …" (French summary of the content).
@@ -237,6 +260,7 @@ struct ProfileBackup: Codable {
         parts.append(ProfileBackup.plural(favorites.count, "favori", "favoris"))
         if !exceptions.isEmpty { parts.append(ProfileBackup.plural(exceptions.count, "exception", "exceptions")) }
         if !checkIns.isEmpty { parts.append(ProfileBackup.plural(checkIns.count, "bilan", "bilans")) }
+        if !healthDays.isEmpty { parts.append("\(healthDays.count) j. Santé") }
         if profile != nil { parts.append("profil") }
         return parts.joined(separator: ", ")
     }
@@ -303,12 +327,17 @@ enum ProfileBackupService {
         let customs = try context.fetch(FetchDescriptor<CustomFood>(sortBy: [SortDescriptor(\CustomFood.createdAt)]))
         let favorites = try context.fetch(FetchDescriptor<FavoriteFood>(sortBy: [SortDescriptor(\FavoriteFood.createdAt)]))
         let profile = try context.fetch(FetchDescriptor<UserProfile>()).first
-        let exceptions = (try? context.fetch(FetchDescriptor<ExceptionPeriod>(
-            sortBy: [SortDescriptor(\ExceptionPeriod.start)]))) ?? []
-        let checkIns = (try? context.fetch(FetchDescriptor<CoachingCheckIn>(
-            sortBy: [SortDescriptor(\CoachingCheckIn.date)]))) ?? []
+        let exceptions = try context.fetch(FetchDescriptor<ExceptionPeriod>(sortBy: [SortDescriptor(\ExceptionPeriod.start)]))
+        let checkIns = try context.fetch(FetchDescriptor<CoachingCheckIn>(sortBy: [SortDescriptor(\CoachingCheckIn.date)]))
+        let health = try context.fetch(FetchDescriptor<HealthDay>(sortBy: [SortDescriptor(\HealthDay.day)]))
 
         var backup = ProfileBackup()
+        backup.healthDays = health.map { .init(day: $0.day, kcal: $0.kcal, protein: $0.protein, carbs: $0.carbs, fat: $0.fat) }
+        backup.programPreferences = ProgramPreferences.current
+        backup.weekdayCalorieTargets = WeekdayCalorieTargets.current.values
+        backup.settings = ProfileBackup.settingKeys.reduce(into: [String: Bool]()) { result, key in
+            if let value = UserDefaults.standard.object(forKey: key) as? Bool { result[key] = value }
+        }
         backup.entries = entries.map { e in
             ProfileBackup.Entry(id: e.id, day: e.day, meal: e.mealRaw, createdAt: e.createdAt, name: e.name,
                                 brand: e.brand, source: e.sourceRaw, ref: e.ref, kind: e.kindRaw,
@@ -341,7 +370,9 @@ enum ProfileBackupService {
                 initialExpenditure: p.initialExpenditure,
                 expenditureAnchorKcal: p.expenditureAnchorKcal,
                 expenditureAnchorDate: p.expenditureAnchorDate,
-                collaborative: UserDefaults.standard.bool(forKey: CoachingSettings.collaborativeKey))
+                collaborative: UserDefaults.standard.bool(forKey: CoachingSettings.collaborativeKey),
+                displayName: UserDefaults.standard.string(forKey: "profile.displayName"),
+                hasCompletedOnboarding: p.hasCompletedOnboarding)
         }
         backup.exceptions = exceptions.map {
             ProfileBackup.Exception(id: $0.id, start: $0.start, end: $0.end, note: $0.note)
@@ -586,6 +617,15 @@ enum ProfileBackupService {
             result.checkIns += 1
         }
 
+        var existingHealthDays = try Set(context.fetch(FetchDescriptor<HealthDay>()).map { $0.day.startOfDay })
+        for dto in backup.healthDays where existingHealthDays.insert(dto.day.startOfDay).inserted {
+            let health = HealthDay(day: dto.day, kcal: dto.kcal)
+            health.protein = dto.protein
+            health.carbs = dto.carbs
+            health.fat = dto.fat
+            context.insert(health)
+        }
+
         // Profile (replace only; merge keeps the current profile)
         let profile = UserProfile.current(in: context)
         if let dto = backup.profile, mode == .replace || !profile.hasCompletedOnboarding {
@@ -612,18 +652,37 @@ enum ProfileBackupService {
                 ?? Calendar.current.component(.weekday, from: .now)
             profile.lastCheckInDate = dto.lastCheckInDate ?? Calendar.current.startOfDay(for: .now)
             profile.initialExpenditure = dto.initialExpenditure
-            if let kcal = dto.expenditureAnchorKcal, let date = dto.expenditureAnchorDate {
+            if mode == .replace {
+                profile.expenditureAnchorKcal = dto.expenditureAnchorKcal
+                profile.expenditureAnchorDate = dto.expenditureAnchorDate
+            } else if let kcal = dto.expenditureAnchorKcal, let date = dto.expenditureAnchorDate {
                 profile.expenditureAnchorKcal = kcal
                 profile.expenditureAnchorDate = date
             }
             if let collaborative = dto.collaborative {
                 UserDefaults.standard.set(collaborative, forKey: CoachingSettings.collaborativeKey)
             }
-            profile.hasCompletedOnboarding = true
+            profile.hasCompletedOnboarding = dto.hasCompletedOnboarding ?? true
             result.profileRestored = true
         }
 
         try context.save()
+        if mode == .replace || result.profileRestored {
+            backup.programPreferences?.save()
+            if let values = backup.weekdayCalorieTargets {
+                for day in 1...7 { _ = WeekdayCalorieTargets.set(values[day], forISOWeekday: day) }
+            } else if mode == .replace {
+                UserDefaults.standard.removeObject(forKey: WeekdayCalorieTargets.storageKey)
+            }
+            if let name = backup.profile?.displayName { UserDefaults.standard.set(name, forKey: "profile.displayName") }
+            for key in ProfileBackup.settingKeys {
+                if let value = backup.settings?[key] {
+                    UserDefaults.standard.set(value, forKey: key)
+                } else if mode == .replace, backup.settings != nil {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            }
+        }
         return result
     }
 
@@ -676,6 +735,8 @@ enum ProfileBackupService {
         profile.hasCompletedOnboarding = false
         try context.save()
         UserDefaults.standard.removeObject(forKey: CoachingSettings.collaborativeKey)
+        UserDefaults.standard.removeObject(forKey: WeekdayCalorieTargets.storageKey)
+        UserDefaults.standard.removeObject(forKey: ProgramPreferences.storageKey)
         HealthImport.disconnect()
 
         let store = UserDefaults.standard
