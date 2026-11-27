@@ -415,7 +415,7 @@ struct CoachingGoalEditor: View {
     }
 }
 
-/// "Modifier" on the program card: adjust today's calorie and G / P / L targets by hand.
+/// Base calorie and G / P / L targets (before weekday distribution or overrides).
 /// The calorie field has the keyboard on appear; macros follow the calories until one is edited.
 struct CoachingTargetsEditor: View {
     enum Field: Hashable { case calories, carbs, protein, fat }
@@ -450,7 +450,7 @@ struct CoachingTargetsEditor: View {
                     CoachingNumberRow("Calories", text: $caloriesText, unit: "kcal", focus: $focus,
                                       field: .calories, titleColor: Theme.calories, onSubmit: save)
                 } footer: {
-                    ProfileSectionFooter("Actuellement \(Formatters.kcal(profile.calorieTarget)) par jour.")
+                    ProfileSectionFooter("Objectif de base : \(Formatters.kcal(profile.calorieTarget)), avant la répartition par jour.")
                 }
                 .listRowBackground(Theme.background)
 

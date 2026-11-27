@@ -14,9 +14,39 @@ construite sur la base de données ouverte [OpenNutrition](https://www.opennutri
 - **Mes aliments & recettes** personnalisés.
 - **Objectifs** calculés (Mifflin-St Jeor + niveau d'activité + objectif de poids) ou manuels.
 - **Progrès** : poids (moyenne mobile), calories et macros sur 7 / 30 / 90 jours.
+- **Objectifs par jour** : un objectif kcal fixe par jour de la semaine (ex. 1 500 le lundi, 2 000 le mardi),
+  par-dessus le programme (Programme › Objectifs par jour).
 - **Export** CSV du journal, sauvegarde / restauration JSON.
+- **Synchronisation serveur** (optionnelle) : bilan 28 jours et, si activée, archive complète vers ton serveur.
 
-Toutes les données personnelles restent sur l'appareil (SwiftData).
+Les données personnelles restent sur l'appareil (SwiftData), sauf si tu actives la synchronisation serveur.
+
+## Synchronisation serveur
+
+`tools/nutrition-sync/receiver.py` (HTTPS, clés d'écriture et de lecture distinctes) reçoit :
+
+- `PUT /api/nutrition/snapshot` : bilan des 28 derniers jours, lu par `weekly_summary.py` (seule route en lecture) ;
+- `PUT /api/nutrition/archive` : sauvegarde complète (même format que l'export JSON), jamais servie en HTTP.
+
+Sur le serveur, un agent (Claude, Codex) lit et écrit **toutes** les données en local avec `archive.py`
+(pas de clé réseau ; rien ne peut écrire depuis le réseau) :
+
+```sh
+archive.py export > a.json          # tout : journal, pesées, Santé, eau, recettes, favoris, profil, objectifs,
+                                    # programme, objectifs par jour, réglages ; la révision s'affiche sur stderr
+archive.py replace a.json --revision N   # l'iPhone remplace toutes ses données par a.json (modifié)
+archive.py set 1 1500               # raccourci : lundi = 1 500 kcal (1 lundi … 7 dimanche, 800 à 10 000)
+archive.py clear 7                  # dimanche : revient au programme
+archive.py pending | log            # en attente / résultats (applied, conflict, invalid)
+archive.py history                  # versions gardées (une par jour, et avant chaque remplacement)
+archive.py export --history ID      # récupérer une ancienne version (puis `replace` pour revenir en arrière)
+archive.py cancel                   # annuler ce que l'iPhone n'a pas encore reçu
+```
+
+Les commandes partent dans la réponse au prochain envoi de l'iPhone, qui les applique puis les confirme.
+Un `replace` n'est appliqué que si l'iPhone n'a rien changé depuis la révision `N` ; sinon il finit en
+`conflict`, rien n'est touché, et il suffit de réexporter et de refaire la modification. Les dates doivent
+garder le format `2026-11-27T08:30:00Z`.
 
 ## Installer
 

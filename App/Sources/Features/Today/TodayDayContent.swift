@@ -11,9 +11,9 @@ struct TodayTargets {
     var water: Double = 2000
 
     /// Targets of `day` (weekly calorie distribution applied).
-    init(profile: UserProfile?, day: Date = .now) {
+    init(profile: UserProfile?, day: Date = .now, overrides: WeekdayCalorieTargets = .current) {
         guard let profile else { return }
-        let t = profile.targets(on: day)
+        let t = profile.targets(on: day, overrides: overrides)
         calories = t.calories
         protein = t.protein
         carbs = t.carbs
@@ -123,6 +123,7 @@ struct TodayDayContent: View {
 
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.weekdayCalorieTargets) private var overrides
     @Environment(\.scenePhase) private var scenePhase
 
     @Query private var entries: [JournalEntry]
@@ -163,7 +164,7 @@ struct TodayDayContent: View {
         _profiles = Query(sort: \UserProfile.createdAt)
     }
 
-    private var targets: TodayTargets { TodayTargets(profile: profiles.first, day: day) }
+    private var targets: TodayTargets { TodayTargets(profile: profiles.first, day: day, overrides: overrides) }
 
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
